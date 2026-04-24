@@ -203,8 +203,6 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
     );
   };
 
-    }
-  };
 
   const colSpanClass = widget.config?.colSpan === 3 
     ? 'lg:col-span-3 md:col-span-2' 
