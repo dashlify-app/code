@@ -31,18 +31,32 @@ export default function DataCopilot({
   files: any[];
   onProceed: (selectedWidgets: GeneratedWidget[]) => void;
 }) {
-  const initialAnalysis = files[0]?.analysis?.description || 'He analizado tus datos.';
+  const analysis = files[0]?.analysis;
+  const initialText = analysis?.narrative || analysis?.description || 'He analizado tus datos.';
+  const followUp = analysis?.followUpQuestion || '¿Qué enfoque te gustaría darle al dashboard? Puedes pedirme un gráfico específico, por ejemplo: "Hazme un pie con las familias de productos".';
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       role: 'ai',
-      content: `${initialAnalysis}\n\n¿Qué enfoque te gustaría darle al dashboard? Puedes pedirme un gráfico específico, por ejemplo: "Hazme un pie con las familias de productos".`
+      content: `${initialText}\n\n${followUp}`
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [widgets, setWidgets] = useState<GeneratedWidget[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Cargar widgets propuestos automáticamente al inicio
+  useEffect(() => {
+    if (analysis?.proposedWidgets && Array.isArray(analysis.proposedWidgets) && widgets.length === 0) {
+      const formatted = analysis.proposedWidgets.map((w: any) => ({
+        ...w,
+        description: w.description || `Análisis de ${w.config?.yAxis || 'datos'} por ${w.config?.xAxis || 'categoría'}.`
+      }));
+      setWidgets(formatted);
+    }
+  }, [analysis, widgets.length]);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {

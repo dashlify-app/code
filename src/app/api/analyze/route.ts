@@ -17,19 +17,40 @@ export async function POST(req: Request) {
     }
 
     const prompt = `
-      Actúa como un Consultor Senior de Business Intelligence (BI) y Arquitecto de Datos. He cargado un archivo llamado "${fileName}".
-      Aquí tienes los encabezados de las columnas: ${headers.join(', ')}.
-      Y una muestra de las primeras 5 filas (el archivo completo tiene hasta 5000 filas): ${JSON.stringify(sampleData)}.
+      Eres un Estratega de Datos y Diseñador de Dashboards de Clase Mundial.
+      Archivo: "${fileName}"
+      Columnas: ${headers.join(', ')}
+      Muestra: ${JSON.stringify(sampleData)}
 
-      Tu objetivo es auditar este dataset buscando valor estratégico (Márgenes, Rentabilidad, Alertas de Stock, Análisis Comercial, Proveedores).
-      Por favor, devuelve estrictamente un JSON con:
-      1. "description": Una descripción breve y gerencial de qué trata el dataset y su potencial de negocio.
-      2. "columns": Una lista de objetos representando las columnas clave, cada uno con:
-         - name: nombre original
-         - type: tipo detectado (number, date, string, boolean, category)
-         - confidence: nivel de confianza del 0 al 1
-         - recommendation: para qué se puede usar esta columna (ej: "Métrica Financiera (Rentabilidad)", "Dimensión Operativa (Stock)", "Dimensión Comercial")
-      3. "dashboardSuggestions": Sugerencias de al menos 3 *Tipos de Dashboards* completos que se podrían generar (ej: "Dashboard Financiero", "Dashboard de Inventario").
+      INSTRUCCIONES:
+      1. Realiza una "Auditoría Estratégica": Identifica el valor de negocio de este archivo.
+      2. Crea una PROPUESTA DE DASHBOARD PROFESIONAL que compita con los mejores analíticos del mercado.
+      3. Sugiere exactamente 6 gráficas (widgets) de alto impacto.
+
+      DEVUELVE UN JSON CON ESTA ESTRUCTURA:
+      {
+        "narrative": "Un resumen ejecutivo potente (2-3 frases) sobre el potencial de estos datos.",
+        "analysis": {
+          "domain": "Ventas/Finanzas/Logística/etc.",
+          "main_kpis": ["KPI 1", "KPI 2"]
+        },
+        "proposedWidgets": [
+          {
+            "title": "Título de la Gráfica (ej: Distribución de Ingresos por Región)",
+            "type": "bar | line | pie | kpi",
+            "config": {
+              "xAxis": "columna_x",
+              "yAxis": "columna_y",
+              "aggregate": "sum | count | avg"
+            },
+            "styling": {
+              "colorScheme": "modern | sunset | ocean | forest",
+              "priority": 1
+            }
+          }
+        ],
+        "followUpQuestion": "¿Te gustaría que profundizara en algún aspecto específico, como [Sugerencia 1] o [Sugerencia 2]?"
+      }
     `;
 
     const response = await openai.chat.completions.create({
