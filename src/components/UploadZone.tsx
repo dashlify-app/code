@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import CorrelationUI from './CorrelationUI';
 import WidgetCatalog from './WidgetCatalog';
 import DashboardCanvas from './DashboardCanvas';
+import DataCopilot from './DataCopilot';
 
 interface DatasetPreview {
   id?: string;
@@ -28,6 +29,7 @@ export default function UploadZone() {
   const [showCorrelation, setShowCorrelation] = useState(false);
   const [suggestions, setSuggestions] = useState<any>(null);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [showCopilot, setShowCopilot] = useState(false);
   const [selectedWidgets, setSelectedWidgets] = useState<any[]>([]);
   const [showCanvas, setShowCanvas] = useState(false);
 
@@ -183,6 +185,7 @@ export default function UploadZone() {
         })
       );
       setFiles(results);
+      setShowCopilot(true);
     } catch (err) {
       console.error('Error al analizar:', err);
       const msg = err instanceof Error ? err.message : 'Error al analizar con IA';
@@ -253,6 +256,17 @@ export default function UploadZone() {
       onSave={(final) => {
         console.log('Dashboard final guardado:', final);
       }}
+    />;
+  }
+
+  if (showCopilot) {
+    return <DataCopilot 
+      files={files} 
+      onProceed={(widgets) => {
+        setSelectedWidgets(widgets);
+        setShowCanvas(true);
+        setShowCopilot(false);
+      }} 
     />;
   }
 

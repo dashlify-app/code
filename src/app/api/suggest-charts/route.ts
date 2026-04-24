@@ -17,18 +17,24 @@ export async function POST(req: Request) {
     }
 
     const prompt = `
-      Actúa como un experto en BI (Business Intelligence).
+      Actúa como un Director de Business Intelligence (BI).
       He cruzado varios datasets mediante estas relaciones: ${JSON.stringify(approvedRelationships)}.
-      Aquí tienes un resumen de las columnas disponibles: ${JSON.stringify(combinedSchema)}.
+      Aquí tienes un resumen de las columnas disponibles en el dataset: ${JSON.stringify(combinedSchema)}.
 
-      Basado en estos datos cruzados, genera una lista de los MEJORES gráficos (widgets) para visualizar.
-      
-      Devuelve un JSON con:
+      Basado en estos datos, quiero que generes una lista avanzada de gráficos (widgets) e indicadores clave de rendimiento (KPIs). 
+      NO sugieras gráficos básicos irrelevantes. Piensa en reglas de negocio reales:
+      - Margen por categoría (Costo vs Precio).
+      - Productos con bajo stock vs alta demanda.
+      - Proveedores más rentables.
+      - Alertas automáticas (ej: "Si stock < mínimo").
+
+      Devuelve estrictamente un JSON con:
       1. Una lista de "suggestedWidgets", cada uno con:
-         - title: Título del gráfico
+         - title: Título del gráfico o KPI (Ej: "Alerta: Stock Crítico por Familia").
          - type: "bar", "line", "pie", "area", "stat"
-         - description: Por qué este gráfico es útil.
-         - config: Un objeto ficticio con las dimensiones y métricas (ej: { x: "Mes", y: "Suma de Ventas" }).
+         - category: La categoría del dashboard al que pertenece (Ej: "💰 Financiero", "📦 Inventario", "🧠 Comercial"). ¡ESTE CAMPO ES OBLIGATORIO Y DEBE TENER UN EMOJI!
+         - description: El insight de negocio o regla que resuelve este gráfico.
+         - config: Un objeto ficticio con las dimensiones y métricas (ej: { x: "Familia", y: "Margen %" }).
     `;
 
     const response = await openai.chat.completions.create({

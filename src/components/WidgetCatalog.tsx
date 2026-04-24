@@ -8,6 +8,7 @@ interface WidgetSuggestion {
   type: string;
   description: string;
   config: any;
+  category?: string;
 }
 
 interface CustomWidget {
@@ -171,53 +172,67 @@ export default function WidgetCatalog({
 
       {/* ── Tab: IA Suggestions ─────────────────────────────────────────── */}
       {activeTab === 'ai' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {suggestions.map((widget, i) => (
-            <div
-              key={i}
-              onClick={() => toggleAiSelect(i)}
-              className={`border-2 transition-all p-6 rounded-3xl cursor-pointer relative group flex flex-col justify-between h-full ${
-                selectedIndices.includes(i)
-                  ? 'border-indigo-600 bg-indigo-50/50'
-                  : 'border-slate-100 hover:border-slate-200 bg-white'
-              }`}
-            >
-              <div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${
-                  selectedIndices.includes(i) ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'
-                }`}>
-                  {TYPE_ICONS[overriddenTypes[i] || widget.type] ?? <BarChart2 size={20} />}
-                </div>
-                <h4 className="font-bold text-slate-900 mb-2">{widget.title}</h4>
-                <p className="text-xs text-slate-500 leading-relaxed mb-4">{widget.description}</p>
-              </div>
-              <div className="flex items-center justify-between mt-auto">
-                <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo:</span>
-                  <select
-                    value={overriddenTypes[i] || widget.type}
-                    onChange={(e) => setOverriddenTypes(prev => ({ ...prev, [i]: e.target.value }))}
-                    className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 border-none rounded px-1.5 py-0.5 cursor-pointer outline-none hover:bg-indigo-100 transition-colors focus:ring-0 appearance-none text-center"
-                    style={{ textAlignLast: 'center' }}
+        <div className="space-y-10">
+          {Object.entries(
+            suggestions.reduce((acc, widget, i) => {
+              const cat = widget.category || '💡 Sugerencias Generales';
+              if (!acc[cat]) acc[cat] = [];
+              acc[cat].push({ widget, i });
+              return acc;
+            }, {} as Record<string, { widget: WidgetSuggestion; i: number }[]>)
+          ).map(([category, items]) => (
+            <div key={category} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <h4 className="text-lg font-black text-slate-800 border-b-2 border-slate-100 pb-2">{category}</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {items.map(({ widget, i }) => (
+                  <div
+                    key={i}
+                    onClick={() => toggleAiSelect(i)}
+                    className={`border-2 transition-all p-6 rounded-3xl cursor-pointer relative group flex flex-col justify-between h-full ${
+                      selectedIndices.includes(i)
+                        ? 'border-indigo-600 bg-indigo-50/50'
+                        : 'border-slate-100 hover:border-slate-200 bg-white'
+                    }`}
                   >
-                    {CHART_TYPES.map(ct => (
-                      <option key={ct.key} value={ct.key}>{ct.key}</option>
-                    ))}
-                    <option value="donut">donut</option>
-                    <option value="area">area</option>
-                  </select>
-                </div>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                  selectedIndices.includes(i) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 text-transparent'
-                }`}>
-                  <Check size={12} strokeWidth={4} />
-                </div>
+                    <div>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${
+                        selectedIndices.includes(i) ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'
+                      }`}>
+                        {TYPE_ICONS[overriddenTypes[i] || widget.type] ?? <BarChart2 size={20} />}
+                      </div>
+                      <h4 className="font-bold text-slate-900 mb-2">{widget.title}</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed mb-4">{widget.description}</p>
+                    </div>
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo:</span>
+                        <select
+                          value={overriddenTypes[i] || widget.type}
+                          onChange={(e) => setOverriddenTypes(prev => ({ ...prev, [i]: e.target.value }))}
+                          className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 border-none rounded px-1.5 py-0.5 cursor-pointer outline-none hover:bg-indigo-100 transition-colors focus:ring-0 appearance-none text-center"
+                          style={{ textAlignLast: 'center' }}
+                        >
+                          {CHART_TYPES.map(ct => (
+                            <option key={ct.key} value={ct.key}>{ct.key}</option>
+                          ))}
+                          <option value="donut">donut</option>
+                          <option value="area">area</option>
+                        </select>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                        selectedIndices.includes(i) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 text-transparent'
+                      }`}>
+                        <Check size={12} strokeWidth={4} />
+                      </div>
+                    </div>
+                    {selectedIndices.includes(i) && (
+                      <div className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded-lg">
+                        SELECCIONADO
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-              {selectedIndices.includes(i) && (
-                <div className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded-lg">
-                  SELECCIONADO
-                </div>
-              )}
             </div>
           ))}
         </div>

@@ -43,8 +43,9 @@ const FALLBACK_DATA = [
 ];
 
 /** Encuentra la columna real haciendo fuzzy match */
-function findRealKey(obj: Record<string, any>, suggestedKey: string): string {
-  if (!suggestedKey) return '';
+function findRealKey(obj: Record<string, any>, suggestedKeyRaw: any): string {
+  if (!suggestedKeyRaw) return '';
+  const suggestedKey = String(suggestedKeyRaw);
   const keys = Object.keys(obj);
   if (keys.includes(suggestedKey)) return suggestedKey;
   const lowerS = suggestedKey.toLowerCase();

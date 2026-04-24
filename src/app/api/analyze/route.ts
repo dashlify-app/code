@@ -17,18 +17,19 @@ export async function POST(req: Request) {
     }
 
     const prompt = `
-      Actúa como un experto analista de datos. He cargado un archivo llamado "${fileName}".
+      Actúa como un Consultor Senior de Business Intelligence (BI) y Arquitecto de Datos. He cargado un archivo llamado "${fileName}".
       Aquí tienes los encabezados de las columnas: ${headers.join(', ')}.
       Y una muestra de las primeras 5 filas (el archivo completo tiene hasta 5000 filas): ${JSON.stringify(sampleData)}.
 
-      Por favor, analiza el esquema basándote en esta pequeña muestra y devuelve un JSON con:
-      1. Una descripción breve de qué trata el dataset.
-      2. Una lista de objetos representando las columnas, cada uno con:
+      Tu objetivo es auditar este dataset buscando valor estratégico (Márgenes, Rentabilidad, Alertas de Stock, Análisis Comercial, Proveedores).
+      Por favor, devuelve estrictamente un JSON con:
+      1. "description": Una descripción breve y gerencial de qué trata el dataset y su potencial de negocio.
+      2. "columns": Una lista de objetos representando las columnas clave, cada uno con:
          - name: nombre original
          - type: tipo detectado (number, date, string, boolean, category)
          - confidence: nivel de confianza del 0 al 1
-         - recommendation: para qué se puede usar esta columna (ej: "KPI de ventas", "Dimensión temporal")
-      3. Sugerencias de al menos 3 tipos de visualizaciones o KPIs que se podrían generar.
+         - recommendation: para qué se puede usar esta columna (ej: "Métrica Financiera (Rentabilidad)", "Dimensión Operativa (Stock)", "Dimensión Comercial")
+      3. "dashboardSuggestions": Sugerencias de al menos 3 *Tipos de Dashboards* completos que se podrían generar (ej: "Dashboard Financiero", "Dashboard de Inventario").
     `;
 
     const response = await openai.chat.completions.create({
