@@ -58,9 +58,11 @@ export async function POST(req: Request) {
     }
 
     // Create Dashboard
+    const dashboardId = crypto.randomUUID();
     const { data: dashboard, error: dashError } = await supabaseAdmin
       .from('Dashboard')
       .insert({
+        id: dashboardId,
         title,
         templateId,
         userId: userId,
@@ -75,6 +77,7 @@ export async function POST(req: Request) {
     // Create Widgets
     if (widgets && widgets.length > 0) {
       const widgetsToInsert = widgets.map((w: any) => ({
+        id: crypto.randomUUID(),
         dashboardId: dashboard.id,
         type: w.type,
         dataSourceConfig: { ...(w.config || {}), title: w.title || w.type },
