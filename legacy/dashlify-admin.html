@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DashboardPro.app</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap');
+
+:root {
+  /* Light Mode (DEFAULT) */
+  --bg:#f8fafc; --surface:#ffffff; --surface2:#f1f5f9; --surface3:#e2e8f0;
+  --border:#e2e8f0; --border2:#cbd5e1;
+  --accent:#0ea5e9; --accent2:#0284c7; --accent3:#10b981; --accent4:#f97316; --accent5:#8b5cf6;
+  --text:#1e293b; --text2:#475569; --text3:#94a3b8;
+  --header-bg: rgba(255,255,255,0.92);
+  --footer-bg: rgba(255,255,255,0.96);
+  --grid-op: 0.05;
+  --glow:rgba(14,165,233,0.08);
+}
+body.dark-theme {
+  /* Dark Mode */
+  --bg:#070b0f; --surface:#0d1219; --surface2:#111820; --surface3:#172030;
+  --border:#1a2a3a; --border2:#223040;
+  --accent:#00d4ff; --accent2:#0099cc; --accent3:#00ff9d; --accent4:#ff6b35; --accent5:#a78bfa;
+  --text:#e8f4fd; --text2:#8bafc7; --text3:#4a6b82;
+  --header-bg: rgba(7,11,15,0.92);
+  --footer-bg: rgba(13,18,25,0.96);
+  --grid-op: 0.025;
+  --glow:rgba(0,212,255,0.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,var(--grid-op)) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,var(--grid-op)) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+
+/* HEADER */
+header{position:fixed;top:0;left:0;right:0;z-index:200;height:58px;background:var(--header-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:19px;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px;}
+.logo span{color:var(--accent);}
+.logo-tag{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--text3);border:1px solid var(--border2);padding:2px 7px;border-radius:3px;}
+.nav-pills{display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;}
+.nav-pill{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;padding:6px 14px;border-radius:5px;cursor:pointer;transition:all 0.2s;color:var(--text3);border:none;background:none;}
+.nav-pill.active{background:var(--surface3);color:var(--accent);border:1px solid var(--border2);}
+.nav-pill:not(.active):hover{color:var(--text2);}
+.header-right{display:flex;align-items:center;gap:10px;}
+.live-badge{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--accent3);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent3);animation:livePulse 2s infinite;}
+@keyframes livePulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,157,0.5);}50%{box-shadow:0 0 0 5px rgba(0,255,157,0);}}
+.btn-sm{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:7px 14px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.2s;}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;padding:8px 18px;border-radius:7px;border:none;background:var(--accent);color:#000;cursor:pointer;transition:all 0.2s;}
+.btn-primary:hover{background:#fff;box-shadow:0 6px 20px rgba(0,212,255,0.3);}
+
+/* APP LAYOUT */
+.app{padding-top:58px;display:grid;grid-template-columns:260px 1fr;min-height:100vh;position:relative;z-index:1;}
+
+/* SIDEBAR */
+.sidebar{border-right:1px solid var(--border);background:var(--surface);padding:22px 14px;height:calc(100vh - 58px);overflow-y:auto;position:sticky;top:58px;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.sb-block{margin-bottom:26px;}
+.sb-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2.5px;color:var(--text3);text-transform:uppercase;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.dataset-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:8px;}
+.dataset-name{font-size:12px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+.dataset-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);display:flex;flex-direction:column;gap:5px;}
+.dm-row{display:flex;justify-content:space-between;}
+.dm-val{color:var(--accent);}
+.viz-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text2);cursor:pointer;transition:all 0.2s;text-align:left;font-family:'Instrument Sans',sans-serif;font-size:13px;margin-bottom:3px;}
+.viz-btn:hover{background:var(--surface2);border-color:var(--border);}
+.viz-btn.active{background:var(--surface3);border-color:var(--accent);color:var(--accent);}
+.vb-icon{font-size:16px;}
+.vb-name{font-weight:500;font-size:12px;}
+.vb-sub{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px;}
+.conn-row{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);margin-bottom:6px;cursor:pointer;transition:all 0.2s;}
+.conn-row:hover{border-color:var(--border2);}
+.conn-info{display:flex;align-items:center;gap:9px;}
+.conn-name{font-size:12px;font-weight:500;}
+.conn-status{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);margin-top:2px;}
+.conn-status.on{color:var(--accent3);}
+.toggle{width:34px;height:18px;border-radius:9px;background:var(--border2);position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0;}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--text3);transition:all 0.2s;}
+.toggle.on{background:var(--accent);}
+.toggle.on::after{left:19px;background:#000;}
+
+/* MAIN CONTENT */
+.content{padding:26px 26px 100px;overflow-y:auto;}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* AI BAR */
+.ai-bar{display:flex;align-items:flex-start;gap:14px;background:linear-gradient(135deg,rgba(0,212,255,0.07),rgba(0,255,157,0.04));border:1px solid rgba(0,212,255,0.18);border-radius:12px;padding:14px 18px;margin-bottom:22px;animation:fadeUp 0.5s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+.ai-chip{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;padding:3px 9px;background:var(--accent);color:#000;border-radius:4px;font-weight:500;white-space:nowrap;flex-shrink:0;margin-top:1px;}
+.ai-text{font-size:13px;color:var(--text2);line-height:1.65;}
+.ai-text strong{color:var(--text);}
+
+/* SECTION HEADER */
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.sec-hd-l h2{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.4px;}
+.sec-hd-l p{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);margin-top:4px;letter-spacing:1px;}
+.sec-hd-r{display:flex;gap:8px;}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:22px;animation:fadeUp 0.5s 0.08s ease both;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:17px 16px 15px;transition:all 0.25s;cursor:default;}
+.kpi-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.35);}
+.kpi-icon{font-size:17px;margin-bottom:9px;}
+.kpi-label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--text3);text-transform:uppercase;margin-bottom:7px;}
+.kpi-value{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;line-height:1;margin-bottom:7px;}
+.kpi-value.blue{color:var(--accent);} .kpi-value.green{color:var(--accent3);} .kpi-value.orange{color:var(--accent4);} .kpi-value.purple{color:var(--accent5);}
+.kpi-delta{font-family:'DM Mono',monospace;font-size:11px;display:flex;align-items:center;gap:4px;}
+.kpi-delta.up{color:var(--accent3);} .kpi-delta.down{color:var(--accent4);}
+.kpi-bar-wrap{margin-top:10px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.kpi-bar{height:100%;border-radius:2px;transition:width 1s ease;}
+
+/* CHARTS GRID */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;animation:fadeUp 0.5s 0.16s ease both;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;transition:all 0.25s;}
+.chart-card:hover{border-color:var(--border2);box-shadow:0 6px 26px rgba(0,0,0,0.3);}
+.chart-card.full{grid-column:1/-1;}
+.chart-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+.chart-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;}
+.chart-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);margin-top:3px;}
+.chart-actions{display:flex;gap:4px;}
+.chart-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-size:11px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;}
+.chart-btn:hover{border-color:var(--accent);color:var(--accent);}
+.chart-wrap{height:205px;position:relative;}
+
+/* TABLE */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;margin-top:16px;animation:fadeUp 0.5s 0.24s ease both;}
+.data-table{width:100%;border-collapse:collapse;font-size:12px;}
+.data-table th{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);padding:8px 12px;border-bottom:1px solid var(--border);text-align:left;}
+.data-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);transition:background 0.15s;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--surface2);}
+.td-num{color:var(--accent);font-family:'DM Mono',monospace;font-weight:500;}
+.td-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 8px;border-radius:4px;text-transform:uppercase;}
+.bg{background:rgba(0,255,157,0.1);color:var(--accent3);border:1px solid rgba(0,255,157,0.22);}
+.bo{background:rgba(255,107,53,0.1);color:var(--accent4);border:1px solid rgba(255,107,53,0.22);}
+.bb{background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.22);}
+.bp{background:rgba(167,139,250,0.1);color:var(--accent5);border:1px solid rgba(167,139,250,0.22);}
+.sparkline{display:flex;align-items:flex-end;gap:2px;height:26px;}
+.spark-bar{flex:1;border-radius:2px 2px 0 0;min-width:3px;}
+
+/* EXPORT BAR */
+.export-bar{position:fixed;bottom:0;left:260px;right:0;z-index:150;background:var(--footer-bg);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:13px 26px;display:flex;align-items:center;justify-content:space-between;}
+.export-info{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:10px;}
+.export-info strong{color:var(--text);}
+.export-actions{display:flex;gap:10px;}
+
+/* MODALS */
+.modal-bg{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.65);backdrop-filter:blur(10px);align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:30px;max-width:430px;width:90%;animation:fadeUp 0.3s ease both;}
+.modal h3{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:6px;}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6;}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;}
+.upload-zone-mini{border:2px dashed var(--border2);border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:all 0.25s;margin-bottom:14px;}
+.upload-zone-mini:hover{border-color:var(--accent);background:rgba(0,212,255,0.03);}
+.file-tags{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:10px;}
+.ftag{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 8px;border-radius:4px;border:1px solid var(--border2);color:var(--text3);text-transform:uppercase;}
+
+/* TOAST */
+.toast{position:fixed;bottom:78px;right:22px;z-index:400;background:var(--surface2);border:1px solid var(--accent);border-radius:10px;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);opacity:0;transform:translateY(8px);transition:all 0.3s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+@media(max-width:900px){.app{grid-template-columns:1fr;}.sidebar{display:none;}.kpi-grid{grid-template-columns:repeat(2,1fr);}.export-bar{left:0;}}
+@media(max-width:580px){.charts-grid{grid-template-columns:1fr;}.kpi-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Dashlify<span>.app</span><span class="logo-tag">DEMO</span></div>
+  <nav class="nav-pills">
+    <button class="nav-pill" onclick="openUpload()">⬆ Cargar datos</button>
+    <button class="nav-pill active">📊 Visualizar</button>
+    <button class="nav-pill" onclick="openConnModal()">⚡ Conectores</button>
+  </nav>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div><span id="live-lbl">LIVE · 8s</span></div>
+    <button class="btn-sm" id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">🌓</button>
+    <button class="btn-sm" onclick="onRefresh()">↻ Actualizar</button>
+    <button class="btn-primary" onclick="exportDash()">⬇ Exportar HTML</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-block">
+      <div class="sb-label">// Dataset activo</div>
+      <div class="dataset-card">
+        <div class="dataset-name"><span>📊</span>ventas_2024.xlsx</div>
+        <div class="dataset-meta">
+          <div class="dm-row"><span>Filas</span><span class="dm-val">1,248</span></div>
+          <div class="dm-row"><span>Columnas</span><span class="dm-val">9</span></div>
+          <div class="dm-row"><span>Tipo IA</span><span class="dm-val">Financiero</span></div>
+          <div class="dm-row"><span>Fuente</span><span class="dm-val">Google Sheets</span></div>
+          <div class="dm-row"><span>Sync</span><span class="dm-val" style="color:var(--accent3)">● hace 8s</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sb-block">
+      <div class="sb-label">// Tipo de vista</div>
+      <button class="viz-btn active" id="vbtn-auto" onclick="switchViz('auto')">
+        <span class="vb-icon">🤖</span><div><div class="vb-name">IA Automático</div><div class="vb-sub">Recomendado</div></div>
+      </button>
+      <button class="viz-btn" id="vbtn-executive" onclick="switchViz('executive')">
+        <span class="vb-icon">📈</span><div><div class="vb-name">Ejecutivo / KPI</div><div class="vb-sub">Métricas clave</div></div>
+      </button>
+      <button class="viz-btn" id="vbtn-trends" onclick="switchViz('trends')">
+        <span class="vb-icon">📉</span><div><div class="vb-name">Tendencias</div><div class="vb-sub">Evolución temporal</div></div>
+      </button>
+      <button class="viz-btn" id="vbtn-distribution" onclick="switchViz('distribution')">
+        <span class="vb-icon">🥧</span><div><div class="vb-name">Distribución</div><div class="vb-sub">Proporciones</div></div>
+      </button>
+      <button class="viz-btn" id="vbtn-comparison" onclick="switchViz('comparison')">
+        <span class="vb-icon">📊</span><div><div class="vb-name">Comparación</div><div class="vb-sub">Categorías</div></div>
+      </button>
+    </div>
+
+    <div class="sb-block">
+      <div class="sb-label">// Conectores</div>
+      <div class="conn-row" onclick="toggleConn(this)">
+        <div class="conn-info"><span>📊</span><div><div class="conn-name">Google Sheets</div><div class="conn-status on">● Activo · 8s</div></div></div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="conn-row" onclick="toggleConn(this)">
+        <div class="conn-info"><span>🌐</span><div><div class="conn-name">REST API</div><div class="conn-status">○ Inactivo</div></div></div>
+        <div class="toggle"></div>
+      </div>
+      <div class="conn-row" onclick="toggleConn(this)">
+        <div class="conn-info"><span>🗄️</span><div><div class="conn-name">MySQL</div><div class="conn-status">○ Inactivo</div></div></div>
+        <div class="toggle"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <div class="ai-bar">
+      <span class="ai-chip">IA</span>
+      <span class="ai-text" id="ai-text">
+        <strong>Análisis completado.</strong> Se detectaron 9 columnas: 5 numéricas, 4 categóricas. Tendencia de crecimiento <strong>+18.4%</strong> en ventas anuales. Región <strong>Latam Norte</strong> lidera con 34% de participación. Canal <strong>E-commerce</strong> muestra el mayor crecimiento relativo (+31% interanual). Recomiendo vista <strong>Ejecutiva</strong> para reportes a dirección.
+      </span>
+    </div>
+
+    <div class="sec-hd">
+      <div class="sec-hd-l">
+        <h2 id="dash-title">Dashboard Automático — ventas_2024.xlsx</h2>
+        <p id="dash-meta">GENERADO POR IA · 1,248 REGISTROS · 9 COLUMNAS · ACTUALIZADO HACE 8s</p>
+      </div>
+      <div class="sec-hd-r">
+        <button class="btn-sm" onclick="toast('📅 Filtro de fecha próximamente')">📅 Rango</button>
+        <button class="btn-sm" onclick="toast('🔍 Filtros avanzados próximamente')">⚙ Filtros</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="charts-grid" id="charts-grid"></div>
+
+    <div class="table-card">
+      <div class="chart-hd">
+        <div><div class="chart-title">Detalle por transacción — últimos 10 registros</div><div class="chart-sub">DATOS EN VIVO · EXPORT CSV DISPONIBLE</div></div>
+        <button class="chart-btn" onclick="toast('📋 CSV exportado')">📋</button>
+      </div>
+      <table class="data-table" id="data-table"></table>
+    </div>
+
+  </main>
+</div>
+
+<!-- EXPORT BAR -->
+<div class="export-bar">
+  <div class="export-info">
+    <span>📄</span>
+    <div><strong>dashboard-ventas_2024.html</strong><span style="color:var(--text3);font-size:12px;margin-left:8px;">listo para alojar localmente · conectores incluidos</span></div>
+  </div>
+  <div class="export-actions">
+    <button class="btn-sm" onclick="openConnModal()">⚡ Conectores</button>
+    <button class="btn-primary" onclick="exportDash()">⬇ Descargar HTML</button>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-bg" id="modal-upload">
+  <div class="modal">
+    <h3>Cargar nuevo archivo</h3>
+    <p>La IA interpreta tu archivo y genera un dashboard en segundos.</p>
+    <div class="upload-zone-mini" onclick="toast('📁 Selección de archivo — próximamente')">
+      <div style="font-size:30px;margin-bottom:10px;">📂</div>
+      <p style="margin-bottom:0">Arrastra aquí o haz clic para explorar</p>
+      <div class="file-tags">
+        <span class="ftag">CSV</span><span class="ftag">Excel</span><span class="ftag">JSON</span><span class="ftag">PDF</span><span class="ftag">Google Sheets</span>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn-sm" onclick="closeModal('modal-upload')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- CONNECTORS MODAL -->
+<div class="modal-bg" id="modal-conn">
+  <div class="modal">
+    <h3>Conectores en tiempo real</h3>
+    <p>Activa las fuentes que se sincronizarán automáticamente en tu dashboard descargable.</p>
+    <div id="conn-list"></div>
+    <div class="modal-foot">
+      <button class="btn-sm" onclick="closeModal('modal-conn')">Cancelar</button>
+      <button class="btn-primary" onclick="saveConn()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast-el"></div>
+
+<script>
+// ── DATA ──
+const MONTHS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const REGIONS=['Latam Norte','Latam Sur','España','USA Hispanic','México'];
+const CHANNELS=['E-commerce','Distribución','Retail','Directo'];
+const SALES=[312000,287000,341000,398000,421000,445000,389000,467000,512000,478000,534000,589000];
+const COSTS=[180000,167000,195000,221000,238000,246000,215000,258000,280000,261000,294000,322000];
+const CLIENTS=[820,754,891,1020,1087,1143,997,1201,1315,1228,1372,1518];
+const MARGIN=SALES.map((s,i)=>Math.round((s-COSTS[i])/s*100));
+const REGION_DATA=[34,22,18,15,11];
+const CHANNEL_DATA=[42,28,19,11];
+const PALETTE=['#00d4ff','#00ff9d','#ff6b35','#a78bfa','#f59e0b'];
+
+const TABLE_DATA=[
+  {id:'TRX-10248',cliente:'Acme Corp',region:'Latam Norte',monto:84200,margen:41,canal:'E-commerce',estado:'Completado'},
+  {id:'TRX-10249',cliente:'GlobalTech',region:'España',monto:52700,margen:36,canal:'Distribución',estado:'En proceso'},
+  {id:'TRX-10250',cliente:'Nova SAS',region:'Latam Sur',monto:31400,margen:28,canal:'Retail',estado:'Completado'},
+  {id:'TRX-10251',cliente:'Distribuciones MX',region:'México',monto:67800,margen:44,canal:'Directo',estado:'Completado'},
+  {id:'TRX-10252',cliente:'Retail Iberia',region:'España',monto:22100,margen:19,canal:'Retail',estado:'Pendiente'},
+  {id:'TRX-10253',cliente:'FastGrow',region:'Latam Norte',monto:91500,margen:47,canal:'E-commerce',estado:'Completado'},
+  {id:'TRX-10254',cliente:'TechLatam',region:'USA Hispanic',monto:48300,margen:33,canal:'Distribución',estado:'En proceso'},
+  {id:'TRX-10255',cliente:'Commerce360',region:'Latam Norte',monto:73600,margen:39,canal:'E-commerce',estado:'Completado'},
+  {id:'TRX-10256',cliente:'BrandPlus',region:'México',monto:15900,margen:22,canal:'Retail',estado:'Cancelado'},
+  {id:'TRX-10257',cliente:'VentasPro',region:'Latam Sur',monto:59200,margen:38,canal:'Directo',estado:'Completado'},
+];
+
+// ── STATE ──
+let currentViz='auto';
+let charts={};
+let secs=8;
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded',()=>{
+  renderKPIs();
+  renderCharts();
+  renderTable();
+  
+  // Theme initialization
+  if(localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-theme');
+    updateChartsTheme();
+  }
+
+  setInterval(()=>{
+    secs++;
+    document.getElementById('live-lbl').textContent=`LIVE · ${secs}s`;
+    document.getElementById('dash-meta').textContent=
+      document.getElementById('dash-meta').textContent.replace(/ATUALIZADO.*/,'')+`ACTUALIZADO HACE ${secs}s`;
+  },1000);
+});
+
+function onRefresh(){secs=0;toast('🔄 Datos actualizados desde Google Sheets');}
+
+// ── KPIs ──
+const KPIS={
+  auto:[
+    {label:'Ventas Totales',value:'$4.77M',delta:'+18.4%',dir:'up',color:'blue',icon:'💰',pct:78,bar:'#00d4ff'},
+    {label:'Clientes Activos',value:'13,347',delta:'+12.1%',dir:'up',color:'green',icon:'👥',pct:65,bar:'#00ff9d'},
+    {label:'Margen Promedio',value:'31.2%',delta:'+2.8pp',dir:'up',color:'purple',icon:'📊',pct:62,bar:'#a78bfa'},
+    {label:'Costos Operativos',value:'$2.67M',delta:'+5.2%',dir:'down',color:'orange',icon:'⚙️',pct:44,bar:'#ff6b35'},
+  ],
+  executive:[
+    {label:'Revenue YTD',value:'$4.77M',delta:'+18.4%',dir:'up',color:'blue',icon:'📈',pct:78,bar:'#00d4ff'},
+    {label:'EBITDA',value:'$1.47M',delta:'+22.1%',dir:'up',color:'green',icon:'💹',pct:71,bar:'#00ff9d'},
+    {label:'NPS Score',value:'72',delta:'+8 pts',dir:'up',color:'purple',icon:'⭐',pct:72,bar:'#a78bfa'},
+    {label:'Churn Rate',value:'3.2%',delta:'-1.1pp',dir:'up',color:'orange',icon:'🔄',pct:32,bar:'#ff6b35'},
+  ],
+  trends:[
+    {label:'Crecimiento MoM',value:'+9.7%',delta:'vs mes anterior',dir:'up',color:'green',icon:'📈',pct:80,bar:'#00ff9d'},
+    {label:'Mes Pico',value:'Diciembre',delta:'$589K máximo',dir:'up',color:'blue',icon:'🏆',pct:100,bar:'#00d4ff'},
+    {label:'Proyección Q1',value:'$1.9M',delta:'+15% estimado',dir:'up',color:'purple',icon:'🔮',pct:85,bar:'#a78bfa'},
+    {label:'Volatilidad',value:'±12%',delta:'Nivel estable',dir:'up',color:'orange',icon:'📡',pct:55,bar:'#ff6b35'},
+  ],
+  distribution:[
+    {label:'Región Líder',value:'Latam N.',delta:'34% del total',dir:'up',color:'blue',icon:'🌎',pct:34,bar:'#00d4ff'},
+    {label:'Canal Líder',value:'E-comm.',delta:'42% del revenue',dir:'up',color:'green',icon:'🛒',pct:42,bar:'#00ff9d'},
+    {label:'SKUs Activos',value:'284',delta:'+31 este mes',dir:'up',color:'purple',icon:'📦',pct:68,bar:'#a78bfa'},
+    {label:'Ticket Promedio',value:'$52.4K',delta:'+9.3%',dir:'up',color:'orange',icon:'🎫',pct:60,bar:'#ff6b35'},
+  ],
+  comparison:[
+    {label:'Mejor Región',value:'Latam N.',delta:'+41% vs promedio',dir:'up',color:'blue',icon:'🥇',pct:88,bar:'#00d4ff'},
+    {label:'Mayor Margen',value:'España',delta:'81% margen neto',dir:'up',color:'green',icon:'💎',pct:81,bar:'#00ff9d'},
+    {label:'Top Canal',value:'E-comm.',delta:'42% del revenue',dir:'up',color:'purple',icon:'🚀',pct:72,bar:'#a78bfa'},
+    {label:'Gap Regional',value:'3.8x',delta:'Latam N. vs USA',dir:'up',color:'orange',icon:'📐',pct:76,bar:'#ff6b35'},
+  ],
+};
+
+function renderKPIs(){
+  document.getElementById('kpi-grid').innerHTML=(KPIS[currentViz]||KPIS.auto).map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-icon">${k.icon}</div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value ${k.color}">${k.value}</div>
+      <div class="kpi-delta ${k.dir}">${k.dir==='up'?'▲':'▼'} ${k.delta}</div>
+      <div class="kpi-bar-wrap"><div class="kpi-bar" style="width:${k.pct}%;background:${k.bar}"></div></div>
+    </div>`).join('');
+}
+
+// ── CHARTS ──
+function baseOpts(type){
+  const o={
+    responsive:true,maintainAspectRatio:false,
+    animation:{duration:500,easing:'easeInOutQuart'},
+    plugins:{
+      legend:{display:type==='doughnut'||type==='pie'||type==='radar',labels:{color:'#8bafc7',font:{family:'DM Mono',size:10},boxWidth:10,padding:12}},
+      tooltip:{backgroundColor:'#111820',borderColor:'#1a2a3a',borderWidth:1,titleColor:'#00d4ff',bodyColor:'#8bafc7',titleFont:{family:'Syne',size:12,weight:'bold'},bodyFont:{family:'DM Mono',size:11},padding:10}
+    }
+  };
+  if(type!=='doughnut'&&type!=='pie'&&type!=='radar'){
+    o.scales={
+      x:{ticks:{color:'#4a6b82',font:{family:'DM Mono',size:9}},grid:{color:'rgba(26,42,58,0.55)'},border:{color:'rgba(26,42,58,0.6)'}},
+      y:{ticks:{color:'#4a6b82',font:{family:'DM Mono',size:9}},grid:{color:'rgba(26,42,58,0.55)'},border:{color:'rgba(26,42,58,0.6)'}}
+    };
+  }
+  return o;
+}
+
+function card(id,title,sub,full=false){
+  const d=document.createElement('div');
+  d.className='chart-card'+(full?' full':'');
+  d.innerHTML=`<div class="chart-hd"><div><div class="chart-title">${title}</div><div class="chart-sub">${sub}</div></div><div class="chart-actions"><button class="chart-btn">⛶</button><button class="chart-btn">⬇</button></div></div><div class="chart-wrap"><canvas id="${id}"></canvas></div>`;
+  return d;
+}
+
+function ctx(id){return document.getElementById(id).getContext('2d');}
+
+function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};}
+
+function renderCharts(){
+  destroyCharts();
+  const g=document.getElementById('charts-grid');
+  g.innerHTML='';
+  ({auto:buildAuto,executive:buildExecutive,trends:buildTrends,distribution:buildDistribution,comparison:buildComparison}[currentViz]||buildAuto)(g);
+}
+
+function buildAuto(g){
+  // Line: sales vs costs
+  const c1=card('c1','Ventas vs Costos — 2024','EVOLUCIÓN MENSUAL · 12 PERÍODOS');
+  g.appendChild(c1);
+  charts.c1=new Chart(ctx('c1'),{type:'line',data:{labels:MONTHS,datasets:[
+    {label:'Ventas',data:SALES,borderColor:PALETTE[0],backgroundColor:'rgba(0,212,255,0.06)',fill:true,tension:0.4,pointRadius:3,pointHoverRadius:5},
+    {label:'Costos',data:COSTS,borderColor:PALETTE[2],backgroundColor:'rgba(255,107,53,0.05)',fill:true,tension:0.4,pointRadius:3,pointHoverRadius:5},
+  ]},options:{...baseOpts('line'),plugins:{...baseOpts('line').plugins,legend:{display:true,labels:{color:'#8bafc7',font:{family:'DM Mono',size:10},boxWidth:10}}}}});
+
+  // Bar: clients
+  const c2=card('c2','Clientes Activos — 2024','POR MES · CRECIMIENTO ORGÁNICO');
+  g.appendChild(c2);
+  charts.c2=new Chart(ctx('c2'),{type:'bar',data:{labels:MONTHS,datasets:[{label:'Clientes',data:CLIENTS,backgroundColor:MONTHS.map((_,i)=>i===11?'rgba(0,212,255,0.85)':'rgba(0,212,255,0.35)'),borderColor:PALETTE[0],borderWidth:1,borderRadius:4}]},options:baseOpts('bar')});
+
+  // Donut: region
+  const c3=card('c3','Participación por Región','DISTRIBUCIÓN DEL REVENUE · 5 REGIONES');
+  g.appendChild(c3);
+  charts.c3=new Chart(ctx('c3'),{type:'doughnut',data:{labels:REGIONS,datasets:[{data:REGION_DATA,backgroundColor:PALETTE.map(p=>p+'cc'),borderColor:'#0d1219',borderWidth:3,hoverOffset:6}]},options:{...baseOpts('doughnut'),cutout:'62%'}});
+
+  // Line: margin
+  const c4=card('c4','Margen Bruto % — 2024','RENTABILIDAD MENSUAL');
+  g.appendChild(c4);
+  charts.c4=new Chart(ctx('c4'),{type:'line',data:{labels:MONTHS,datasets:[{label:'Margen %',data:MARGIN,borderColor:PALETTE[1],backgroundColor:'rgba(0,255,157,0.06)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:PALETTE[1]}]},options:baseOpts('line')});
+
+  // Full: multi-metric
+  const c5=card('c5','Análisis Multi-Métrica — Vista Consolidada','VENTAS · COSTOS · CLIENTES · MARGEN — NORMALIZADO 0–100',true);
+  g.appendChild(c5);
+  const mxS=Math.max(...SALES),mxC=Math.max(...COSTS),mxCl=Math.max(...CLIENTS);
+  charts.c5=new Chart(ctx('c5'),{type:'line',data:{labels:MONTHS,datasets:[
+    {label:'Ventas (norm)',data:SALES.map(v=>Math.round(v/mxS*100)),borderColor:PALETTE[0],tension:0.4,pointRadius:3,fill:false},
+    {label:'Costos (norm)',data:COSTS.map(v=>Math.round(v/mxC*100)),borderColor:PALETTE[2],tension:0.4,pointRadius:3,fill:false},
+    {label:'Clientes (norm)',data:CLIENTS.map(v=>Math.round(v/mxCl*100)),borderColor:PALETTE[1],tension:0.4,pointRadius:3,fill:false},
+    {label:'Margen %',data:MARGIN,borderColor:PALETTE[3],tension:0.4,pointRadius:3,fill:false,borderDash:[4,3]},
+  ]},options:{...baseOpts('line'),plugins:{...baseOpts('line').plugins,legend:{display:true,labels:{color:'#8bafc7',font:{family:'DM Mono',size:10},boxWidth:10}}}}});
+}
+
+function buildExecutive(g){
+  const qL=['Q1','Q2','Q3','Q4'];
+  const qS=[SALES.slice(0,3),SALES.slice(3,6),SALES.slice(6,9),SALES.slice(9,12)].map(a=>a.reduce((x,y)=>x+y,0));
+
+  const c1=card('c1','Revenue por Trimestre','VENTAS ANUALES · VISTA EJECUTIVA');
+  g.appendChild(c1);
+  charts.c1=new Chart(ctx('c1'),{type:'bar',data:{labels:qL,datasets:[{label:'Revenue',data:qS,backgroundColor:['rgba(0,212,255,0.35)','rgba(0,212,255,0.5)','rgba(0,212,255,0.65)','rgba(0,212,255,0.9)'],borderColor:PALETTE[0],borderWidth:1,borderRadius:6}]},options:baseOpts('bar')});
+
+  const c2=card('c2','Margen por Trimestre','RENTABILIDAD TRIMESTRAL');
+  g.appendChild(c2);
+  charts.c2=new Chart(ctx('c2'),{type:'line',data:{labels:qL,datasets:[{label:'Margen %',data:[28.3,30.1,32.8,33.9],borderColor:PALETTE[1],backgroundColor:'rgba(0,255,157,0.07)',fill:true,tension:0.3,pointRadius:6,pointBackgroundColor:PALETTE[1]}]},options:baseOpts('line')});
+
+  const c3=card('c3','Mix de Canales','DISTRIBUCIÓN DE INGRESOS · CANAL');
+  g.appendChild(c3);
+  charts.c3=new Chart(ctx('c3'),{type:'doughnut',data:{labels:CHANNELS,datasets:[{data:CHANNEL_DATA,backgroundColor:PALETTE.map(p=>p+'cc'),borderColor:'#0d1219',borderWidth:3,hoverOffset:6}]},options:{...baseOpts('doughnut'),cutout:'58%'}});
+
+  const c4=card('c4','Top 5 Regiones — YTD','VENTAS ACUMULADAS · RANKING');
+  g.appendChild(c4);
+  charts.c4=new Chart(ctx('c4'),{type:'bar',data:{labels:REGIONS,datasets:[{label:'Ventas',data:[1621000,1048000,858000,715000,524000],backgroundColor:PALETTE.map(p=>p+'99'),borderColor:PALETTE,borderWidth:1,borderRadius:4,indexAxis:'y'}]},options:{...baseOpts('bar'),indexAxis:'y'}});
+}
+
+function buildTrends(g){
+  const proj=[...SALES.slice(0,10),null,null,null];
+  const fore=[...Array(9).fill(null),SALES[9],545000,603000,660000];
+
+  const c1=card('c1','Evolución de Ventas + Proyección','SERIE TEMPORAL · 12 MESES REALES + 3 PROYECTADOS',true);
+  g.appendChild(c1);
+  charts.c1=new Chart(ctx('c1'),{type:'line',data:{labels:[...MONTHS,'Ene*','Feb*','Mar*'],datasets:[
+    {label:'Real',data:proj,borderColor:PALETTE[0],backgroundColor:'rgba(0,212,255,0.06)',fill:true,tension:0.4,pointRadius:3},
+    {label:'Proyección',data:fore,borderColor:PALETTE[1],borderDash:[5,4],backgroundColor:'rgba(0,255,157,0.04)',fill:true,tension:0.4,pointRadius:3},
+  ]},options:{...baseOpts('line'),plugins:{...baseOpts('line').plugins,legend:{display:true,labels:{color:'#8bafc7',font:{family:'DM Mono',size:10},boxWidth:10}}}}});
+
+  const growth=SALES.map((s,i)=>i===0?0:Math.round((s-SALES[i-1])/SALES[i-1]*1000)/10);
+  const c2=card('c2','Crecimiento MoM %','VARIACIÓN MENSUAL PORCENTUAL');
+  g.appendChild(c2);
+  charts.c2=new Chart(ctx('c2'),{type:'bar',data:{labels:MONTHS,datasets:[{label:'MoM %',data:growth,backgroundColor:growth.map(v=>v>=0?'rgba(0,255,157,0.55)':'rgba(255,107,53,0.55)'),borderColor:growth.map(v=>v>=0?PALETTE[1]:PALETTE[2]),borderWidth:1,borderRadius:3}]},options:baseOpts('bar')});
+
+  let acc=0;
+  const c3=card('c3','Acumulado YTD — Ventas','PROGRESO ACUMULADO ANUAL');
+  g.appendChild(c3);
+  charts.c3=new Chart(ctx('c3'),{type:'line',data:{labels:MONTHS,datasets:[{label:'Acumulado',data:SALES.map(s=>{acc+=s;return acc;}),borderColor:PALETTE[3],backgroundColor:'rgba(167,139,250,0.07)',fill:true,tension:0.4,pointRadius:3}]},options:baseOpts('line')});
+
+  const c4=card('c4','Volatilidad de Margen','DESVIACIÓN MENSUAL');
+  g.appendChild(c4);
+  charts.c4=new Chart(ctx('c4'),{type:'bar',data:{labels:MONTHS,datasets:[{label:'Margen %',data:MARGIN,backgroundColor:'rgba(0,212,255,0.4)',borderColor:PALETTE[0],borderWidth:1,borderRadius:3}]},options:baseOpts('bar')});
+}
+
+function buildDistribution(g){
+  const c1=card('c1','Distribución por Región','PARTICIPACIÓN PORCENTUAL DEL REVENUE');
+  g.appendChild(c1);
+  charts.c1=new Chart(ctx('c1'),{type:'pie',data:{labels:REGIONS,datasets:[{data:REGION_DATA,backgroundColor:PALETTE.map(p=>p+'dd'),borderColor:'#070b0f',borderWidth:3,hoverOffset:8}]},options:baseOpts('pie')});
+
+  const c2=card('c2','Distribución por Canal','MEZCLA DE CANALES DE VENTA');
+  g.appendChild(c2);
+  charts.c2=new Chart(ctx('c2'),{type:'doughnut',data:{labels:CHANNELS,datasets:[{data:CHANNEL_DATA,backgroundColor:PALETTE.map(p=>p+'cc'),borderColor:'#070b0f',borderWidth:3,hoverOffset:6}]},options:{...baseOpts('doughnut'),cutout:'55%'}});
+
+  const rangeLbls=['0–10K','10–20K','20–30K','30–40K','40–50K','50–60K','60–70K','70–80K','80–90K','90K+'];
+  const rangeData=[14,22,38,31,28,42,18,12,7,3];
+  const c3=card('c3','Histograma — Montos por Transacción','DISTRIBUCIÓN DEL TICKET PROMEDIO',true);
+  g.appendChild(c3);
+  charts.c3=new Chart(ctx('c3'),{type:'bar',data:{labels:rangeLbls,datasets:[{label:'Transacciones',data:rangeData,backgroundColor:'rgba(0,255,157,0.5)',borderColor:PALETTE[1],borderWidth:1,borderRadius:4}]},options:baseOpts('bar')});
+}
+
+function buildComparison(g){
+  const c1=card('c1','Ventas por Región — Comparativo Trimestral','5 REGIONES · 4 TRIMESTRES',true);
+  g.appendChild(c1);
+  charts.c1=new Chart(ctx('c1'),{type:'bar',data:{labels:['Q1','Q2','Q3','Q4'],datasets:
+    REGIONS.map((r,i)=>({label:r,data:[80+i*20,90+i*22,95+i*24,100+i*26].map(v=>v*1000+(Math.random()*30000-15000)),backgroundColor:PALETTE[i]+'88',borderColor:PALETTE[i],borderWidth:1,borderRadius:3}))
+  },options:{...baseOpts('bar'),plugins:{...baseOpts('bar').plugins,legend:{display:true,labels:{color:'#8bafc7',font:{family:'DM Mono',size:10},boxWidth:10}}}}});
+
+  const c2=card('c2','Margen Neto por Canal','RENTABILIDAD COMPARADA');
+  g.appendChild(c2);
+  charts.c2=new Chart(ctx('c2'),{type:'bar',data:{labels:CHANNELS,datasets:[{label:'Margen %',data:[38,29,24,42],backgroundColor:PALETTE.map(p=>p+'99'),borderColor:PALETTE,borderWidth:1,borderRadius:4,indexAxis:'y'}]},options:{...baseOpts('bar'),indexAxis:'y'}});
+
+  const c3=card('c3','Radar — Desempeño Regional','VENTAS · MARGEN · CLIENTES · TICKET · CRECIMIENTO');
+  g.appendChild(c3);
+  const rOpts={responsive:true,maintainAspectRatio:false,animation:{duration:500},
+    plugins:{legend:{display:true,labels:{color:'#8bafc7',font:{family:'DM Mono',size:10},boxWidth:10}},tooltip:{backgroundColor:'#111820',borderColor:'#1a2a3a',borderWidth:1,titleColor:'#00d4ff',bodyColor:'#8bafc7',titleFont:{family:'Syne',size:12},bodyFont:{family:'DM Mono',size:11}}},
+    scales:{r:{grid:{color:'rgba(26,42,58,0.8)'},ticks:{color:'#4a6b82',font:{family:'DM Mono',size:9},backdropColor:'transparent'},pointLabels:{color:'#8bafc7',font:{family:'DM Mono',size:10}},angleLines:{color:'rgba(26,42,58,0.8)'}}}
+  };
+  charts.c3=new Chart(ctx('c3'),{type:'radar',data:{
+    labels:['Ventas','Margen','Clientes','Ticket','Crecimiento'],
+    datasets:[
+      {label:'Latam Norte',data:[90,72,85,68,88],borderColor:PALETTE[0],backgroundColor:'rgba(0,212,255,0.1)',pointBackgroundColor:PALETTE[0]},
+      {label:'España',data:[65,81,58,92,55],borderColor:PALETTE[1],backgroundColor:'rgba(0,255,157,0.1)',pointBackgroundColor:PALETTE[1]},
+      {label:'México',data:[72,68,79,61,74],borderColor:PALETTE[3],backgroundColor:'rgba(167,139,250,0.1)',pointBackgroundColor:PALETTE[3]},
+    ]
+  },options:rOpts});
+}
+
+// ── TABLE ──
+const BADGE={'Completado':'bg','En proceso':'bb','Pendiente':'bo','Cancelado':'bo'};
+const SC=PALETTE;
+function renderTable(){
+  document.getElementById('data-table').innerHTML=`
+  <thead><tr><th>ID</th><th>Cliente</th><th>Región</th><th>Monto</th><th>Margen</th><th>Canal</th><th>Tendencia</th><th>Estado</th></tr></thead>
+  <tbody>${TABLE_DATA.map((r,i)=>{
+    const c=SC[i%SC.length];
+    const bars=Array.from({length:6},()=>Math.floor(Math.random()*70+30));
+    const spark=bars.map(h=>`<div class="spark-bar" style="height:${h}%;background:${c}44;border-top:2px solid ${c};"></div>`).join('');
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)">${r.id}</td>
+      <td style="font-weight:600">${r.cliente}</td>
+      <td style="font-size:12px;color:var(--text2)">${r.region}</td>
+      <td class="td-num">$${r.monto.toLocaleString()}</td>
+      <td class="td-num" style="color:${r.margen>35?'var(--accent3)':'var(--text2)'}">${r.margen}%</td>
+      <td style="font-size:12px;color:var(--text2)">${r.canal}</td>
+      <td><div class="sparkline">${spark}</div></td>
+      <td><span class="td-badge ${BADGE[r.estado]||'bb'}">${r.estado}</span></td>
+    </tr>`;
+  }).join('')}</tbody>`;
+}
+
+// ── VIZ SWITCH ──
+const VIZ_META={
+  auto:['Dashboard Automático — ventas_2024.xlsx','GENERADO POR IA · 1,248 REGISTROS · 9 COLUMNAS'],
+  executive:['Dashboard Ejecutivo — ventas_2024.xlsx','VISTA EJECUTIVA · KPIs DE ALTO NIVEL'],
+  trends:['Análisis de Tendencias — ventas_2024.xlsx','SERIE TEMPORAL · PROYECCIÓN INCLUIDA'],
+  distribution:['Vista de Distribución — ventas_2024.xlsx','PROPORCIONES · HISTOGRAMA · MIX CANALES'],
+  comparison:['Comparación Regional — ventas_2024.xlsx','RADAR · TRIMESTRAL · MARGEN POR CANAL'],
+};
+const VIZ_AI={
+  auto:'<strong>Análisis completado.</strong> Se detectaron 9 columnas: 5 numéricas, 4 categóricas. Tendencia de crecimiento <strong>+18.4%</strong> en ventas anuales. Región <strong>Latam Norte</strong> lidera con 34%. Canal <strong>E-commerce</strong> creció +31% interanual.',
+  executive:'<strong>Vista ejecutiva generada.</strong> Revenue YTD <strong>$4.77M</strong>. EBITDA en máximo anual. Q4 superó proyección un <strong>+7.2%</strong>. Canal Directo tiene el mayor margen neto (42%). NPS Score en <strong>72 puntos</strong>.',
+  trends:'<strong>Tendencia positiva confirmada.</strong> Crecimiento promedio mensual de <strong>+9.7%</strong>. Diciembre es el mes pico ($589K). Proyección Q1 2025: <strong>$1.9M</strong> (+15% estimado). Volatilidad en rango controlado ±12%.',
+  distribution:'<strong>Distribución analizada.</strong> Latam Norte concentra el <strong>34%</strong> del revenue. E-commerce es el canal dominante (42%). Ticket promedio más frecuente: <strong>$50K–60K</strong> con 42 transacciones.',
+  comparison:'<strong>Comparación regional lista.</strong> Latam Norte supera el promedio por <strong>+41%</strong>. España tiene el mejor margen neto (81%) pese a menor volumen. Gap máximo entre regiones: <strong>3.8x</strong>.',
+};
+
+function switchViz(viz){
+  currentViz=viz;
+  document.querySelectorAll('.viz-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('vbtn-'+viz)?.classList.add('active');
+  const [title,meta]=VIZ_META[viz];
+  document.getElementById('dash-title').textContent=title;
+  document.getElementById('dash-meta').textContent=meta+` · ACTUALIZADO HACE ${secs}s`;
+  document.getElementById('ai-text').innerHTML=VIZ_AI[viz];
+  renderKPIs();
+  renderCharts();
+}
+
+// ── EXPORT ──
+function exportDash(){
+  const html=`<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — ventas_2024</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"><\/script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:system-ui,sans-serif;background:#070b0f;color:#e8f4fd;padding:28px;}
+h1{font-family:Georgia,serif;font-size:26px;font-weight:900;letter-spacing:-1px;margin-bottom:4px;}
+.sub{color:#8bafc7;font-size:11px;font-family:monospace;margin-bottom:26px;display:block;letter-spacing:1px;}
+.conn-bar{background:#111820;border:1px dashed #1a2a3a;border-radius:8px;padding:10px 18px;margin-bottom:22px;font-size:11px;color:#4a6b82;font-family:monospace;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:22px;}
+.kpi{background:#0d1219;border:1px solid #1a2a3a;border-radius:12px;padding:17px;}
+.kpi-l{font-family:monospace;font-size:9px;letter-spacing:1.5px;color:#4a6b82;text-transform:uppercase;margin-bottom:7px;}
+.kpi-v{font-size:28px;font-weight:900;color:#00d4ff;line-height:1;}
+.kpi-d{font-family:monospace;font-size:11px;color:#00ff9d;margin-top:6px;}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.card{background:#0d1219;border:1px solid #1a2a3a;border-radius:12px;padding:18px;}
+.card h3{font-size:12px;font-weight:700;margin-bottom:13px;letter-spacing:.5px;}
+canvas{height:200px!important;}
+@media(max-width:600px){.charts,.kpi-grid{grid-template-columns:1fr!important;}}
+</style></head><body>
+<div class="conn-bar">🔗 DashboardPro.app — Exportado el ${new Date().toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'})} · Para activar sincronización en tiempo real, configura tus conectores en dashboardpro.app</div>
+<h1>Dashboard — ventas_2024.xlsx</h1>
+<span class="sub">GENERADO AUTOMÁTICAMENTE POR IA · 1,248 REGISTROS · 9 COLUMNAS</span>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-l">Ventas Totales</div><div class="kpi-v">$4.77M</div><div class="kpi-d">▲ +18.4% vs año anterior</div></div>
+  <div class="kpi"><div class="kpi-l">Clientes Activos</div><div class="kpi-v">13,347</div><div class="kpi-d">▲ +12.1% vs año anterior</div></div>
+  <div class="kpi"><div class="kpi-l">Margen Promedio</div><div class="kpi-v">31.2%</div><div class="kpi-d">▲ +2.8pp vs año anterior</div></div>
+  <div class="kpi"><div class="kpi-l">Costos Operativos</div><div class="kpi-v">$2.67M</div><div class="kpi-d" style="color:#ff6b35">▼ +5.2% controlado</div></div>
+</div>
+<div class="charts">
+  <div class="card"><h3>Ventas vs Costos — 2024</h3><canvas id="c1"></canvas></div>
+  <div class="card"><h3>Participación por Región</h3><canvas id="c2"></canvas></div>
+  <div class="card"><h3>Clientes Activos — 2024</h3><canvas id="c3"></canvas></div>
+  <div class="card"><h3>Margen Bruto % — 2024</h3><canvas id="c4"></canvas></div>
+</div>
+<script>
+const M=${JSON.stringify(MONTHS)};
+const S=${JSON.stringify(SALES)};
+const C=${JSON.stringify(COSTS)};
+const Cl=${JSON.stringify(CLIENTS)};
+const R=${JSON.stringify(REGIONS)};
+const RD=${JSON.stringify(REGION_DATA)};
+const Ma=${JSON.stringify(MARGIN)};
+const P=${JSON.stringify(PALETTE)};
+const baseO={responsive:true,plugins:{tooltip:{backgroundColor:'#111820',borderColor:'#1a2a3a',borderWidth:1,titleColor:'#00d4ff',bodyColor:'#8bafc7'},legend:{display:false}},scales:{x:{ticks:{color:'#4a6b82'},grid:{color:'rgba(26,42,58,0.5)'}},y:{ticks:{color:'#4a6b82'},grid:{color:'rgba(26,42,58,0.5)'}}}};
+new Chart(document.getElementById('c1').getContext('2d'),{type:'line',data:{labels:M,datasets:[{label:'Ventas',data:S,borderColor:P[0],backgroundColor:'rgba(0,212,255,0.06)',fill:true,tension:0.4},{label:'Costos',data:C,borderColor:P[2],backgroundColor:'rgba(255,107,53,0.05)',fill:true,tension:0.4}]},options:{...baseO,plugins:{...baseO.plugins,legend:{display:true,labels:{color:'#8bafc7',font:{size:10}}}}}});
+new Chart(document.getElementById('c2').getContext('2d'),{type:'doughnut',data:{labels:R,datasets:[{data:RD,backgroundColor:P.map(p=>p+'cc'),borderColor:'#070b0f',borderWidth:3}]},options:{responsive:true,cutout:'60%',plugins:{legend:{display:true,labels:{color:'#8bafc7',font:{size:10}}},tooltip:{backgroundColor:'#111820',borderColor:'#1a2a3a',borderWidth:1,titleColor:'#00d4ff',bodyColor:'#8bafc7'}}}});
+new Chart(document.getElementById('c3').getContext('2d'),{type:'bar',data:{labels:M,datasets:[{label:'Clientes',data:Cl,backgroundColor:'rgba(0,212,255,0.45)',borderColor:P[0],borderWidth:1,borderRadius:4}]},options:baseO});
+new Chart(document.getElementById('c4').getContext('2d'),{type:'line',data:{labels:M,datasets:[{label:'Margen %',data:Ma,borderColor:P[1],backgroundColor:'rgba(0,255,157,0.06)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:P[1]}]},options:baseO});
+// ── AUTO-REFRESH HOOK ──
+// Descomenta y configura para actualización en tiempo real:
+// const ENDPOINT = 'https://TU-API.com/datos';
+// setInterval(async () => {
+//   const data = await fetch(ENDPOINT).then(r => r.json());
+//   // chart.data.datasets[0].data = data.ventas; chart.update();
+// }, 30000); // cada 30s
+<\/script>
+</body></html>`;
+  const b=new Blob([html],{type:'text/html'});
+  const u=URL.createObjectURL(b);
+  const a=document.createElement('a');
+  a.href=u;a.download='dashboard-ventas_2024.html';a.click();
+  URL.revokeObjectURL(u);
+  toast('✅ Dashboard exportado correctamente');
+}
+
+// ── MODALS ──
+function openUpload(){document.getElementById('modal-upload').classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openConnModal(){
+  document.getElementById('conn-list').innerHTML=[
+    ['📊','Google Sheets','Actualización cada 30s',true],
+    ['🌐','REST API / Webhook','Push en tiempo real',false],
+    ['🗄️','MySQL / PostgreSQL','Consulta directa',false],
+    ['🗃️','Airtable','Sincronización en vivo',false],
+  ].map(([icon,name,status,on])=>`
+    <div class="conn-row" style="margin-bottom:8px">
+      <div class="conn-info">
+        <span style="font-size:18px">${icon}</span>
+        <div><div class="conn-name">${name}</div><div class="conn-status ${on?'on':''}">${on?'●':'○'} ${status}</div></div>
+      </div>
+      <div class="toggle ${on?'on':''}" onclick="this.classList.toggle('on')"></div>
+    </div>`).join('');
+  document.getElementById('modal-conn').classList.add('open');
+}
+function saveConn(){closeModal('modal-conn');toast('⚡ Conectores guardados — sincronización activada');}
+function toggleConn(row){
+  const t=row.querySelector('.toggle'),s=row.querySelector('.conn-status');
+  t.classList.toggle('on');
+  if(t.classList.contains('on')){s.classList.add('on');s.textContent='● Activo · ahora';}
+  else{s.classList.remove('on');s.textContent='○ Inactivo';}
+}
+['modal-upload','modal-conn'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target.id===id)closeModal(id);});
+});
+
+// ── THEME ──
+function toggleTheme(){
+  document.body.classList.toggle('dark-theme');
+  const isDark = document.body.classList.contains('dark-theme');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  updateChartsTheme();
+  toast(isDark ? '🌙 Modo oscuro activado' : '☀️ Modo claro activado');
+}
+
+function updateChartsTheme(){
+  const isDark = document.body.classList.contains('dark-theme');
+  const textColor = isDark ? '#8bafc7' : '#475569';
+  const gridColor = isDark ? 'rgba(26,42,58,0.55)' : 'rgba(226, 232, 240, 0.8)';
+  const tooltipBg = isDark ? '#111820' : '#ffffff';
+  const tooltipBorder = isDark ? '#1a2a3a' : '#e2e8f0';
+
+  Object.values(charts).forEach(chart => {
+    if(chart.options.scales) {
+      if(chart.options.scales.x) {
+        chart.options.scales.x.ticks.color = textColor;
+        chart.options.scales.x.grid.color = gridColor;
+      }
+      if(chart.options.scales.y) {
+        chart.options.scales.y.ticks.color = textColor;
+        chart.options.scales.y.grid.color = gridColor;
+      }
+    }
+    if(chart.options.plugins && chart.options.plugins.legend) {
+      chart.options.plugins.legend.labels.color = textColor;
+    }
+    if(chart.options.plugins && chart.options.plugins.tooltip) {
+      chart.options.plugins.tooltip.backgroundColor = tooltipBg;
+      chart.options.plugins.tooltip.borderColor = tooltipBorder;
+      chart.options.plugins.tooltip.bodyColor = textColor;
+    }
+    chart.update('none');
+  });
+}
+
+// ── TOAST ──
+function toast(msg){
+  const t=document.getElementById('toast-el');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+</script>
+</body>
+</html>

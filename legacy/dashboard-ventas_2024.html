@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — ventas_2024</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#f8fafc; --text:#1e293b; --surface:#ffffff; --border:#e2e8f0; --accent:#0ea5e9; --sub:#64748b; --up:#10b981; --down:#f97316;
+}
+body.dark-theme {
+  --bg:#070b0f; --text:#e8f4fd; --surface:#0d1219; --border:#1a2a3a; --accent:#00d4ff; --sub:#8bafc7; --up:#00ff9d; --down:#ff6b35;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);padding:28px;}
+h1{font-family:Georgia,serif;font-size:26px;font-weight:900;letter-spacing:-1px;margin-bottom:4px;}
+.sub{color:var(--sub);font-size:11px;font-family:monospace;margin-bottom:26px;display:block;letter-spacing:1px;}
+.conn-bar{background:var(--surface);border:1px dashed var(--border);border-radius:8px;padding:10px 18px;margin-bottom:22px;font-size:11px;color:var(--sub);font-family:monospace;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:22px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:17px;}
+.kpi-l{font-family:monospace;font-size:9px;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase;margin-bottom:7px;}
+.kpi-v{font-size:28px;font-weight:900;color:var(--accent);line-height:1;}
+.kpi-d{font-family:monospace;font-size:11px;color:var(--up);margin-top:6px;}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;}
+.card h3{font-size:12px;font-weight:700;margin-bottom:13px;letter-spacing:.5px;}
+canvas{height:200px!important;}
+#theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 14px; z-index: 100; transition: all 0.2s; }
+#theme-toggle:hover { border-color: var(--accent); }
+@media(max-width:600px){.charts,.kpi-grid{grid-template-columns:1fr!important;}}
+</style></head><body>
+<button id="theme-toggle" onclick="toggleTheme()">🌓 Tema</button>
+<div class="conn-bar">🔗 Dashlify.app — Exportado el 21 de abril de 2026 · Para activar sincronización en tiempo real, configura tus conectores en dashlify.app</div>
+<h1>Dashboard — ventas_2024.xlsx</h1>
+<span class="sub">GENERADO AUTOMÁTICAMENTE POR IA · 1,248 REGISTROS · 9 COLUMNAS</span>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-l">Ventas Totales</div><div class="kpi-v">$4.77M</div><div class="kpi-d">▲ +18.4% vs año anterior</div></div>
+  <div class="kpi"><div class="kpi-l">Clientes Activos</div><div class="kpi-v">13,347</div><div class="kpi-d">▲ +12.1% vs año anterior</div></div>
+  <div class="kpi"><div class="kpi-l">Margen Promedio</div><div class="kpi-v">31.2%</div><div class="kpi-d">▲ +2.8pp vs año anterior</div></div>
+  <div class="kpi"><div class="kpi-l">Costos Operativos</div><div class="kpi-v">$2.67M</div><div class="kpi-d" style="color:var(--down)">▼ +5.2% controlado</div></div>
+</div>
+<div class="charts">
+  <div class="card"><h3>Ventas vs Costos — 2024</h3><canvas id="c1"></canvas></div>
+  <div class="card"><h3>Participación por Región</h3><canvas id="c2"></canvas></div>
+  <div class="card"><h3>Clientes Activos — 2024</h3><canvas id="c3"></canvas></div>
+  <div class="card"><h3>Margen Bruto % — 2024</h3><canvas id="c4"></canvas></div>
+</div>
+<script>
+const M=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const S=[312000,287000,341000,398000,421000,445000,389000,467000,512000,478000,534000,589000];
+const C=[180000,167000,195000,221000,238000,246000,215000,258000,280000,261000,294000,322000];
+const Cl=[820,754,891,1020,1087,1143,997,1201,1315,1228,1372,1518];
+const R=["Latam Norte","Latam Sur","España","USA Hispanic","México"];
+const RD=[34,22,18,15,11];
+const Ma=[42,42,43,44,43,45,45,45,45,45,45,45];
+const P=["#0ea5e9","#10b981","#f97316","#8b5cf6","#f59e0b"];
+const baseO={responsive:true,plugins:{tooltip:{backgroundColor:'#ffffff',borderColor:'#e2e8f0',borderWidth:1,titleColor:'#0ea5e9',bodyColor:'#475569'},legend:{display:false}},scales:{x:{ticks:{color:'#475569'},grid:{color:'rgba(226, 232, 240, 0.8)'}},y:{ticks:{color:'#475569'},grid:{color:'rgba(226, 232, 240, 0.8)'}}}};
+
+const charts = {};
+
+function toggleTheme(){
+  document.body.classList.toggle('dark-theme');
+  updateChartsTheme();
+}
+
+function updateChartsTheme(){
+  const isDark = document.body.classList.contains('dark-theme');
+  const textColor = isDark ? '#8bafc7' : '#475569';
+  const gridColor = isDark ? 'rgba(26,42,58,0.5)' : 'rgba(226, 232, 240, 0.8)';
+  const tooltipBg = isDark ? '#111820' : '#ffffff';
+  const tooltipBorder = isDark ? '#1a2a3a' : '#e2e8f0';
+
+  Object.values(charts).forEach(chart => {
+    if(chart.options.scales) {
+      if(chart.options.scales.x) { chart.options.scales.x.ticks.color = textColor; chart.options.scales.x.grid.color = gridColor; }
+      if(chart.options.scales.y) { chart.options.scales.y.ticks.color = textColor; chart.options.scales.y.grid.color = gridColor; }
+    }
+    if(chart.options.plugins && chart.options.plugins.tooltip) {
+      chart.options.plugins.tooltip.backgroundColor = tooltipBg;
+      chart.options.plugins.tooltip.borderColor = tooltipBorder;
+      chart.options.plugins.tooltip.bodyColor = textColor;
+    }
+    chart.update('none');
+  });
+}
+charts.c1 = new Chart(document.getElementById('c1').getContext('2d'),{type:'line',data:{labels:M,datasets:[{label:'Ventas',data:S,borderColor:P[0],backgroundColor:'rgba(0,212,255,0.06)',fill:true,tension:0.4},{label:'Costos',data:C,borderColor:P[2],backgroundColor:'rgba(255,107,53,0.05)',fill:true,tension:0.4}]},options:{...baseO,plugins:{...baseO.plugins,legend:{display:true,labels:{color:'#8bafc7',font:{size:10}}}}}});
+charts.c2 = new Chart(document.getElementById('c2').getContext('2d'),{type:'doughnut',data:{labels:R,datasets:[{data:RD,backgroundColor:P.map(p=>p+'cc'),borderColor:'#070b0f',borderWidth:3}]},options:{responsive:true,cutout:'60%',plugins:{legend:{display:true,labels:{color:'#8bafc7',font:{size:10}}},tooltip:{backgroundColor:'#111820',borderColor:'#1a2a3a',borderWidth:1,titleColor:'#00d4ff',bodyColor:'#8bafc7'}}}});
+charts.c3 = new Chart(document.getElementById('c3').getContext('2d'),{type:'bar',data:{labels:M,datasets:[{label:'Clientes',data:Cl,backgroundColor:'rgba(0,212,255,0.45)',borderColor:P[0],borderWidth:1,borderRadius:4}]},options:baseO});
+charts.c4 = new Chart(document.getElementById('c4').getContext('2d'),{type:'line',data:{labels:M,datasets:[{label:'Margen %',data:Ma,borderColor:P[1],backgroundColor:'rgba(0,255,157,0.06)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:P[1]}]},options:baseO});
+// ── AUTO-REFRESH HOOK ──
+// Descomenta y configura para actualización en tiempo real:
+// const ENDPOINT = 'https://TU-API.com/datos';
+// setInterval(async () => {
+//   const data = await fetch(ENDPOINT).then(r => r.json());
+//   // chart.data.datasets[0].data = data.ventas; chart.update();
+// }, 30000); // cada 30s
+</script>
+</body></html>

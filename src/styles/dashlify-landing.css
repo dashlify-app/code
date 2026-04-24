@@ -1,0 +1,889 @@
+/* legacy/dashlify-landing.html — scoped to #dlf-root (no body cursor:none) */
+
+#dlf-root {
+  --ink: #0a0a0a;
+  --ink2: #1a1a1a;
+  --ink3: #2a2a2a;
+  --paper: #f5f0e8;
+  --paper2: #ede8dc;
+  --paper3: #e0d9cc;
+  --lime: #c8f73a;
+  --lime2: #b3e020;
+  --cyan: #00e5cc;
+  --coral: #ff4d4d;
+  --gold: #f5c842;
+  --white: #ffffff;
+  --text-muted: #6b6560;
+  --nav-bg: rgba(245, 240, 232, 0.92);
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+#dlf-root.dlf-dark {
+  --ink: #f5f0e8;
+  --ink2: #ede8dc;
+  --ink3: #e0d9cc;
+  --paper: #0a0a0a;
+  --paper2: #141414;
+  --paper3: #1a1a1a;
+  --text-muted: #a0a0a0;
+  --nav-bg: rgba(10, 10, 10, 0.92);
+}
+
+#dlf-root .dlf-marquee-wrap {
+  background: var(--ink);
+  color: var(--lime);
+  padding: 10px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--lime);
+}
+#dlf-root .dlf-marquee-inner {
+  display: inline-flex;
+  animation: dlfMarquee 18s linear infinite;
+}
+#dlf-root .dlf-marquee-item {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 0 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+}
+#dlf-root .dlf-marquee-item::after {
+  content: "◆";
+  font-size: 8px;
+}
+@keyframes dlfMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+#dlf-root .dlf-nav-static {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  margin-bottom: 0;
+}
+#dlf-root .dlf-nav {
+  position: fixed;
+  top: 36px;
+  left: 0;
+  right: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 48px;
+  background: var(--nav-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--paper3);
+  transition: all 0.3s;
+}
+#dlf-root .dlf-nav.dlf-scrolled {
+  padding: 12px 48px;
+  box-shadow: 0 2px 30px rgba(0, 0, 0, 0.08);
+}
+#dlf-root .dlf-nav-logo {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: -1px;
+  color: var(--ink);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#dlf-root .dlf-nav-logo-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lime);
+  animation: dlfDotPulse 2s infinite;
+}
+@keyframes dlfDotPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+}
+#dlf-root .dlf-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+#dlf-root .dlf-nav-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  letter-spacing: 0.3px;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+#dlf-root .dlf-nav-link:hover {
+  color: var(--ink);
+}
+#dlf-root .dlf-nav-cta {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 11px 24px;
+  border-radius: 100px;
+  background: var(--ink);
+  color: var(--lime);
+  text-decoration: none;
+  border: none;
+  transition: all 0.2s;
+}
+#dlf-root .dlf-nav-cta:hover {
+  background: var(--lime);
+  color: var(--ink);
+  transform: scale(1.04);
+}
+
+#dlf-root .dlf-hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 140px 48px 80px;
+  position: relative;
+  overflow: hidden;
+}
+#dlf-root .dlf-hero-bg-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+#dlf-root.dlf-dark .dlf-hero-bg-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+}
+#dlf-root .dlf-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ink);
+  color: var(--lime);
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: 100px;
+  margin-bottom: 32px;
+  width: fit-content;
+  position: relative;
+  z-index: 1;
+}
+#dlf-root .dlf-hero-headline {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 900;
+  font-size: clamp(44px, 7vw, 96px);
+  line-height: 0.95;
+  letter-spacing: -3px;
+  position: relative;
+  z-index: 1;
+}
+#dlf-root .dlf-hl-outline {
+  color: transparent;
+  -webkit-text-stroke: 2px var(--ink);
+  display: block;
+}
+#dlf-root .dlf-hl-lime {
+  color: var(--lime);
+  background: var(--ink);
+  display: inline-block;
+  padding: 0 12px;
+  border-radius: 8px;
+  transform: rotate(-1deg);
+  margin-top: 8px;
+}
+#dlf-root .dlf-hero-sub {
+  font-size: 18px;
+  color: var(--text-muted);
+  max-width: 580px;
+  line-height: 1.65;
+  margin-top: 28px;
+  margin-bottom: 44px;
+  position: relative;
+  z-index: 1;
+}
+#dlf-root .dlf-hero-sub strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+#dlf-root .dlf-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+/* HERO VISUAL (right mock) */
+#dlf-root .dlf-hero-visual {
+  position: absolute;
+  right: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52%;
+  max-width: 700px;
+  z-index: 1;
+}
+#dlf-root .dlf-hero-visual-inner {
+  background: var(--ink);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 24px 24px 0 var(--lime), 28px 28px 0 var(--ink);
+  position: relative;
+  overflow: hidden;
+}
+#dlf-root .dlf-hero-visual-bar {
+  height: 32px;
+  background: var(--ink2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+#dlf-root .dlf-hv-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+#dlf-root .dlf-hv-dot:nth-child(1) {
+  background: #ff5f57;
+}
+#dlf-root .dlf-hv-dot:nth-child(2) {
+  background: #ffbd2e;
+}
+#dlf-root .dlf-hv-dot:nth-child(3) {
+  background: #28ca41;
+}
+#dlf-root .dlf-hv-title {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: #4a6b82;
+  letter-spacing: 1.5px;
+  margin-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#dlf-root .dlf-ai-tag {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--lime);
+  color: var(--ink);
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 100px;
+  text-transform: uppercase;
+}
+
+#dlf-root .dlf-hv-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+#dlf-root .dlf-hv-kpi {
+  background: #111820;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #1a2a3a;
+}
+#dlf-root .dlf-hv-kpi-label {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 8px;
+  color: #4a6b82;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+#dlf-root .dlf-hv-kpi-val {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+}
+#dlf-root .dlf-hv-kpi-val.c1 {
+  color: #00d4ff;
+}
+#dlf-root .dlf-hv-kpi-val.c2 {
+  color: #00ff9d;
+}
+#dlf-root .dlf-hv-kpi-val.c3 {
+  color: var(--lime);
+}
+#dlf-root .dlf-hv-kpi-delta {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 9px;
+  color: #00ff9d;
+  margin-top: 4px;
+}
+
+#dlf-root .dlf-hv-chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+#dlf-root .dlf-hv-chart {
+  background: #111820;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #1a2a3a;
+}
+#dlf-root .dlf-hv-chart-title {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 8px;
+  color: #4a6b82;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+#dlf-root .dlf-hv-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 60px;
+}
+#dlf-root .dlf-hv-bar {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+}
+#dlf-root .dlf-btn-hero {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 16px;
+  letter-spacing: -0.3px;
+  padding: 18px 40px;
+  border-radius: 100px;
+  border: none;
+  text-decoration: none;
+  transition: all 0.25s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+#dlf-root .dlf-btn-hero-primary {
+  background: var(--ink);
+  color: var(--lime);
+}
+#dlf-root .dlf-btn-hero-primary:hover {
+  background: var(--lime);
+  color: var(--ink);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+}
+#dlf-root .dlf-btn-hero-secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+}
+#dlf-root .dlf-btn-hero-secondary:hover {
+  background: var(--ink);
+  color: var(--paper);
+  transform: translateY(-3px);
+}
+
+#dlf-root .dlf-section {
+  padding: 100px 48px;
+}
+#dlf-root .dlf-section-eyebrow {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#dlf-root .dlf-section-eyebrow::before {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--lime);
+}
+#dlf-root .dlf-section-title {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 900;
+  font-size: clamp(32px, 4.5vw, 60px);
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 20px;
+}
+#dlf-root .dlf-section-sub {
+  font-size: 17px;
+  color: var(--text-muted);
+  max-width: 540px;
+  line-height: 1.65;
+}
+
+#dlf-root .dlf-problem {
+  background: var(--ink);
+  color: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+#dlf-root .dlf-problem .dlf-section-eyebrow {
+  color: var(--lime);
+}
+#dlf-root .dlf-problem .dlf-section-title {
+  color: var(--white);
+}
+#dlf-root .dlf-problem .dlf-section-sub {
+  color: rgba(255, 255, 255, 0.55);
+}
+#dlf-root .dlf-pain-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin-top: 64px;
+}
+#dlf-root .dlf-pain-card {
+  background: #111111;
+  padding: 40px 32px;
+  border: 1px solid #222;
+  transition: all 0.3s;
+}
+#dlf-root .dlf-pain-card:hover {
+  background: #161616;
+}
+#dlf-root .dlf-pain-num {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--lime);
+  margin-bottom: 16px;
+  letter-spacing: -3px;
+}
+#dlf-root .dlf-pain-title {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  letter-spacing: -0.5px;
+}
+#dlf-root .dlf-pain-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.65;
+}
+
+#dlf-root .dlf-how .dlf-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  margin-top: 64px;
+}
+#dlf-root .dlf-step-card {
+  position: relative;
+  padding: 36px 30px;
+  border: 2px solid var(--paper3);
+  border-radius: 20px;
+  background: var(--white);
+  transition: all 0.3s;
+}
+#dlf-root .dlf-step-card:hover {
+  border-color: var(--ink);
+  transform: translateY(-6px);
+  box-shadow: 8px 8px 0 var(--ink);
+}
+#dlf-root .dlf-step-number {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-size: 80px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--paper2);
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  letter-spacing: -4px;
+}
+#dlf-root .dlf-step-title {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 10px;
+}
+#dlf-root .dlf-step-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+#dlf-root .dlf-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 64px;
+  align-items: start;
+}
+#dlf-root .dlf-price-card {
+  border: 2px solid var(--paper3);
+  border-radius: 24px;
+  padding: 40px 32px;
+  background: var(--white);
+  transition: all 0.3s;
+  position: relative;
+}
+#dlf-root .dlf-price-card.dlf-featured {
+  background: var(--ink);
+  color: var(--white);
+  border-color: var(--ink);
+  transform: translateY(-12px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+#dlf-root .dlf-price-num {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-size: 56px;
+  font-weight: 900;
+  letter-spacing: -3px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+#dlf-root .dlf-price-card.dlf-featured .dlf-price-num {
+  color: var(--lime);
+}
+#dlf-root .dlf-btn-price {
+  width: 100%;
+  padding: 14px;
+  border-radius: 100px;
+  border: none;
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  margin-top: 24px;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+}
+#dlf-root .dlf-btn-price-solid {
+  background: var(--lime);
+  color: var(--ink);
+}
+#dlf-root .dlf-btn-price-outline {
+  background: transparent;
+  border: 2px solid var(--paper3);
+  color: var(--ink);
+}
+#dlf-root .dlf-price-card.dlf-featured .dlf-btn-price-outline {
+  border-color: #444;
+  color: var(--white);
+}
+
+#dlf-root .dlf-cta-final {
+  background: var(--lime);
+  text-align: center;
+  padding: 120px 48px;
+  position: relative;
+  overflow: hidden;
+}
+#dlf-root .dlf-cta-final .dlf-section-eyebrow {
+  justify-content: center;
+  color: rgba(0, 0, 0, 0.5);
+}
+#dlf-root .dlf-cta-final .dlf-section-eyebrow::before {
+  background: var(--ink);
+}
+#dlf-root .dlf-cta-final .dlf-section-title {
+  color: var(--ink);
+}
+#dlf-root .dlf-site-footer {
+  background: var(--ink);
+  color: rgba(255, 255, 255, 0.35);
+  padding: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  border-top: 1px solid #1a1a1a;
+}
+#dlf-root .dlf-footer-logo {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.8px;
+  color: var(--white);
+}
+#dlf-root .dlf-footer-logo span {
+  color: var(--lime);
+}
+#dlf-root .dlf-footer-link {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+#dlf-root .dlf-footer-link:hover {
+  color: var(--lime);
+}
+
+#dlf-root .dlf-demo-float {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 600;
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 900;
+  font-size: 14px;
+  padding: 16px 28px;
+  border-radius: 100px;
+  border: none;
+  background: var(--ink);
+  color: var(--lime);
+  cursor: pointer;
+  transition: all 0.25s;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+#dlf-root .dlf-demo-float:hover {
+  background: var(--lime);
+  color: var(--ink);
+  transform: translateY(-4px) scale(1.05);
+}
+
+#dlf-root .dlf-testimonials {
+  background: var(--ink);
+  color: var(--white);
+}
+#dlf-root .dlf-testimonials .dlf-section-eyebrow {
+  color: var(--lime);
+}
+#dlf-root .dlf-testimonials .dlf-section-title {
+  color: var(--white);
+}
+#dlf-root .dlf-testi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 64px;
+}
+#dlf-root .dlf-testi-card {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 20px;
+  padding: 32px;
+  transition: all 0.3s;
+}
+#dlf-root .dlf-testi-card:hover {
+  border-color: var(--lime);
+  transform: translateY(-4px);
+}
+#dlf-root .dlf-testi-stars {
+  color: var(--lime);
+  font-size: 14px;
+  margin-bottom: 16px;
+  letter-spacing: 2px;
+}
+#dlf-root .dlf-testi-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 20px;
+}
+#dlf-root .dlf-testi-name {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+}
+#dlf-root .dlf-testi-role {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+#dlf-root .dlf-logos-band {
+  padding: 40px 48px;
+  border-top: 1px solid var(--paper3);
+  border-bottom: 1px solid var(--paper3);
+}
+#dlf-root .dlf-logos-label {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 24px;
+}
+#dlf-root .dlf-logos-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+#dlf-root .dlf-logo-item {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--paper3);
+  transition: color 0.2s;
+}
+#dlf-root .dlf-logo-item:hover {
+  color: var(--text-muted);
+}
+
+#dlf-root .dlf-features {
+  background: var(--paper2);
+}
+#dlf-root .dlf-feat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 64px;
+}
+#dlf-root .dlf-feat-card {
+  padding: 40px;
+  border-radius: 20px;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+#dlf-root .dlf-feat-card:hover {
+  transform: translateY(-4px);
+}
+#dlf-root .dlf-feat-dark {
+  background: var(--ink);
+  color: var(--white);
+  border-color: var(--ink3);
+}
+#dlf-root .dlf-feat-lime {
+  background: var(--lime);
+  color: var(--ink);
+  border-color: var(--lime2);
+}
+#dlf-root .dlf-feat-title {
+  font-family: "Cabinet Grotesk", var(--font-bricolage), system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.8px;
+  margin-bottom: 12px;
+}
+
+#dlf-root .dlf-login-panel {
+  max-width: 420px;
+  margin: 0 auto;
+  background: var(--white);
+  border: 2px solid var(--paper3);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 8px 8px 0 var(--ink);
+}
+#dlf-root .dlf-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--paper3);
+  font: inherit;
+  margin-bottom: 14px;
+  background: var(--paper);
+  color: var(--ink);
+}
+#dlf-root .dlf-input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+#dlf-root .dlf-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 6px;
+  display: block;
+}
+
+@media (max-width: 960px) {
+  #dlf-root .dlf-nav {
+    padding: 16px 24px;
+    top: 36px;
+  }
+  #dlf-root .dlf-nav-links {
+    display: none;
+  }
+  #dlf-root .dlf-hero-visual {
+    display: none;
+  }
+  #dlf-root .dlf-hero {
+    padding: 120px 24px 80px;
+  }
+  #dlf-root .dlf-section {
+    padding: 72px 24px;
+  }
+  #dlf-root .dlf-pain-grid,
+  #dlf-root .dlf-how .dlf-steps-grid,
+  #dlf-root .dlf-pricing-grid,
+  #dlf-root .dlf-testi-grid,
+  #dlf-root .dlf-feat-row {
+    grid-template-columns: 1fr;
+  }
+  #dlf-root .dlf-price-card.dlf-featured {
+    transform: none;
+  }
+  #dlf-root .dlf-cta-final {
+    padding: 80px 24px;
+  }
+  #dlf-root .dlf-site-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Fondo del documento: sin esto, body usa :root (p. ej. negro con prefers-color-scheme: dark) y parece “sin CSS” */
+html:has(#dlf-root) {
+  color-scheme: light dark;
+}
+body:has(#dlf-root) {
+  margin: 0;
+  background-color: #f5f0e8 !important;
+  color: #0a0a0a !important;
+  font-family: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+}
+body:has(#dlf-root.dlf-dark) {
+  background-color: #0a0a0a !important;
+  color: #f5f0e8 !important;
+}
