@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap');
 
@@ -26,69 +24,98 @@
   --glow:rgba(0,212,255,0.12);
 }
 
-@layer base {
-  body {
-    @apply antialiased;
-    font-family: 'Instrument Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: linear-gradient(rgba(0,212,255,var(--grid-op)) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,212,255,var(--grid-op)) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none;
-    z-index: 0;
-  }
+body {
+  font-family: 'Instrument Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── COMPONENTES PREMIUM (REUTILIZANDO NOMBRES DEL ESTÁTICO) ── */
-@layer components {
-  .chart-card {
-    @apply bg-white dark:bg-[#0d1219] border border-slate-200 dark:border-[#1a2a3a] rounded-[13px] p-5 transition-all duration-300;
-  }
-  .chart-card:hover {
-    @apply border-slate-300 dark:border-[#223040] shadow-xl;
-    transform: translateY(-2px);
-  }
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(rgba(0,212,255,var(--grid-op)) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,var(--grid-op)) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
 
-  .kpi-card {
-    @apply bg-white dark:bg-[#0d1219] border border-slate-200 dark:border-[#1a2a3a] rounded-[13px] p-4 transition-all duration-300;
-  }
-  
-  .kpi-value {
-    font-family: 'Syne', sans-serif;
-    @apply font-extrabold text-3xl tracking-tighter leading-none;
-  }
+/* ── COMPONENTES PREMIUM (ESTILO NATIVO) ── */
+.chart-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 1.25rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-  .kpi-label {
-    font-family: 'DM Mono', monospace;
-    @apply text-[9px] uppercase tracking-[2px] text-slate-400 mt-1;
-  }
+.chart-card:hover {
+  border-color: var(--border2);
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
 
-  .ai-bar {
-    @apply flex items-start gap-4 p-4 rounded-xl border border-sky-100 dark:border-sky-900/30 bg-sky-50/50 dark:bg-sky-950/20 backdrop-blur-sm;
-  }
+.kpi-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 1rem;
+  transition: all 0.3s ease;
+}
+
+.kpi-value {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.kpi-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text3);
+  margin-top: 0.25rem;
+}
+
+.ai-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  background-color: rgba(14, 165, 233, 0.05);
+  backdrop-filter: blur(8px);
 }
 
 /* ── TABLAS ── */
 .data-table th {
   font-family: 'DM Mono', monospace;
-  @apply text-[9px] uppercase tracking-wider text-slate-400 py-3 px-4 border-b border-slate-100 dark:border-[#1a2a3a] text-left;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
 }
 
 .data-table td {
-  @apply py-3 px-4 border-b border-slate-50 dark:border-[#111820] text-sm text-slate-600 dark:text-slate-400;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--surface2);
+  font-size: 0.875rem;
+  color: var(--text2);
 }
 
 /* ── SCROLLBARS ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { @apply bg-slate-200 dark:bg-slate-800 rounded-full; }
-::-webkit-scrollbar-thumb:hover { @apply bg-slate-300 dark:bg-slate-700; }
+::-webkit-scrollbar-thumb { background-color: var(--border2); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--text3); }
