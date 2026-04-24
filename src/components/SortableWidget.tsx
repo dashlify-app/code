@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Maximize2, RefreshCw, Download } from 'lucide-react';
 import { downloadSvgAsImage } from '@/lib/exportUtils';
+import ChartEngine from './ChartEngine';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, Legend,
@@ -160,106 +161,48 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
       );
     }
 
-    switch (widget.type) {
-      case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="none" vertical={false} stroke={gridColor} />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                {chartData.map((_, i) => (
-                  <Cell key={i} fill={pal[i % pal.length]} fillOpacity={0.8} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'line':
-      case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={pal[0]} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={pal[0]} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="none" vertical={true} stroke={gridColor} />
-              <XAxis dataKey="name" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke={pal[0]} 
-                strokeWidth={3} 
-                fill={`url(#grad-${id})`}
-                dot={{ r: 4, fill: '#fff', stroke: pal[0], strokeWidth: 2 }}
-                activeDot={{ r: 6, strokeWidth: 0, fill: pal[0] }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-
-      case 'pie':
-      case 'donut':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                innerRadius={widget.type === 'donut' ? '60%' : '0%'}
-                outerRadius="80%"
-                dataKey="value"
-                stroke={resolved === 'dark' ? '#0d1219' : '#fff'}
-                strokeWidth={2}
-                paddingAngle={2}
-              >
-                {chartData.map((_, i) => (
-                  <Cell key={i} fill={pal[i % pal.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-
-      case 'stat': {
-        const total = chartData.reduce((acc, d) => acc + d.value, 0);
-        const displayVal = total > 1_000_000 
-          ? `$${(total/1_000_000).toFixed(2)}M` 
-          : total > 1_000 ? `$${(total/1_000).toFixed(1)}K` : total.toString();
-        
-        return (
-          <div className="flex flex-col justify-center items-center h-full">
-            <div className={`kpi-value ${resolved === 'dark' ? 'blue' : ''}`} style={{ fontSize: 44, color: pal[0] }}>
-              {displayVal}
-            </div>
-            <div className="kpi-label" style={{ opacity: 0.6 }}>{widget.config?.y || 'Métrica Total'}</div>
-            <div className="sparkline mt-4">
-              {chartData.slice(-8).map((d, i) => (
-                <div 
-                  key={i} 
-                  className="spark-bar" 
-                  style={{ 
-                    height: `${(d.value / Math.max(...chartData.map(v => v.value)) * 100) || 10}%`,
-                    background: i === 7 ? pal[0] : `${pal[0]}33`,
-                    width: 6
-                  }} 
-                />
-              ))}
-            </div>
+    if (widget.type === 'stat') {
+      const total = chartData.reduce((acc, d) => acc + d.value, 0);
+      const displayVal = total > 1_000_000 
+        ? `$${(total/1_000_000).toFixed(2)}M` 
+        : total > 1_000 ? `$${(total/1_000).toFixed(1)}K` : total.toLocaleString();
+      
+      return (
+        <div className="flex flex-col justify-center items-center h-full">
+          <div className="kpi-value text-sky-500 dark:text-cyan-400" style={{ fontSize: 48 }}>
+            {displayVal}
           </div>
-        );
-      }
-      default:
-        return <div className="flex items-center justify-center h-full opacity-20">Gráfico no soportado</div>;
+          <div className="kpi-label">{widget.config?.y || 'Métrica Total'}</div>
+          <div className="flex items-end gap-1 mt-4 h-8">
+            {chartData.slice(-10).map((d, i) => (
+              <div 
+                key={i} 
+                className="rounded-t-sm" 
+                style={{ 
+                  height: `${(d.value / Math.max(...chartData.map(v => v.value)) * 100) || 10}%`,
+                  background: i === 9 ? 'var(--accent)' : 'var(--accent)33',
+                  width: 5
+                }} 
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Usar el nuevo motor ChartEngine para todo lo demás
+    return (
+      <div className="w-full h-full p-2">
+        <ChartEngine 
+          type={widget.type} 
+          data={chartData} 
+          title={widget.title}
+          theme={theme}
+        />
+      </div>
+    );
+  };
+
     }
   };
 
