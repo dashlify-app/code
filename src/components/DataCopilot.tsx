@@ -50,13 +50,20 @@ export default function DataCopilot({
   // Cargar widgets propuestos automáticamente al inicio
   useEffect(() => {
     if (analysis?.proposedWidgets && Array.isArray(analysis.proposedWidgets) && widgets.length === 0) {
+      // Tomamos el sampleData del primer archivo analizado (el actual)
+      const dataSet = files[0]?.sampleData || [];
+      
       const formatted = analysis.proposedWidgets.map((w: any) => ({
         ...w,
-        description: w.description || `Análisis de ${w.config?.yAxis || 'datos'} por ${w.config?.xAxis || 'categoría'}.`
+        description: w.description || `Análisis de ${w.config?.yAxis || 'datos'} por ${w.config?.xAxis || 'categoría'}.`,
+        config: {
+          ...w.config,
+          sampleData: dataSet // ¡INYECCIÓN CRÍTICA DE DATOS REALES!
+        }
       }));
       setWidgets(formatted);
     }
-  }, [analysis, widgets.length]);
+  }, [analysis, widgets.length, files]);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
