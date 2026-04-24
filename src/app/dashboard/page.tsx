@@ -157,7 +157,7 @@ const badgeClass = (val: string) => {
 };
 
 // ── Gráficas dinámicas ───────────────────────────────────────────────────────
-function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; types: ReturnType<typeof detectColumnTypes>; view: string }) {
+function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; types: ReturnType<typeof detectColumnTypes> & { headers?: string[] }; view: string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (rows.length === 0) return null;

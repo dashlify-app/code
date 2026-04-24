@@ -31,8 +31,8 @@ export async function logAIUsage(data: LogData) {
         completionTokens: data.usage.completion_tokens,
         totalTokens: data.usage.total_tokens,
         estimatedCostUSD,
-        requestPayload: data.requestPayload ? JSON.stringify(data.requestPayload) : null,
-        responsePayload: data.responsePayload ? JSON.stringify(data.responsePayload) : null,
+        requestPayload: data.requestPayload || undefined,
+        responsePayload: data.responsePayload || undefined,
       }
     });
   } catch (error) {
