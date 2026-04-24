@@ -1,20 +1,58 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 type DashboardRow = { id: string; title: string; updatedAt: string };
 
+function SidebarViews({ activePathname, activeRouter }: { activePathname: string, activeRouter: any }) {
+  const searchParams = useSearchParams();
+  const activeView = searchParams.get('view') ?? 'auto';
+
+  return (
+    <div className="sb-block">
+      <div className="sb-label">// Tipo de vista</div>
+      {([
+        { key: 'auto',         icon: '🤖', name: 'IA Automático',   sub: 'Recomendado' },
+        { key: 'executive',    icon: '📈', name: 'Ejecutivo / KPI', sub: 'Métricas clave' },
+        { key: 'trends',       icon: '📉', name: 'Tendencias',      sub: 'Evolución temporal' },
+        { key: 'distribution', icon: '🥧', name: 'Distribución',    sub: 'Proporciones' },
+        { key: 'comparison',   icon: '📊', name: 'Comparación',     sub: 'Categorías' },
+      ] as const).map((v) => (
+        <button
+          key={v.key}
+          type="button"
+          className={`viz-btn ${activeView === v.key && activePathname === '/dashboard' ? 'active' : ''}`}
+          onClick={() => activeRouter.push(`/dashboard?view=${v.key}`)}
+        >
+          <span className="vb-icon">{v.icon}</span>
+          <div>
+            <div className="vb-name">{v.name}</div>
+            <div className="vb-sub">{v.sub}</div>
+          </div>
+        </button>
+      ))}
+      <button
+        type="button"
+        className={`viz-btn ${activePathname?.includes('settings') ? 'active' : ''}`}
+        onClick={() => activeRouter.push('/dashboard/settings')}
+      >
+        <span className="vb-icon">⚙️</span>
+        <div>
+          <div className="vb-name">Consumo SaaS</div>
+          <div className="vb-sub">Plan y límites</div>
+        </div>
+      </button>
+    </div>
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const activeView = searchParams.get('view') ?? 'auto';
   const [dark, setDark] = useState(false);
   const [liveSec, setLiveSec] = useState(8);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -74,10 +112,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const openUpload = () => {
     if (pathname === '/dashboard') {
-      // Ya estamos en el dashboard: hacer scroll directo
       document.getElementById('upload-zone')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      // Navegar al dashboard con param para disparar scroll tras carga
       router.push('/dashboard?action=upload');
     }
   };
@@ -229,40 +265,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
 
-          <div className="sb-block">
-            <div className="sb-label">// Tipo de vista</div>
-            {([
-              { key: 'auto',         icon: '🤖', name: 'IA Automático',   sub: 'Recomendado' },
-              { key: 'executive',    icon: '📈', name: 'Ejecutivo / KPI', sub: 'Métricas clave' },
-              { key: 'trends',       icon: '📉', name: 'Tendencias',      sub: 'Evolución temporal' },
-              { key: 'distribution', icon: '🥧', name: 'Distribución',    sub: 'Proporciones' },
-              { key: 'comparison',   icon: '📊', name: 'Comparación',     sub: 'Categorías' },
-            ] as const).map((v) => (
-              <button
-                key={v.key}
-                type="button"
-                className={`viz-btn ${activeView === v.key && pathname === '/dashboard' ? 'active' : ''}`}
-                onClick={() => router.push(`/dashboard?view=${v.key}`)}
-              >
-                <span className="vb-icon">{v.icon}</span>
-                <div>
-                  <div className="vb-name">{v.name}</div>
-                  <div className="vb-sub">{v.sub}</div>
-                </div>
-              </button>
-            ))}
-            <button
-              type="button"
-              className={`viz-btn ${pathname?.includes('settings') ? 'active' : ''}`}
-              onClick={() => router.push('/dashboard/settings')}
-            >
-              <span className="vb-icon">⚙️</span>
-              <div>
-                <div className="vb-name">Consumo SaaS</div>
-                <div className="vb-sub">Plan y límites</div>
-              </div>
-            </button>
-          </div>
+          <Suspense fallback={<div className="sb-block p-4 text-xs opacity-50">Cargando vistas...</div>}>
+            <SidebarViews activePathname={pathname} activeRouter={router} />
+          </Suspense>
 
           <div className="sb-block">
             <div className="sb-label">// Conectores</div>
