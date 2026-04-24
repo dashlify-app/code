@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import prisma from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 
 function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unknown }) {
@@ -20,12 +20,19 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id } = await ctx.params;
 
-  const dashboard = await prisma.dashboard.findFirst({
-    where: { id, userId },
-    include: { widgets: { orderBy: { createdAt: 'asc' } } },
-  });
+  const { data: dashboard, error } = await supabaseAdmin
+    .from('Dashboard')
+    .select('*, widgets:Widget(*)')
+    .eq('id', id)
+    .eq('userId', userId)
+    .single();
 
-  if (!dashboard) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  if (error || !dashboard) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+
+  // Ordenar widgets manualmente ya que Supabase no soporta order en include directo fácilmente
+  const sortedWidgets = (dashboard.widgets || []).sort((a: any, b: any) => 
+    new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 
   return NextResponse.json({
     dashboard: {
@@ -33,7 +40,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       title: dashboard.title,
       templateId: dashboard.templateId,
       layoutConfig: dashboard.layoutConfig,
-      widgets: dashboard.widgets.map(mapWidgetForCanvas),
+      widgets: sortedWidgets.map(mapWidgetForCanvas),
     },
   });
 }
@@ -49,49 +56,64 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: 'widgets requerido' }, { status: 400 });
   }
 
-  const existing = await prisma.dashboard.findFirst({
-    where: { id, userId },
-    select: { id: true },
-  });
-  if (!existing) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  const { data: existing, error: existError } = await supabaseAdmin
+    .from('Dashboard')
+    .select('id')
+    .eq('id', id)
+    .eq('userId', userId)
+    .single();
+
+  if (existError || !existing) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
 
   const title = typeof body.title === 'string' ? body.title : undefined;
   const templateId = typeof body.templateId === 'string' ? body.templateId : undefined;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.widget.deleteMany({ where: { dashboardId: id } });
-    await tx.dashboard.update({
-      where: { id },
-      data: {
-        ...(title ? { title } : {}),
-        ...(templateId ? { templateId } : {}),
-      },
-    });
-    if (body.widgets.length > 0) {
-      await tx.widget.createMany({
-        data: body.widgets.map((w: any) => ({
-          dashboardId: id,
-          type: w.type,
-          dataSourceConfig: { ...(w.config || {}), title: w.title || w.type },
-          stylingOptions: w.styling || {},
-        })),
-      });
+  try {
+    // Eliminar widgets antiguos
+    await supabaseAdmin.from('Widget').delete().eq('dashboardId', id);
+
+    // Actualizar dashboard
+    const updateData: any = {};
+    if (title) updateData.title = title;
+    if (templateId) updateData.templateId = templateId;
+
+    if (Object.keys(updateData).length > 0) {
+      await supabaseAdmin.from('Dashboard').update(updateData).eq('id', id);
     }
-  });
 
-  const updated = await prisma.dashboard.findFirst({
-    where: { id, userId },
-    include: { widgets: { orderBy: { createdAt: 'asc' } } },
-  });
+    // Insertar nuevos widgets
+    if (body.widgets.length > 0) {
+      const widgetsToInsert = body.widgets.map((w: any) => ({
+        dashboardId: id,
+        type: w.type,
+        dataSourceConfig: { ...(w.config || {}), title: w.title || w.type },
+        stylingOptions: w.styling || {},
+      }));
+      await supabaseAdmin.from('Widget').insert(widgetsToInsert);
+    }
 
-  return NextResponse.json({
-    dashboard: updated
-      ? {
-          id: updated.id,
-          title: updated.title,
-          templateId: updated.templateId,
-          widgets: updated.widgets.map(mapWidgetForCanvas),
-        }
-      : null,
-  });
+    // Recuperar actualizado
+    const { data: updated } = await supabaseAdmin
+      .from('Dashboard')
+      .select('*, widgets:Widget(*)')
+      .eq('id', id)
+      .single();
+
+    const sortedWidgets = (updated?.widgets || []).sort((a: any, b: any) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    return NextResponse.json({
+      dashboard: updated
+        ? {
+            id: updated.id,
+            title: updated.title,
+            templateId: updated.templateId,
+            widgets: sortedWidgets.map(mapWidgetForCanvas),
+          }
+        : null,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

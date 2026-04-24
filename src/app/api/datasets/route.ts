@@ -1,26 +1,33 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import prisma from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 
 async function getOrCreateOrganizationIdForUser(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, organizationId: true },
-  });
+  const { data: user, error: userError } = await supabaseAdmin
+    .from('User')
+    .select('id, email, organizationId')
+    .eq('id', userId)
+    .single();
 
-  if (!user) return null;
+  if (userError || !user) return null;
   if (user.organizationId) return user.organizationId;
 
-  const org = await prisma.organization.create({
-    data: { name: user.email?.split('@')[0] ? `${user.email.split('@')[0]} Org` : 'Mi organización' },
-    select: { id: true },
-  });
+  // Crear organización si no tiene
+  const orgName = user.email?.split('@')[0] ? `${user.email.split('@')[0]} Org` : 'Mi organización';
+  const { data: org, error: orgError } = await supabaseAdmin
+    .from('Organization')
+    .insert({ name: orgName })
+    .select('id')
+    .single();
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { organizationId: org.id },
-  });
+  if (orgError || !org) return null;
+
+  // Vincular usuario a la nueva organización
+  await supabaseAdmin
+    .from('User')
+    .update({ organizationId: org.id })
+    .eq('id', userId);
 
   return org.id;
 }
@@ -33,13 +40,15 @@ export async function GET() {
   const organizationId = await getOrCreateOrganizationIdForUser(userId);
   if (!organizationId) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
 
-  const datasets = await prisma.dataset.findMany({
-    where: { organizationId },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, rawSchema: true, createdAt: true, updatedAt: true },
-  });
+  const { data: datasets, error } = await supabaseAdmin
+    .from('Dataset')
+    .select('id, name, rawSchema, createdAt, updatedAt')
+    .eq('organizationId', organizationId)
+    .order('createdAt', { ascending: false });
 
-  return NextResponse.json({ datasets });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ datasets: datasets || [] });
 }
 
 export async function POST(req: Request) {
@@ -55,14 +64,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'name y rawSchema requeridos' }, { status: 400 });
   }
 
-  const dataset = await prisma.dataset.create({
-    data: {
+  const { data: dataset, error } = await supabaseAdmin
+    .from('Dataset')
+    .insert({
       name: String(body.name),
       rawSchema: body.rawSchema,
       organizationId,
-    },
-    select: { id: true, name: true, rawSchema: true },
-  });
+    })
+    .select('id, name, rawSchema')
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ dataset });
 }

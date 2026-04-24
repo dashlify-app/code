@@ -1,11 +1,10 @@
 import type { NextAuthOptions } from 'next-auth';
-import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import prisma from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // Eliminamos el adapter de Prisma para no depender de la generación del cliente
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -18,11 +17,13 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email y contraseña requeridos');
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+        const { data: user, error } = await supabaseAdmin
+          .from('User')
+          .select('*')
+          .eq('email', credentials.email)
+          .single();
 
-        if (!user || !user.password) {
+        if (error || !user || !user.password) {
           throw new Error('Usuario no encontrado');
         }
 
