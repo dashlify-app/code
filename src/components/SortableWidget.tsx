@@ -258,19 +258,8 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
           </div>
         );
       }
-
       default:
         return <div className="flex items-center justify-center h-full opacity-20">Gráfico no soportado</div>;
-    }
-  };
-
-      default:
-        return (
-          <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: tickColor }}>
-            <span style={{ fontSize:28 }}>📊</span>
-            <span style={{ fontSize:11 }}>Tipo: <strong>{widget.type}</strong></span>
-          </div>
-        );
     }
   };
 
