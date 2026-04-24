@@ -33,34 +33,31 @@ const TOOLTIP_BG   = { modern: '#ffffff', enterprise: '#ffffff', dark: '#111820'
 const TOOLTIP_BDR  = { modern: '#e2e8f0', enterprise: '#dce6f5', dark: '#1a2a3a' };
 
 const SPARK_HEIGHTS = [40, 65, 52, 80, 60, 90, 45, 75];
-const FALLBACK_DATA = [
-  { name: 'Ene', value: 400 },
-  { name: 'Feb', value: 300 },
-  { name: 'Mar', value: 600 },
-  { name: 'Abr', value: 800 },
-  { name: 'May', value: 500 },
-  { name: 'Jun', value: 720 },
-];
-
 /** Encuentra la columna real haciendo fuzzy match */
 function findRealKey(obj: Record<string, any>, suggestedKeyRaw: any): string {
-  if (!suggestedKeyRaw) return '';
+  if (!obj || !suggestedKeyRaw) return '';
   const suggestedKey = String(suggestedKeyRaw);
   const keys = Object.keys(obj);
   if (keys.includes(suggestedKey)) return suggestedKey;
+  
   const lowerS = suggestedKey.toLowerCase();
-  const match = keys.find(k => lowerS.includes(k.toLowerCase()) || k.toLowerCase().includes(lowerS));
-  return match || suggestedKey;
+  // Buscar coincidencia exacta ignorando mayúsculas
+  const exactMatch = keys.find(k => k.toLowerCase() === lowerS);
+  if (exactMatch) return exactMatch;
+
+  // Buscar coincidencia parcial
+  const partialMatch = keys.find(k => lowerS.includes(k.toLowerCase()) || k.toLowerCase().includes(lowerS));
+  return partialMatch || suggestedKey;
 }
 
 /** Convierte sampleData + config.x + config.y  en [{name, value}] */
 function toChartData(config: any): { name: string; value: number; z?: number }[] {
   const rows: Record<string, any>[] = config?.sampleData ?? [];
-  const rawX: string = config?.x ?? '';
-  const rawY: string = config?.y ?? '';
-  const rawZ: string = config?.z ?? '';
+  const rawX: string = config?.x || config?.xAxis || '';
+  const rawY: string = config?.y || config?.yAxis || '';
+  const rawZ: string = config?.z || '';
 
-  if (!rows.length || !rawY) return FALLBACK_DATA;
+  if (!rows.length || !rawY) return [];
 
   const sampleObj = rows[0] || {};
   const xKey = findRealKey(sampleObj, rawX);
@@ -69,22 +66,22 @@ function toChartData(config: any): { name: string; value: number; z?: number }[]
 
   const parsed = rows
     .map(r => ({
-      name:  xKey ? String(r[xKey] ?? '').slice(0, 20) : '—',
+      name:  xKey ? String(r[xKey] ?? '').slice(0, 30) : '—',
       value: parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%a-zA-Z]/g, '')) || 0,
       ...(zKey ? { z: parseFloat(String(r[zKey] ?? '10').replace(/[$,\s%a-zA-Z]/g, '')) || 10 } : {}),
     }))
     .filter(d => !isNaN(d.value));
     
-  return parsed.length ? parsed : FALLBACK_DATA;
+  return parsed;
 }
 
 /** Convierte sampleData en [{name, value}] agrupando por xKey (para barras/pie/donut) */
 function toGrouped(config: any): { name: string; value: number }[] {
   const rows: Record<string, any>[] = config?.sampleData ?? [];
-  const rawX: string = config?.x ?? '';
-  const rawY: string = config?.y ?? '';
+  const rawX: string = config?.x || config?.xAxis || '';
+  const rawY: string = config?.y || config?.yAxis || '';
 
-  if (!rows.length) return FALLBACK_DATA;
+  if (!rows.length) return [];
 
   const sampleObj = rows[0] || {};
   const xKey = findRealKey(sampleObj, rawX);
@@ -94,16 +91,20 @@ function toGrouped(config: any): { name: string; value: number }[] {
 
   const map: Record<string, number> = {};
   for (const r of rows) {
-    const key = String(r[xKey] ?? '—').slice(0, 25);
-    const val = parseFloat(String(r[yKey] ?? '1').replace(/[$,\s%a-zA-Z]/g, '')) || (yKey ? 0 : 1);
+    const key = String(r[xKey] ?? '—').slice(0, 35);
+    // Si no hay yKey, contamos ocurrencias. Si hay yKey, sumamos.
+    const val = yKey 
+      ? (parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%a-zA-Z]/g, '')) || 0)
+      : 1;
     map[key] = (map[key] ?? 0) + val;
   }
+
   const grouped = Object.entries(map)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
+    .slice(0, 15) // Mostrar un poco más para que sea útil
     .map(([name, value]) => ({ name, value: Math.round(value) }));
 
-  return grouped.length ? grouped : FALLBACK_DATA;
+  return grouped;
 }
 
 export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate }: Props) {
