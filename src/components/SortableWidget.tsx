@@ -146,208 +146,123 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
   };
 
   const renderChart = () => {
-    const radius = resolved === 'enterprise'
-      ? [0,0,0,0] as [number,number,number,number]
-      : [3,3,0,0] as [number,number,number,number];
-
     const cfg = widget.config ?? {};
+    const chartData = widget.type === 'bar' || widget.type === 'pie' || widget.type === 'donut' 
+      ? toGrouped(cfg) 
+      : toChartData(cfg);
+
+    if (!chartData.length) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-2 opacity-30">
+          <RefreshCw size={24} className="animate-spin" />
+          <span className="text-[10px] font-mono uppercase tracking-widest">Sin datos reales</span>
+        </div>
+      );
+    }
 
     switch (widget.type) {
-
-      /* ── BAR ─────────────────────────────────────────────────── */
-      case 'bar': {
-        const chartData = toGrouped(cfg);
-        // Si hay muchas categorías o los nombres son largos, podría usarse layout vertical
+      case 'bar':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top:4, right:8, left:-15, bottom:0 }}>
-              <CartesianGrid strokeDasharray="none" vertical={true} stroke={gridColor} />
-              <XAxis dataKey="name" {...axisProps} tickFormatter={(val) => val.slice(0,10)} />
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="none" vertical={false} stroke={gridColor} />
+              <XAxis dataKey="name" {...axisProps} />
               <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-              <Legend verticalAlign="top" height={36} iconType="square" />
-              <Bar dataKey="value" fill={pal[0]} radius={[2,2,0,0]} maxBarSize={42} strokeWidth={1} stroke={pal[0]} fillOpacity={0.85}>
-                {chartData.map((_, i) => <Cell key={i} fill={pal[i % pal.length]} stroke={pal[i % pal.length]} />)}
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(0,0,0,0.02)' }} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                {chartData.map((_, i) => (
+                  <Cell key={i} fill={pal[i % pal.length]} fillOpacity={0.8} />
+                ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         );
-      }
 
-      /* ── LINE ────────────────────────────────────────────────── */
-      case 'line': {
-        const chartData = toChartData(cfg);
+      case 'line':
+      case 'area':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top:4, right:8, left:-15, bottom:0 }}>
-              <CartesianGrid strokeDasharray="none" vertical={true} stroke={gridColor} />
-              <XAxis dataKey="name" {...axisProps} tickFormatter={(val) => val.slice(0,10)} />
-              <YAxis {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Legend verticalAlign="top" height={36} iconType="square" />
-              <Line
-                type="monotone" dataKey="value"
-                stroke={pal[0]} strokeWidth={3}
-                dot={{ r: 4, fill: '#fff', stroke: pal[0], strokeWidth: 2 }}
-                activeDot={{ r: 6, strokeWidth: 0, fill: pal[0] }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      /* ── AREA ────────────────────────────────────────────────── */
-      case 'area': {
-        const chartData = toChartData(cfg);
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top:4, right:8, left:-15, bottom:0 }}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
-                <linearGradient id={`lg-${id}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={pal[0]} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={pal[0]} stopOpacity={0}    />
+                <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={pal[0]} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={pal[0]} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="none" vertical={true} stroke={gridColor} />
-              <XAxis dataKey="name" {...axisProps} tickFormatter={(val) => val.slice(0,10)} />
+              <XAxis dataKey="name" {...axisProps} />
               <YAxis {...axisProps} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Legend verticalAlign="top" height={36} iconType="square" />
-              <Area
-                type="monotone" dataKey="value"
-                stroke={pal[0]} strokeWidth={3}
-                fill={`url(#lg-${id})`}
-                dot={false} activeDot={{ r:5, fill: pal[0], stroke: '#fff', strokeWidth: 2 }}
+              <Area 
+                type="monotone" 
+                dataKey="value" 
+                stroke={pal[0]} 
+                strokeWidth={3} 
+                fill={`url(#grad-${id})`}
+                dot={{ r: 4, fill: '#fff', stroke: pal[0], strokeWidth: 2 }}
+                activeDot={{ r: 6, strokeWidth: 0, fill: pal[0] }}
               />
             </AreaChart>
           </ResponsiveContainer>
         );
-      }
 
-      /* ── PIE / DONUT ─────────────────────────────────────────── */
       case 'pie':
-      case 'donut': {
-        const chartData = toGrouped(cfg);
-        const inner = widget.type === 'donut' ? '48%' : '0%';
+      case 'donut':
         return (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={chartData}
-                innerRadius={inner} outerRadius="72%"
-                dataKey="value" paddingAngle={resolved === 'enterprise' ? 1 : 4}
-                stroke="#1e293b" strokeWidth={1.5}
+                innerRadius={widget.type === 'donut' ? '60%' : '0%'}
+                outerRadius="80%"
+                dataKey="value"
+                stroke={resolved === 'dark' ? '#0d1219' : '#fff'}
+                strokeWidth={2}
+                paddingAngle={2}
               >
-                {chartData.map((_, i) => <Cell key={i} fill={pal[i % pal.length]} />)}
+                {chartData.map((_, i) => (
+                  <Cell key={i} fill={pal[i % pal.length]} />
+                ))}
               </Pie>
               <Tooltip contentStyle={tooltipStyle} />
-              <Legend
-                iconSize={8} iconType="circle"
-                formatter={(v) => (
-                  <span style={{ color: tickColor, fontSize: 9, fontFamily: 'var(--font-dm-mono,"DM Mono",monospace)', letterSpacing:'0.5px' }}>
-                    {v}
-                  </span>
-                )}
-              />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" />
             </PieChart>
           </ResponsiveContainer>
         );
-      }
 
-      /* ── SCATTER ─────────────────────────────────────────────── */
-      case 'scatter': {
-        const rows: Record<string, any>[] = cfg?.sampleData ?? [];
-        const xKey = cfg?.x ?? '';
-        const yKey = cfg?.y ?? '';
-        const scatterData = rows.length && xKey && yKey
-          ? rows.map(r => ({
-              x: parseFloat(String(r[xKey] ?? '0').replace(/[$,\s%]/g, '')) || 0,
-              y: parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0,
-            }))
-          : [{ x:10,y:20 },{ x:30,y:50 },{ x:50,y:30 },{ x:70,y:80 },{ x:90,y:60 }];
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top:4, right:4, left:-20, bottom:0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-              <XAxis dataKey="x" type="number" name={xKey || 'X'} {...axisProps} />
-              <YAxis dataKey="y" type="number" name={yKey || 'Y'} {...axisProps} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray:'3 3' }} />
-              <Scatter data={scatterData} fill={pal[0]} fillOpacity={0.75} />
-            </ScatterChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      /* ── BUBBLE ──────────────────────────────────────────────── */
-      case 'bubble': {
-        const rows: Record<string, any>[] = cfg?.sampleData ?? [];
-        const xKey = cfg?.x ?? '';
-        const yKey = cfg?.y ?? '';
-        const zKey = cfg?.z ?? '';
-        const bubbleData = rows.length && xKey && yKey
-          ? rows.map(r => ({
-              x: parseFloat(String(r[xKey] ?? '0').replace(/[$,\s%]/g, '')) || 0,
-              y: parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0,
-              z: zKey ? (parseFloat(String(r[zKey] ?? '10').replace(/[$,\s%]/g, '')) || 10) : 20,
-            }))
-          : [{ x:10,y:20,z:30 },{ x:30,y:50,z:60 },{ x:50,y:30,z:20 },{ x:70,y:80,z:45 }];
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top:4, right:4, left:-20, bottom:0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-              <XAxis dataKey="x" type="number" name={xKey || 'X'} {...axisProps} />
-              <YAxis dataKey="y" type="number" name={yKey || 'Y'} {...axisProps} />
-              <ZAxis dataKey="z" range={[40, 400]} name={zKey || 'Z'} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray:'3 3' }} />
-              <Scatter data={bubbleData} fill={pal[0]} fillOpacity={0.6} />
-            </ScatterChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      /* ── STAT / KPI ──────────────────────────────────────────── */
       case 'stat': {
-        const rows: Record<string, any>[] = cfg?.sampleData ?? [];
-        const yKey = cfg?.y ?? '';
-        let statVal = '—';
-        if (rows.length && yKey) {
-          const sum = rows.reduce((acc, r) => acc + (parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0), 0);
-          statVal = sum > 1_000_000
-            ? `$${(sum/1_000_000).toFixed(2)}M`
-            : sum > 1_000
-            ? `$${(sum/1_000).toFixed(1)}K`
-            : sum.toFixed(0);
-        }
+        const total = chartData.reduce((acc, d) => acc + d.value, 0);
+        const displayVal = total > 1_000_000 
+          ? `$${(total/1_000_000).toFixed(2)}M` 
+          : total > 1_000 ? `$${(total/1_000).toFixed(1)}K` : total.toString();
+        
         return (
-          <div className="flex flex-col justify-center items-center h-full gap-3">
-            <div style={{
-              fontFamily: 'var(--font-syne,"Syne",system-ui,sans-serif)',
-              fontSize: 38, fontWeight: 900, lineHeight: 1,
-              color: pal[0], letterSpacing: '-1.5px',
-            }}>
-              {statVal}
+          <div className="flex flex-col justify-center items-center h-full">
+            <div className={`kpi-value ${resolved === 'dark' ? 'blue' : ''}`} style={{ fontSize: 44, color: pal[0] }}>
+              {displayVal}
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <span style={{
-                fontFamily: 'var(--font-dm-mono,monospace)', fontSize: 11,
-                color: resolved === 'dark' ? '#00ff9d' : '#10b981',
-                background: resolved === 'dark' ? 'rgba(0,255,157,0.1)' : 'rgba(16,185,129,0.1)',
-                padding: '2px 8px', borderRadius: 6, letterSpacing: '0.5px',
-              }}>
-                ▲ {yKey || 'Total'}
-              </span>
-            </div>
-            <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:28, marginTop:4 }}>
-              {SPARK_HEIGHTS.map((h, i) => (
-                <div key={i} style={{
-                  width:6, borderRadius:'2px 2px 0 0', height:`${h}%`,
-                  background: i === SPARK_HEIGHTS.length-1 ? pal[0] : `${pal[0]}55`,
-                }} />
+            <div className="kpi-label" style={{ opacity: 0.6 }}>{widget.config?.y || 'Métrica Total'}</div>
+            <div className="sparkline mt-4">
+              {chartData.slice(-8).map((d, i) => (
+                <div 
+                  key={i} 
+                  className="spark-bar" 
+                  style={{ 
+                    height: `${(d.value / Math.max(...chartData.map(v => v.value)) * 100) || 10}%`,
+                    background: i === 7 ? pal[0] : `${pal[0]}33`,
+                    width: 6
+                  }} 
+                />
               ))}
             </div>
           </div>
         );
       }
+
+      default:
+        return <div className="flex items-center justify-center h-full opacity-20">Gráfico no soportado</div>;
+    }
+  };
 
       default:
         return (
