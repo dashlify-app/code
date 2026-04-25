@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import prisma from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -10,18 +10,27 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
 
   const { id } = await ctx.params;
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
+  // Obtener organización del usuario
+  const { data: user, error: userError } = await supabaseAdmin
+    .from('User')
+    .select('organizationId')
+    .eq('id', userId)
+    .single();
 
-  if (!user?.organizationId) {
+  if (userError || !user?.organizationId) {
     return NextResponse.json({ error: 'Organización no asignada' }, { status: 400 });
   }
 
-  await prisma.dataset.deleteMany({
-    where: { id, organizationId: user.organizationId },
-  });
+  // Eliminar dataset
+  const { error: deleteError } = await supabaseAdmin
+    .from('Dataset')
+    .delete()
+    .eq('id', id)
+    .eq('organizationId', user.organizationId);
+
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -58,7 +58,9 @@ export default function DataCopilot({
         description: w.description || `Análisis de ${w.config?.yAxis || 'datos'} por ${w.config?.xAxis || 'categoría'}.`,
         config: {
           ...w.config,
-          sampleData: dataSet // ¡INYECCIÓN CRÍTICA DE DATOS REALES!
+          sampleData: dataSet,
+          datasetIndex: 0,
+          datasetName: files[0]?.name
         }
       }));
       setWidgets(formatted);
@@ -100,7 +102,16 @@ export default function DataCopilot({
       }]);
 
       if (data.widget) {
-        setWidgets(prev => [...prev, data.widget]);
+        const enrichedWidget = {
+          ...data.widget,
+          config: {
+            ...data.widget.config,
+            sampleData: files[0]?.sampleData || [],
+            datasetIndex: 0,
+            datasetName: files[0]?.name
+          }
+        };
+        setWidgets(prev => [...prev, enrichedWidget]);
       }
     } catch (error) {
       console.error('Error en Copilot:', error);

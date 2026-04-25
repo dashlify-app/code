@@ -84,6 +84,8 @@ export async function POST(req: Request) {
         type: w.type,
         dataSourceConfig: { ...(w.config || {}), title: w.title || w.type },
         stylingOptions: w.styling || {},
+        datasetIndex: w.datasetIndex ?? 0,
+        datasetName: w.datasetName || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));

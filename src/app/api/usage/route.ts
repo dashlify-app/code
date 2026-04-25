@@ -1,39 +1,58 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const userEmail = session?.user?.email;
 
     if (!userEmail) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-      include: {
-        organization: true,
-        dashboards: {
-          include: {
-            _count: {
-              select: { widgets: true }
-            }
-          }
-        }
-      }
-    });
+    // Obtener usuario con organización
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('User')
+      .select('id, organizationId, Organization(*)')
+      .eq('email', userEmail)
+      .single();
 
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
 
-    const totalDashboards = user.dashboards.length;
-    const totalWidgets = user.dashboards.reduce((acc, d) => acc + d._count.widgets, 0);
-    
-    // Limits based on tier (mocked logic)
-    const tier = user.organization?.tier || 'Free';
+    // Obtener dashboards del usuario
+    const { data: dashboards, error: dashError } = await supabaseAdmin
+      .from('Dashboard')
+      .select('id')
+      .eq('userId', user.id);
+
+    if (dashError) {
+      return NextResponse.json({ error: 'Error al obtener dashboards' }, { status: 500 });
+    }
+
+    const totalDashboards = dashboards?.length || 0;
+
+    // Contar widgets en todos los dashboards
+    const dashboardIds = dashboards?.map((d: any) => d.id) || [];
+    let totalWidgets = 0;
+
+    if (dashboardIds.length > 0) {
+      const { count, error: widgetError } = await supabaseAdmin
+        .from('Widget')
+        .select('*', { count: 'exact', head: true })
+        .in('dashboardId', dashboardIds);
+
+      if (!widgetError) {
+        totalWidgets = count || 0;
+      }
+    }
+
+    // Límites basados en tier
+    const organization = (user as any).Organization;
+    const tier = organization?.tier || 'Free';
     const widgetLimit = tier === 'Pro' ? 100 : 20;
     const dashboardLimit = tier === 'Pro' ? 10 : 3;
 
@@ -51,7 +70,7 @@ export async function GET() {
           percentage: (totalWidgets / widgetLimit) * 100
         }
       },
-      organization: user.organization
+      organization
     });
   } catch (error: any) {
     console.error('Error al obtener consumo:', error);

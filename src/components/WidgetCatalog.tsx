@@ -108,12 +108,12 @@ export default function WidgetCatalog({
       .map((w, i) => ({
         ...w,
         type: overriddenTypes[i] || w.type,
-        config: { ...w.config, sampleData }
+        config: { ...w.config, sampleData, datasetIndex: 0, datasetName: undefined }
       }))
       .filter((_, i) => selectedIndices.includes(i));
     const customWithData = customWidgets.map(w => ({
       ...w,
-      config: { ...w.config, sampleData },
+      config: { ...w.config, sampleData, datasetIndex: 0, datasetName: undefined },
     }));
     onSave([...aiSelected, ...customWithData]);
   };

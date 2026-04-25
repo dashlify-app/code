@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { logAIUsage } from '@/lib/aiLogger';
+import { checkRateLimit, logApiCall } from '@/lib/rateLimiter';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -10,6 +11,19 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const allowed = await checkRateLimit(session.user.id, 'correlate');
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Límite de llamadas excedido. Máximo 10 por minuto.' },
+        { status: 429 }
+      );
+    }
+
     const { datasets } = await req.json();
 
     if (!process.env.OPENAI_API_KEY) {
@@ -47,15 +61,16 @@ export async function POST(req: Request) {
     const correlation = JSON.parse(response.choices[0].message.content || '{}');
 
     if (response.usage) {
-      const session = await getServerSession(authOptions);
       logAIUsage({
-        userId: session?.user?.id,
+        userId: session.user.id,
         actionType: 'dataset-correlation',
         usage: response.usage,
         requestPayload: { prompt },
         responsePayload: correlation,
       });
     }
+
+    await logApiCall(session.user.id, 'correlate');
 
     return NextResponse.json(correlation);
   } catch (error: any) {

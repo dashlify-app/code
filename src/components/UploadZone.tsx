@@ -10,6 +10,7 @@ import CorrelationUI from './CorrelationUI';
 import WidgetCatalog from './WidgetCatalog';
 import DashboardCanvas from './DashboardCanvas';
 import DataCopilot from './DataCopilot';
+import { computeColumnStats } from '@/lib/columnStats';
 
 interface DatasetPreview {
   id?: string;
@@ -159,12 +160,14 @@ export default function UploadZone() {
         files.map(async (file) => {
           if (file.analysis) return file;
           
+          const columnStats = computeColumnStats(file.sampleData, file.headers);
           const res = await fetch('/api/analyze', {
             method: 'POST',
             body: JSON.stringify({
               headers: file.headers,
-              sampleData: file.sampleData.slice(0, 5), // Solo enviar muestra a la IA para ahorrar tokens
-              fileName: file.name
+              sampleData: file.sampleData.slice(0, 5),
+              fileName: file.name,
+              columnStats,
             }),
             headers: { 'Content-Type': 'application/json' }
           });

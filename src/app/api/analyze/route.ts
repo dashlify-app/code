@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { logAIUsage } from '@/lib/aiLogger';
+import { checkRateLimit, logApiCall } from '@/lib/rateLimiter';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -10,53 +11,105 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    const { headers, sampleData, fileName } = await req.json();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const allowed = await checkRateLimit(session.user.id, 'analyze');
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Límite de llamadas excedido. Máximo 10 por minuto.' },
+        { status: 429 }
+      );
+    }
+
+    const { headers, sampleData, fileName, columnStats } = await req.json();
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: 'OpenAI API Key no configurada' }, { status: 500 });
     }
 
+    const statsBlock = columnStats
+      ? `\nESTADÍSTICAS POR COLUMNA (calculadas sobre el dataset completo):\n${JSON.stringify(columnStats, null, 2)}\n`
+      : '';
+
     const prompt = `
-      Eres un Estratega de Datos y Diseñador de Dashboards de Clase Mundial.
-      Archivo: "${fileName}"
-      Columnas: ${headers.join(', ')}
-      Muestra: ${JSON.stringify(sampleData)}
+Eres un Estratega de Datos y Diseñador de Dashboards de Clase Mundial.
 
-      INSTRUCCIONES:
-      1. Realiza una "Auditoría Estratégica": Identifica el valor de negocio de este archivo.
-      2. Crea una PROPUESTA DE DASHBOARD PROFESIONAL que compita con los mejores analíticos del mercado.
-      3. Sugiere exactamente 6 gráficas (widgets) de alto impacto.
-      
-      REGLAS DE ORO PARA EL TÍTULO:
-      - Si los datos son dinero, incluye "$", "Venta", "Costo" o "Precio".
-      - Si los datos son tiempo, incluye "Tiempo", "Días" o "Entrega".
-      - Si es porcentaje, incluye "%" o "Margen".
-      - Si es volumen, incluye "Cantidad" o "Unidades".
+Archivo: "${fileName}"
+Columnas disponibles: ${headers.join(', ')}
+Muestra de datos (5 filas): ${JSON.stringify(sampleData)}
+${statsBlock}
 
-      DEVUELVE UN JSON CON ESTA ESTRUCTURA:
-      {
-        "narrative": "Un resumen ejecutivo potente (2-3 frases) sobre el potencial de estos datos.",
-        "analysis": {
-          "domain": "Ventas/Finanzas/Logística/etc.",
-          "main_kpis": ["KPI 1", "KPI 2"]
-        },
-        "proposedWidgets": [
-          {
-            "title": "Título de la Gráfica (ej: Tiempo de Entrega Promedio)",
-            "type": "bar | line | pie | kpi",
-            "config": {
-              "xAxis": "columna_x",
-              "yAxis": "columna_y",
-              "aggregate": "sum | count | avg"
-            },
-            "styling": {
-              "colorScheme": "modern | sunset | ocean | forest",
-              "priority": 1
-            }
-          }
-        ],
-        "followUpQuestion": "¿Te gustaría que profundizara en algún aspecto específico, como [Sugerencia 1] o [Sugerencia 2]?"
+═══════════════════════════════════════════════
+INSTRUCCIONES — EJECUTAR EN ESTE ORDEN:
+═══════════════════════════════════════════════
+
+PASO 1 — AUDITORÍA ESTRATÉGICA
+Identifica el dominio de negocio (Ventas, Logística, RRHH, Finanzas, etc.) y los KPIs más valiosos para un CEO.
+
+PASO 2 — DETECCIÓN DE CORRELACIONES
+Examina pares de columnas numéricas en las estadísticas. Si dos columnas numéricas tienen rangos coherentes y podrían correlacionarse (e.g., Precio_Lista ↔ Margen_%, Stock ↔ Tiempo_Entrega_dias), propón un widget tipo "scatter" para visualizar esa relación. Máximo 1-2 scatter.
+
+PASO 3 — PROPUESTA DE 6 WIDGETS DE ALTO IMPACTO
+Diseña exactamente 6 widgets usando las reglas siguientes.
+
+═══════════════════════════════════════════════
+REGLAS CRÍTICAS DE TIPO DE GRÁFICA:
+═══════════════════════════════════════════════
+- "bar"      → xAxis categórico (uniqueCount < 50). TIPO POR DEFECTO para la mayoría.
+- "line"     → SOLO si xAxis.type === 'date' en las estadísticas. NUNCA uses 'line' con xAxis categórico.
+- "pie"      → SOLO si xAxis.uniqueCount <= 8. Si hay más valores, usa 'bar'.
+- "scatter"  → Correlación entre 2 columnas numéricas. xAxis y yAxis ambas numéricas.
+- "stat"     → KPI de un solo número (sum o avg de una columna numérica). Sin xAxis.
+
+═══════════════════════════════════════════════
+REGLAS DE AGGREGATE:
+═══════════════════════════════════════════════
+- "sum"        → Total de yAxis por grupo (dinero, stock, cantidades)
+- "avg"        → Promedio de yAxis por grupo (precios, tasas, porcentajes, tiempos)
+- "count"      → Contar filas por xAxis. Para usar con yAxis = columna de ID o nombre. El motor IGNORARÁ yAxis al renderizar.
+- "median"     → Mediana de yAxis por grupo (más robusta que avg ante outliers)
+- "cumulative" → Suma acumulada ordenada por xAxis (para tendencias de crecimiento)
+- "mom"        → Crecimiento Mes-a-Mes en % (requiere xAxis.type === 'date')
+- "outliers"   → Mostrar solo valores atípicos por IQR (para detectar anomalías)
+
+═══════════════════════════════════════════════
+REGLAS DE ORO PARA TÍTULOS:
+═══════════════════════════════════════════════
+- Dinero → incluye "$"
+- Tiempo → incluye "días" o "d."
+- Porcentaje → incluye "%"
+- Volumen/Cantidad → incluye "Uds." o "cant."
+- Los títulos deben ser descriptivos y accionables para un CEO.
+
+═══════════════════════════════════════════════
+DEVUELVE EXACTAMENTE ESTE JSON (sin markdown, sin bloques de código):
+═══════════════════════════════════════════════
+{
+  "narrative": "Resumen ejecutivo de 2-3 frases con insights reales basados en las estadísticas proporcionadas.",
+  "analysis": {
+    "domain": "Ventas/Finanzas/Logística/RRHH/etc.",
+    "main_kpis": ["KPI 1 descriptivo", "KPI 2 descriptivo"]
+  },
+  "proposedWidgets": [
+    {
+      "title": "Título accionable para CEO",
+      "type": "bar | line | pie | scatter | stat",
+      "config": {
+        "xAxis": "nombre_exacto_de_columna",
+        "yAxis": "nombre_exacto_de_columna_o_array_de_columnas",
+        "aggregate": "sum | avg | count | median | cumulative | mom | outliers"
+      },
+      "styling": {
+        "colorScheme": "modern | sunset | ocean | forest",
+        "priority": 1
       }
+    }
+  ],
+  "followUpQuestion": "¿Te gustaría que profundizara en [aspecto concreto basado en los datos]?"
+}
     `;
 
     const response = await openai.chat.completions.create({
@@ -66,15 +119,12 @@ export async function POST(req: Request) {
     });
 
     const analysis = JSON.parse(response.choices[0].message.content || '{}');
-    
-    // LOG PARA DEBUG Y CLAUDE: Imprime el JSON de la propuesta
+
     console.log('--- GPT-4o PROPOSAL JSON ---');
     console.log(JSON.stringify(analysis, null, 2));
     console.log('-----------------------------');
 
     if (response.usage) {
-      const session = await getServerSession(authOptions);
-      // Execute without awaiting to avoid blocking response
       logAIUsage({
         userId: session?.user?.id,
         actionType: 'dataset-analysis',
@@ -83,6 +133,9 @@ export async function POST(req: Request) {
         responsePayload: analysis,
       });
     }
+
+    // Log la llamada API para rate limiting
+    await logApiCall(session.user.id, 'analyze');
 
     return NextResponse.json(analysis);
   } catch (error: any) {

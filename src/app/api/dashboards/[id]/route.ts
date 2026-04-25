@@ -3,14 +3,19 @@ import { getServerSession } from 'next-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 
-function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unknown }) {
+function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unknown; datasetIndex?: number; datasetName?: string }) {
   const cfg = (w.dataSourceConfig && typeof w.dataSourceConfig === 'object'
     ? (w.dataSourceConfig as Record<string, unknown>)
     : {}) as Record<string, unknown>;
   const { title: storedTitle, ...config } = cfg;
   const title =
     typeof storedTitle === 'string' && storedTitle.trim() ? storedTitle : w.type;
-  return { id: w.id, title, type: w.type, config };
+  return {
+    id: w.id,
+    title,
+    type: w.type,
+    config: { ...config, datasetIndex: w.datasetIndex ?? 0, datasetName: w.datasetName },
+  };
 }
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -88,6 +93,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
         type: w.type,
         dataSourceConfig: { ...(w.config || {}), title: w.title || w.type },
         stylingOptions: w.styling || {},
+        datasetIndex: w.datasetIndex ?? 0,
+        datasetName: w.datasetName || null,
       }));
       await supabaseAdmin.from('Widget').insert(widgetsToInsert);
     }

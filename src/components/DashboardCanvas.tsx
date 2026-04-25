@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  DndContext, 
+import {
+  DndContext,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -16,38 +16,39 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
+import { Sparkles, Save, Palette, Share2, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { SortableWidget } from './SortableWidget';
+import { FilterProvider, useFilters } from './FilterContext';
 
 const THEME_CONFIG: Record<ThemeId, { canvas: string; header: string; grid: string; select: string; saveBtn: string; titleInput: string; subtitle: string }> = {
   modern: {
-    canvas:  'bg-slate-50 font-sans text-slate-900',
-    header:  'bg-white border border-slate-200 shadow-sm',
-    grid:    'bg-transparent',
-    select:  'bg-white border border-slate-200 text-slate-700 rounded-xl',
-    saveBtn: 'bg-slate-900 text-white hover:bg-slate-700 rounded-xl shadow-md',
+    canvas:     'bg-slate-50 font-sans text-slate-900',
+    header:     'bg-white border border-slate-200 shadow-sm',
+    grid:       'bg-transparent',
+    select:     'bg-white border border-slate-200 text-slate-700 rounded-xl',
+    saveBtn:    'bg-slate-900 text-white hover:bg-slate-700 rounded-xl shadow-md',
     titleInput: 'text-slate-900',
-    subtitle: 'text-slate-500',
+    subtitle:   'text-slate-500',
   },
   enterprise: {
-    canvas:  'bg-[#f0f4f8] font-sans text-[#1a2b45]',
-    header:  'bg-[#1a2b45] border border-[#1a2b45] shadow-md',
-    grid:    'bg-transparent',
-    select:  'bg-[#243755] border border-[#2e4870] text-[#94b8e0] rounded-md',
-    saveBtn: 'bg-[#0052cc] text-white hover:bg-[#0041a8] rounded-md shadow-lg',
+    canvas:     'bg-[#f0f4f8] font-sans text-[#1a2b45]',
+    header:     'bg-[#1a2b45] border border-[#1a2b45] shadow-md',
+    grid:       'bg-transparent',
+    select:     'bg-[#243755] border border-[#2e4870] text-[#94b8e0] rounded-md',
+    saveBtn:    'bg-[#0052cc] text-white hover:bg-[#0041a8] rounded-md shadow-lg',
     titleInput: 'text-white',
-    subtitle: 'text-[#94b8e0]',
+    subtitle:   'text-[#94b8e0]',
   },
   dark: {
-    canvas:  'bg-slate-950 font-sans text-white',
-    header:  'bg-slate-900 border border-slate-800 shadow-none',
-    grid:    'bg-transparent',
-    select:  'bg-slate-800 border border-slate-700 text-slate-300 rounded-xl',
-    saveBtn: 'bg-cyan-500 text-slate-950 hover:bg-cyan-400 rounded-xl font-black shadow-cyan-500/30 shadow-lg',
+    canvas:     'bg-slate-950 font-sans text-white',
+    header:     'bg-slate-900 border border-slate-800 shadow-none',
+    grid:       'bg-transparent',
+    select:     'bg-slate-800 border border-slate-700 text-slate-300 rounded-xl',
+    saveBtn:    'bg-cyan-500 text-slate-950 hover:bg-cyan-400 rounded-xl font-black shadow-cyan-500/30 shadow-lg',
     titleInput: 'text-white',
-    subtitle: 'text-slate-500',
+    subtitle:   'text-slate-500',
   },
 };
-import { Sparkles, Save, Palette, Share2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface Widget {
   id: string;
@@ -63,7 +64,50 @@ function normalizeTheme(t: string | undefined): ThemeId {
   return 'modern';
 }
 
-export default function DashboardCanvas({
+/** Barra de filtros activos — lee el FilterContext */
+function FilterBar({ theme }: { theme: ThemeId }) {
+  const { activeFilters, clearFilter, clearAll } = useFilters();
+  const entries = Object.entries(activeFilters);
+  if (!entries.length) return null;
+
+  const chipStyle =
+    theme === 'dark'
+      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20'
+      : theme === 'enterprise'
+      ? 'bg-blue-600/10 text-blue-300 border border-blue-500/30 hover:bg-blue-600/20'
+      : 'bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100';
+
+  const labelStyle =
+    theme === 'dark' ? 'text-slate-400' : theme === 'enterprise' ? 'text-[#94b8e0]' : 'text-slate-400';
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-1 py-1 animate-in fade-in duration-300">
+      <span className={`text-[10px] font-mono uppercase tracking-widest ${labelStyle}`}>
+        Filtros activos:
+      </span>
+      {entries.map(([col, val]) => (
+        <button
+          key={col}
+          onClick={() => clearFilter(col)}
+          className={`flex items-center gap-1.5 text-[11px] font-mono px-3 py-1 rounded-full transition-colors ${chipStyle}`}
+        >
+          <span className="opacity-60">{col}:</span>
+          <span className="font-bold">{val}</span>
+          <X size={10} className="ml-0.5 opacity-60" />
+        </button>
+      ))}
+      <button
+        onClick={clearAll}
+        className={`text-[10px] font-mono underline underline-offset-2 transition-opacity opacity-50 hover:opacity-100 ${labelStyle}`}
+      >
+        Limpiar todo
+      </button>
+    </div>
+  );
+}
+
+/** Contenido interno del canvas (usa FilterContext) */
+function CanvasInner({
   initialWidgets,
   onSave,
   dashboardId,
@@ -92,21 +136,17 @@ export default function DashboardCanvas({
     setTimeout(() => setToast(null), 4000);
   };
 
-
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-
     if (active.id !== over?.id) {
-      setWidgets((items) => {
-        const oldIndex = items.findIndex((i) => i.id === active.id);
-        const newIndex = items.findIndex((i) => i.id === over?.id);
+      setWidgets(items => {
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over?.id);
         return arrayMove(items, oldIndex, newIndex);
       });
     }
@@ -118,10 +158,12 @@ export default function DashboardCanvas({
       const payload = {
         title,
         templateId: theme,
-        widgets: widgets.map((w) => ({
+        widgets: widgets.map(w => ({
           type: w.type,
           title: w.title,
           config: w.config,
+          datasetIndex: w.config?.datasetIndex ?? 0,
+          datasetName: w.config?.datasetName,
         })),
       };
 
@@ -141,14 +183,14 @@ export default function DashboardCanvas({
       if (!res.ok || data.error) {
         showToast(typeof data?.error === 'string' ? data.error : 'Error al guardar', 'error');
       } else {
-        showToast(dashboardId ? '¡Cambios guardados!' : '¡Dashboard guardado con éxito!', 'success');
+        showToast(dashboardId ? '¡Cambios guardados!' : '¡Dashboard guardado con éxito!');
         onSave(widgets);
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('dashlify:dashboards-changed'));
         }
       }
-    } catch (err) {
-      console.error('Error al guardar:', err);
+    } catch {
+      showToast('Error al guardar', 'error');
     } finally {
       setSaving(false);
     }
@@ -157,17 +199,19 @@ export default function DashboardCanvas({
   const tc = THEME_CONFIG[theme];
 
   return (
-    <div className={`space-y-6 animate-in fade-in duration-700 p-8 transition-all duration-500 ${
+    <div className={`space-y-4 animate-in fade-in duration-700 p-8 transition-all duration-500 ${
       theme === 'enterprise' ? 'rounded-lg' : 'rounded-[2rem]'
     } ${tc.canvas}`}>
-      {/* Canvas Header */}
-      {/* Enterprise banner strip */}
+
+      {/* Enterprise banner */}
       {theme === 'enterprise' && (
         <div className="flex items-center gap-3 px-5 py-2 bg-[#0052cc] rounded-t-md text-[10px] tracking-[2px] uppercase font-bold text-white/70 font-mono">
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
           Dashlify Enterprise · Business Intelligence
         </div>
       )}
+
+      {/* Header */}
       <div className={`flex items-center justify-between p-4 transition-all ${
         theme === 'enterprise' ? 'rounded-b-md' : 'rounded-2xl'
       } ${tc.header}`}>
@@ -176,22 +220,24 @@ export default function DashboardCanvas({
             <Sparkles size={20} />
           </div>
           <div>
-            <input 
-              value={title} 
+            <input
+              value={title}
               onChange={(e) => setTitle(e.target.value)}
               className={`font-black tracking-tight bg-transparent border-none outline-none focus:ring-0 text-lg w-full ${tc.titleInput}`}
             />
             <p className={`text-xs font-medium ${
               theme === 'enterprise' ? 'font-mono tracking-widest uppercase text-[10px]' : ''
             } ${tc.subtitle}`}>
-              {theme === 'enterprise' ? '// DASHBOARD BUILDER · DRAG TO REORDER' : 'Arrastra y suelta para organizar tus vistas.'}
+              {theme === 'enterprise'
+                ? '// DASHBOARD BUILDER · DRAG TO REORDER · CLICK BARS TO FILTER'
+                : 'Arrastra para reorganizar · Haz clic en una barra para filtrar'}
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <select 
-            value={theme} 
-            onChange={(e) => setTheme(e.target.value as any)}
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as ThemeId)}
             className={`px-4 py-2 text-sm font-bold border transition-all outline-none cursor-pointer ${tc.select}`}
           >
             <option value="modern">Tema Moderno</option>
@@ -205,19 +251,21 @@ export default function DashboardCanvas({
           }`}>
             <Share2 size={18} /> Compartir
           </button>
-          <button 
+          <button
             onClick={saveDashboard}
             disabled={saving}
             className={`flex items-center gap-2 px-6 py-2 text-sm font-black transition-all disabled:opacity-50 ${tc.saveBtn}`}
           >
             {saving ? 'Guardando...' : <><Save size={18} /> Guardar Dashboard</>}
           </button>
-
         </div>
       </div>
 
-      {/* Grid Canvas */}
-      <DndContext 
+      {/* Filtros activos */}
+      <FilterBar theme={theme} />
+
+      {/* Grid */}
+      <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
@@ -225,21 +273,17 @@ export default function DashboardCanvas({
         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 min-h-[400px] ${
           theme === 'enterprise' ? 'gap-3' : 'gap-6'
         }`}>
-          <SortableContext 
-            items={widgets.map(w => w.id)}
-            strategy={rectSortingStrategy}
-          >
-            {widgets.map((widget) => (
-              <SortableWidget 
-                key={widget.id} 
-                id={widget.id} 
-                widget={widget} 
-                theme={theme} 
+          <SortableContext items={widgets.map(w => w.id)} strategy={rectSortingStrategy}>
+            {widgets.map(widget => (
+              <SortableWidget
+                key={widget.id}
+                id={widget.id}
+                widget={widget}
+                theme={theme}
+                isDark={theme === 'dark'}
                 onUpdate={(newConfig) => {
-                  setWidgets(prev => prev.map(w => 
-                    w.id === widget.id 
-                      ? { ...w, config: { ...w.config, ...newConfig } } 
-                      : w
+                  setWidgets(prev => prev.map(w =>
+                    w.id === widget.id ? { ...w, config: { ...w.config, ...newConfig } } : w
                   ));
                 }}
               />
@@ -248,15 +292,32 @@ export default function DashboardCanvas({
         </div>
       </DndContext>
 
-      {/* Toast Notification */}
+      {/* Toast */}
       {toast && (
         <div className={`fixed bottom-8 right-8 px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-8 fade-in duration-300 z-[9999] text-sm font-bold text-white max-w-sm ${
           toast.type === 'error' ? 'bg-red-500' : 'bg-slate-900'
         }`}>
-          {toast.type === 'success' ? <CheckCircle2 size={20} className="text-emerald-400" /> : <AlertCircle size={20} className="text-white" />}
+          {toast.type === 'success'
+            ? <CheckCircle2 size={20} className="text-emerald-400" />
+            : <AlertCircle size={20} className="text-white" />}
           {toast.message}
         </div>
       )}
     </div>
+  );
+}
+
+/** Wrapper público — provee el contexto de filtros al árbol */
+export default function DashboardCanvas(props: {
+  initialWidgets: any[];
+  onSave: (widgets: any[]) => void;
+  dashboardId?: string;
+  initialTitle?: string;
+  initialTemplateId?: string;
+}) {
+  return (
+    <FilterProvider>
+      <CanvasInner {...props} />
+    </FilterProvider>
   );
 }

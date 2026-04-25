@@ -32,17 +32,22 @@ export default function DashboardCanvasPage() {
       }
       const d = data.dashboard;
 
-      // 2. Fetch datasets to inject sampleData into widgets
+      // 2. Fetch datasets
       const dsRes = await fetch('/api/datasets');
       const dsData = await dsRes.json();
-      const allSampleData = (Array.isArray(dsData?.datasets) ? dsData.datasets : [])
-        .flatMap((ds: any) => ds.rawSchema?.sampleData || []);
+      const datasets = Array.isArray(dsData?.datasets) ? dsData.datasets : [];
 
-      // 3. Inject sampleData into every widget's config
-      const widgetsWithData = (d.widgets || []).map((w: any) => ({
-        ...w,
-        config: { ...w.config, sampleData: allSampleData },
-      }));
+      // 3. Inject sampleData into every widget's config based on datasetIndex
+      const widgetsWithData = (d.widgets || []).map((w: any) => {
+        const datasetIndex = w.datasetIndex ?? 0;
+        const targetDataset = datasets[datasetIndex];
+        const sampleData = targetDataset?.rawSchema?.sampleData || [];
+
+        return {
+          ...w,
+          config: { ...w.config, sampleData },
+        };
+      });
 
       setPayload({
         title: d.title,
