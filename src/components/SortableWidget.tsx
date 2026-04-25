@@ -55,62 +55,57 @@ function findRealKey(obj: Record<string, any>, suggestedKeyRaw: any): string {
   return keys.find(k => lowerS.includes(k.toLowerCase()) || k.toLowerCase().includes(lowerS)) || suggestedKey;
 }
 
-/** Procesa datos para gráficas de serie temporal o dispersión (Líneas/Áreas) */
-function toChartData(config: any): { name: string; value: number }[] {
+/** Procesa datos asegurando AGRUPACIÓN por xAxis (Elimina el serrucho) */
+function processData(config: any): { labels: string[]; datasets: { label: string; data: number[] }[] } {
   const rows: Record<string, any>[] = config?.sampleData ?? [];
+  if (!rows.length) return { labels: [], datasets: [] };
+
   const xKey = findRealKey(rows[0], config?.x || config?.xAxis);
-  const yKey = findRealKey(rows[0], config?.y || config?.yAxis);
+  const yAxisRaw = config?.y || config?.yAxis;
+  const yKeys = Array.isArray(yAxisRaw) ? yAxisRaw.map(k => findRealKey(rows[0], k)) : [findRealKey(rows[0], yAxisRaw)];
+  const aggregate = config?.aggregate?.toLowerCase() || 'sum';
 
-  if (!rows.length || !yKey) return [];
-
-  // Si hay demasiados puntos, promediamos para evitar el "serrucho"
-  const maxPoints = 25;
-  if (rows.length > maxPoints) {
-    const chunkSize = Math.ceil(rows.length / maxPoints);
-    const averaged = [];
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-      const avgY = chunk.reduce((acc, r) => acc + (parseFloat(String(r[yKey]).replace(/[$,\s%]/g, '')) || 0), 0) / chunk.length;
-      const label = String(chunk[0][xKey] || i);
-      averaged.push({ name: label.slice(0, 15), value: avgY });
-    }
-    return averaged;
-  }
-
-  return rows.map((r, i) => ({
-    name: xKey ? String(r[xKey] ?? '').slice(0, 15) : String(i),
-    value: parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0,
-  }));
-}
-
-/** Procesa datos agrupando por categoría (Barras/Donas) - Top 10 + Otros */
-function toGrouped(config: any): { name: string; value: number }[] {
-  const rows: Record<string, any>[] = config?.sampleData ?? [];
-  const xKey = findRealKey(rows[0], config?.x || config?.xAxis);
-  const yKey = findRealKey(rows[0], config?.y || config?.yAxis);
-
-  if (!rows.length || !xKey) return [];
-
-  const map: Record<string, number> = {};
+  // 1. Agrupar filas por xKey
+  const groups: Record<string, Record<string, any>[]> = {};
   rows.forEach(r => {
-    const key = String(r[xKey] ?? 'Sin Categoría');
-    const val = yKey 
-      ? (parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0)
-      : 1; // Si no hay Y, contamos ocurrencias
-    map[key] = (map[key] ?? 0) + val;
+    const val = String(r[xKey] ?? 'Sin Categoría');
+    if (!groups[val]) groups[val] = [];
+    groups[val].push(r);
   });
 
-  const sorted = Object.entries(map)
-    .sort((a, b) => b[1] - a[1]);
-
-  const topLimit = 10;
-  if (sorted.length > topLimit) {
-    const top = sorted.slice(0, topLimit);
-    const others = sorted.slice(topLimit).reduce((acc, curr) => acc + curr[1], 0);
-    return [...top.map(([name, value]) => ({ name: name.slice(0, 20), value })), { name: 'Otros', value: others }];
+  // 2. Ordenar grupos (Top 15 por el primer yKey para que sea legible)
+  let labels = Object.keys(groups);
+  const firstY = yKeys[0];
+  
+  if (aggregate !== 'count' && firstY) {
+    labels.sort((a, b) => {
+      const sumA = groups[b].reduce((acc, r) => acc + (parseFloat(String(r[firstY]).replace(/[$,\s%]/g, '')) || 0), 0);
+      const sumB = groups[a].reduce((acc, r) => acc + (parseFloat(String(r[firstY]).replace(/[$,\s%]/g, '')) || 0), 0);
+      return sumA - sumB;
+    });
   }
 
-  return sorted.map(([name, value]) => ({ name: name.slice(0, 20), value }));
+  // Limitar a Top 15 para evitar saturación
+  const limitedLabels = labels.slice(0, 15);
+  
+  // 3. Generar un dataset por cada yKey
+  const datasets = yKeys.map(yKey => {
+    const data = limitedLabels.map(label => {
+      const chunk = groups[label];
+      if (aggregate === 'count') return chunk.length;
+      
+      const values = chunk.map(r => parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0);
+      if (aggregate === 'avg') return values.reduce((a, b) => a + b, 0) / values.length;
+      return values.reduce((a, b) => a + b, 0); // Default SUM
+    });
+
+    return {
+      label: yKey || 'Valor',
+      data
+    };
+  });
+
+  return { labels: limitedLabels, datasets };
 }
 
 export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate }: Props) {
@@ -153,11 +148,9 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
 
   const renderChart = () => {
     const cfg = widget.config ?? {};
-    const chartData = widget.type === 'bar' || widget.type === 'pie' || widget.type === 'donut' 
-      ? toGrouped(cfg) 
-      : toChartData(cfg);
+    const { labels, datasets } = processData(cfg);
 
-    if (!chartData.length) {
+    if (!labels.length) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-2 opacity-30">
           <RefreshCw size={24} className="animate-spin" />
@@ -166,11 +159,16 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
       );
     }
 
+    // Fix 1: Forzar Barras si el eje X es categórico y piden línea
+    let finalType = widget.type;
+    const isNumericX = labels.every(l => !isNaN(parseFloat(l)));
+    if (finalType === 'line' && !isNumericX) {
+      finalType = 'bar';
+    }
+
     if (widget.type === 'stat') {
-      const total = chartData.reduce((acc, d) => acc + d.value, 0);
-      const displayVal = total > 1_000_000 
-        ? `$${(total/1_000_000).toFixed(2)}M` 
-        : total > 1_000 ? `$${(total/1_000).toFixed(1)}K` : total.toLocaleString();
+      const firstVal = datasets[0]?.data[0] || 0;
+      const displayVal = formatValue(firstVal);
       
       return (
         <div className="flex flex-col justify-center items-center h-full">
@@ -199,8 +197,9 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
     return (
       <div className="w-full h-full p-2">
         <ChartEngine 
-          type={widget.type} 
-          data={chartData} 
+          type={finalType} 
+          labels={labels}
+          datasets={datasets}
           title={widget.title}
           theme={theme}
         />
