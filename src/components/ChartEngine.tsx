@@ -58,24 +58,47 @@ export default function ChartEngine({ type, data, title, theme = 'modern' }: Cha
   const chartOptions: ChartOptions<any> = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: { top: 10, bottom: 5, left: 5, right: 10 }
+    },
     animation: {
-      duration: 1500,
+      duration: 2000,
       easing: 'easeOutQuart'
     },
     plugins: {
       legend: {
-        display: false // Mantenemos minimalismo
+        display: type === 'pie' || type === 'donut' || type === 'doughnut',
+        position: 'bottom',
+        labels: {
+          usePointStyle: true,
+          pointStyle: 'circle',
+          padding: 20,
+          font: { family: 'DM Mono', size: 10, weight: '500' },
+          color: isDark ? '#8bafc7' : '#64748b'
+        }
       },
       tooltip: {
-        backgroundColor: isDark ? '#111820' : '#ffffff',
+        backgroundColor: isDark ? 'rgba(17, 24, 32, 0.95)' : 'rgba(255, 255, 255, 0.95)',
         titleColor: isDark ? '#e8f4fd' : '#1e293b',
-        bodyColor: isDark ? '#8bafc7' : '#475569',
-        borderColor: isDark ? '#1a2a3a' : '#e2e8f0',
+        bodyColor: isDark ? '#00d4ff' : '#0ea5e9',
+        borderColor: isDark ? 'rgba(0, 212, 255, 0.2)' : 'rgba(14, 165, 233, 0.2)',
         borderWidth: 1,
-        padding: 12,
-        cornerRadius: 8,
+        padding: 15,
+        cornerRadius: 12,
         displayColors: false,
-        bodyFont: { family: 'DM Mono' }
+        titleFont: { family: 'Syne', size: 14, weight: '700' },
+        bodyFont: { family: 'DM Mono', size: 13, weight: '600' },
+        callbacks: {
+          label: (context: any) => {
+            let label = context.dataset.label || '';
+            if (label) label += ': ';
+            if (context.parsed.y !== null) {
+              const val = context.parsed.y;
+              return label + (val >= 1000 ? `$${val.toLocaleString()}` : val.toString());
+            }
+            return label + context.parsed.toString();
+          }
+        }
       }
     },
     scales: {
@@ -84,20 +107,28 @@ export default function ChartEngine({ type, data, title, theme = 'modern' }: Cha
         grid: { display: false },
         ticks: {
           color: isDark ? '#4a6b82' : '#94a3b8',
-          font: { family: 'DM Mono', size: 9 },
-          maxRotation: 0
+          font: { family: 'DM Mono', size: 10 },
+          maxRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: 8
         }
       },
       y: {
         display: type !== 'pie' && type !== 'donut' && type !== 'doughnut',
         grid: {
-          color: isDark ? 'rgba(26, 42, 58, 0.4)' : 'rgba(226, 232, 240, 0.6)',
+          color: isDark ? 'rgba(26, 42, 58, 0.3)' : 'rgba(226, 232, 240, 0.5)',
           drawTicks: false
         },
+        border: { display: false },
         ticks: {
           color: isDark ? '#4a6b82' : '#94a3b8',
-          font: { family: 'DM Mono', size: 9 },
-          padding: 8
+          font: { family: 'DM Mono', size: 10 },
+          padding: 10,
+          callback: (value: any) => {
+            if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M';
+            if (value >= 1_000) return (value / 1_000).toFixed(0) + 'K';
+            return value;
+          }
         }
       }
     }
@@ -109,15 +140,23 @@ export default function ChartEngine({ type, data, title, theme = 'modern' }: Cha
       label: title || 'Métrica',
       data: values,
       borderColor: activeColor.border,
-      backgroundColor: activeColor.bg,
-      borderWidth: 3,
+      backgroundColor: (context: any) => {
+        const ctx = context.chart.ctx;
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, activeColor.bg);
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        return gradient;
+      },
+      borderWidth: 4,
       pointRadius: 0,
       pointHoverRadius: 6,
       pointHoverBackgroundColor: activeColor.border,
       pointHoverBorderColor: '#fff',
-      pointHoverBorderWidth: 2,
+      pointHoverBorderWidth: 3,
       fill: true,
-      tension: 0.4, // Curva suave de "Doctorado"
+      tension: 0.45,
+      shadowBlur: 10,
+      shadowColor: activeColor.glow,
     }]
   };
 

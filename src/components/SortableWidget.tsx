@@ -34,6 +34,13 @@ const TOOLTIP_BG   = { modern: '#ffffff', enterprise: '#ffffff', dark: '#111820'
 const TOOLTIP_BDR  = { modern: '#e2e8f0', enterprise: '#dce6f5', dark: '#1a2a3a' };
 
 const SPARK_HEIGHTS = [40, 65, 52, 80, 60, 90, 45, 75];
+/** Formatea números de forma "Mamona" ($1.2M, 45K, etc) */
+function formatValue(val: number): string {
+  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `$${(val / 1_000).toFixed(1)}K`;
+  return val.toLocaleString();
+}
+
 /** Encuentra la columna real haciendo fuzzy match */
 function findRealKey(obj: Record<string, any>, suggestedKeyRaw: any): string {
   if (!obj || !suggestedKeyRaw) return '';
@@ -42,70 +49,68 @@ function findRealKey(obj: Record<string, any>, suggestedKeyRaw: any): string {
   if (keys.includes(suggestedKey)) return suggestedKey;
   
   const lowerS = suggestedKey.toLowerCase();
-  // Buscar coincidencia exacta ignorando mayúsculas
   const exactMatch = keys.find(k => k.toLowerCase() === lowerS);
   if (exactMatch) return exactMatch;
 
-  // Buscar coincidencia parcial
-  const partialMatch = keys.find(k => lowerS.includes(k.toLowerCase()) || k.toLowerCase().includes(lowerS));
-  return partialMatch || suggestedKey;
+  return keys.find(k => lowerS.includes(k.toLowerCase()) || k.toLowerCase().includes(lowerS)) || suggestedKey;
 }
 
-/** Convierte sampleData + config.x + config.y  en [{name, value}] */
-function toChartData(config: any): { name: string; value: number; z?: number }[] {
+/** Procesa datos para gráficas de serie temporal o dispersión (Líneas/Áreas) */
+function toChartData(config: any): { name: string; value: number }[] {
   const rows: Record<string, any>[] = config?.sampleData ?? [];
-  const rawX: string = config?.x || config?.xAxis || '';
-  const rawY: string = config?.y || config?.yAxis || '';
-  const rawZ: string = config?.z || '';
+  const xKey = findRealKey(rows[0], config?.x || config?.xAxis);
+  const yKey = findRealKey(rows[0], config?.y || config?.yAxis);
 
-  if (!rows.length || !rawY) return [];
+  if (!rows.length || !yKey) return [];
 
-  const sampleObj = rows[0] || {};
-  const xKey = findRealKey(sampleObj, rawX);
-  const yKey = findRealKey(sampleObj, rawY);
-  const zKey = findRealKey(sampleObj, rawZ);
-
-  const parsed = rows
-    .map(r => ({
-      name:  xKey ? String(r[xKey] ?? '').slice(0, 30) : '—',
-      value: parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%a-zA-Z]/g, '')) || 0,
-      ...(zKey ? { z: parseFloat(String(r[zKey] ?? '10').replace(/[$,\s%a-zA-Z]/g, '')) || 10 } : {}),
-    }))
-    .filter(d => !isNaN(d.value));
-    
-  return parsed;
-}
-
-/** Convierte sampleData en [{name, value}] agrupando por xKey (para barras/pie/donut) */
-function toGrouped(config: any): { name: string; value: number }[] {
-  const rows: Record<string, any>[] = config?.sampleData ?? [];
-  const rawX: string = config?.x || config?.xAxis || '';
-  const rawY: string = config?.y || config?.yAxis || '';
-
-  if (!rows.length) return [];
-
-  const sampleObj = rows[0] || {};
-  const xKey = findRealKey(sampleObj, rawX);
-  const yKey = findRealKey(sampleObj, rawY);
-
-  if (!xKey) return toChartData(config);
-
-  const map: Record<string, number> = {};
-  for (const r of rows) {
-    const key = String(r[xKey] ?? '—').slice(0, 35);
-    // Si no hay yKey, contamos ocurrencias. Si hay yKey, sumamos.
-    const val = yKey 
-      ? (parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%a-zA-Z]/g, '')) || 0)
-      : 1;
-    map[key] = (map[key] ?? 0) + val;
+  // Si hay demasiados puntos, promediamos para evitar el "serrucho"
+  const maxPoints = 25;
+  if (rows.length > maxPoints) {
+    const chunkSize = Math.ceil(rows.length / maxPoints);
+    const averaged = [];
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      const avgY = chunk.reduce((acc, r) => acc + (parseFloat(String(r[yKey]).replace(/[$,\s%]/g, '')) || 0), 0) / chunk.length;
+      const label = String(chunk[0][xKey] || i);
+      averaged.push({ name: label.slice(0, 15), value: avgY });
+    }
+    return averaged;
   }
 
-  const grouped = Object.entries(map)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 15) // Mostrar un poco más para que sea útil
-    .map(([name, value]) => ({ name, value: Math.round(value) }));
+  return rows.map((r, i) => ({
+    name: xKey ? String(r[xKey] ?? '').slice(0, 15) : String(i),
+    value: parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0,
+  }));
+}
 
-  return grouped;
+/** Procesa datos agrupando por categoría (Barras/Donas) - Top 10 + Otros */
+function toGrouped(config: any): { name: string; value: number }[] {
+  const rows: Record<string, any>[] = config?.sampleData ?? [];
+  const xKey = findRealKey(rows[0], config?.x || config?.xAxis);
+  const yKey = findRealKey(rows[0], config?.y || config?.yAxis);
+
+  if (!rows.length || !xKey) return [];
+
+  const map: Record<string, number> = {};
+  rows.forEach(r => {
+    const key = String(r[xKey] ?? 'Sin Categoría');
+    const val = yKey 
+      ? (parseFloat(String(r[yKey] ?? '0').replace(/[$,\s%]/g, '')) || 0)
+      : 1; // Si no hay Y, contamos ocurrencias
+    map[key] = (map[key] ?? 0) + val;
+  });
+
+  const sorted = Object.entries(map)
+    .sort((a, b) => b[1] - a[1]);
+
+  const topLimit = 10;
+  if (sorted.length > topLimit) {
+    const top = sorted.slice(0, topLimit);
+    const others = sorted.slice(topLimit).reduce((acc, curr) => acc + curr[1], 0);
+    return [...top.map(([name, value]) => ({ name: name.slice(0, 20), value })), { name: 'Otros', value: others }];
+  }
+
+  return sorted.map(([name, value]) => ({ name: name.slice(0, 20), value }));
 }
 
 export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate }: Props) {
