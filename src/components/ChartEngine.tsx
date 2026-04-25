@@ -133,8 +133,9 @@ export default function ChartEngine({ type, data, title, theme = 'modern' }: Cha
           color: isDark ? '#4a6b82' : '#94a3b8',
           font: { family: 'DM Mono', size: 10 },
           padding: 10,
-          callback: function(value: any) {
-            const title = (this.chart.options.plugins.title?.text || '').toLowerCase();
+          callback: function(this: any, value: any) {
+            const chart = this.chart;
+            const title = (chart.options.plugins.title?.text || '').toLowerCase();
             const isMoney = title.includes('precio') || title.includes('venta') || title.includes('costo') || title.includes('monto') || title.includes('$');
             const isTime = title.includes('tiempo') || title.includes('entrega') || title.includes('días');
             
