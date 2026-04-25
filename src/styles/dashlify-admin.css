@@ -522,7 +522,7 @@
 }
 
 #dash-admin .content {
-  padding: 26px 26px 100px;
+  padding: 26px;
   overflow-y: auto;
 }
 #dash-admin .content::-webkit-scrollbar {

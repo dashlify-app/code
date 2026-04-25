@@ -296,24 +296,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <main className="content">{children}</main>
       </div>
-
-      <div className="export-bar">
-        <div className="export-info">
-          <span>📄</span>
-          <div>
-            <strong>dashlify-session</strong>
-            <span style={{ color: 'var(--text3)', fontSize: 12, marginLeft: 8 }}>IA + builder · guarda en la nube</span>
-          </div>
-        </div>
-        <div className="export-actions">
-          <button type="button" className="btn-sm" onClick={openUpload}>
-            ⬆ Cargar datos
-          </button>
-          <button type="button" className="btn-primary" onClick={() => router.push('/dashboard/settings')}>
-            Ver plan
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
