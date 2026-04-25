@@ -66,6 +66,11 @@ export async function POST(req: Request) {
     });
 
     const analysis = JSON.parse(response.choices[0].message.content || '{}');
+    
+    // LOG PARA DEBUG Y CLAUDE: Imprime el JSON de la propuesta
+    console.log('--- GPT-4o PROPOSAL JSON ---');
+    console.log(JSON.stringify(analysis, null, 2));
+    console.log('-----------------------------');
 
     if (response.usage) {
       const session = await getServerSession(authOptions);
