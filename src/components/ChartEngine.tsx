@@ -90,13 +90,22 @@ export default function ChartEngine({ type, data, title, theme = 'modern' }: Cha
         bodyFont: { family: 'DM Mono', size: 13, weight: '600' },
         callbacks: {
           label: (context: any) => {
-            let label = context.dataset.label || '';
-            if (label) label += ': ';
-            if (context.parsed.y !== null) {
-              const val = context.parsed.y;
-              return label + (val >= 1000 ? `$${val.toLocaleString()}` : val.toString());
+            const val = context.parsed.y;
+            const title = (context.chart.options.plugins.title?.text || '').toLowerCase();
+            const label = context.dataset.label || '';
+            
+            // Lógica de "Galleta": Detección de unidad por contexto
+            if (title.includes('tiempo') || title.includes('entrega') || title.includes('días') || title.includes('days')) {
+              return `${label}: ${val.toFixed(1)} días`;
             }
-            return label + context.parsed.toString();
+            if (title.includes('%') || title.includes('porcentaje') || title.includes('margen') || title.includes('tasa')) {
+              return `${label}: ${val.toFixed(1)}%`;
+            }
+            if (title.includes('precio') || title.includes('venta') || title.includes('costo') || title.includes('monto') || title.includes('$')) {
+              return `${label}: $${val.toLocaleString()}`;
+            }
+            
+            return `${label}: ${val.toLocaleString()}`;
           }
         }
       }
@@ -124,10 +133,18 @@ export default function ChartEngine({ type, data, title, theme = 'modern' }: Cha
           color: isDark ? '#4a6b82' : '#94a3b8',
           font: { family: 'DM Mono', size: 10 },
           padding: 10,
-          callback: (value: any) => {
-            if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M';
-            if (value >= 1_000) return (value / 1_000).toFixed(0) + 'K';
-            return value;
+          callback: function(value: any) {
+            const title = (this.chart.options.plugins.title?.text || '').toLowerCase();
+            const isMoney = title.includes('precio') || title.includes('venta') || title.includes('costo') || title.includes('monto') || title.includes('$');
+            const isTime = title.includes('tiempo') || title.includes('entrega') || title.includes('días');
+            
+            let formatted = value;
+            if (value >= 1_000_000) formatted = (value / 1_000_000).toFixed(1) + 'M';
+            else if (value >= 1_000) formatted = (value / 1_000).toFixed(0) + 'K';
+            
+            if (isMoney) return `$${formatted}`;
+            if (isTime) return `${formatted}d`;
+            return formatted;
           }
         }
       }

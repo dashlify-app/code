@@ -26,6 +26,12 @@ export async function POST(req: Request) {
       1. Realiza una "Auditoría Estratégica": Identifica el valor de negocio de este archivo.
       2. Crea una PROPUESTA DE DASHBOARD PROFESIONAL que compita con los mejores analíticos del mercado.
       3. Sugiere exactamente 6 gráficas (widgets) de alto impacto.
+      
+      REGLAS DE ORO PARA EL TÍTULO:
+      - Si los datos son dinero, incluye "$", "Venta", "Costo" o "Precio".
+      - Si los datos son tiempo, incluye "Tiempo", "Días" o "Entrega".
+      - Si es porcentaje, incluye "%" o "Margen".
+      - Si es volumen, incluye "Cantidad" o "Unidades".
 
       DEVUELVE UN JSON CON ESTA ESTRUCTURA:
       {
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
         },
         "proposedWidgets": [
           {
-            "title": "Título de la Gráfica (ej: Distribución de Ingresos por Región)",
+            "title": "Título de la Gráfica (ej: Tiempo de Entrega Promedio)",
             "type": "bar | line | pie | kpi",
             "config": {
               "xAxis": "columna_x",
