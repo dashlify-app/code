@@ -177,12 +177,12 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
           </div>
           <div className="kpi-label">{widget.config?.y || 'Métrica Total'}</div>
           <div className="flex items-end gap-1 mt-4 h-8">
-            {chartData.slice(-10).map((d, i) => (
+            {(datasets[0]?.data || []).slice(-10).map((val, i) => (
               <div 
                 key={i} 
                 className="rounded-t-sm" 
                 style={{ 
-                  height: `${(d.value / Math.max(...chartData.map(v => v.value)) * 100) || 10}%`,
+                  height: `${(val / Math.max(...(datasets[0]?.data || [1])) * 100) || 10}%`,
                   background: i === 9 ? 'var(--accent)' : 'var(--accent)33',
                   width: 5
                 }} 
