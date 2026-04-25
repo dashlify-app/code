@@ -68,6 +68,8 @@ export async function POST(req: Request) {
         userId: userId,
         organizationId: orgId || null,
         layoutConfig: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
       .select('id')
       .single();
@@ -82,6 +84,8 @@ export async function POST(req: Request) {
         type: w.type,
         dataSourceConfig: { ...(w.config || {}), title: w.title || w.type },
         stylingOptions: w.styling || {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }));
 
       const { error: widgetsError } = await supabaseAdmin
