@@ -306,57 +306,69 @@ export default function UploadZone() {
         className={`upload-zone-dash ${isDragActive ? 'drag' : ''}`}
       >
         <input {...getInputProps()} />
-        <div className="text-3xl mb-3">📂</div>
-        <div className="font-[family-name:var(--font-syne),sans-serif] text-[15px] font-bold" style={{ color: 'var(--text)' }}>
-          Suelta tus archivos aquí
-        </div>
-        <p className="text-[13px] mt-2" style={{ color: 'var(--text2)' }}>
-          CSV, Excel (.xlsx, .xls)
-        </p>
-        <div className="flex flex-wrap justify-center gap-1.5 mt-4">
-          {['CSV', 'XLSX', 'XLS'].map((t) => (
-            <span
-              key={t}
-              className="font-[family-name:var(--font-dm-mono),monospace] text-[9px] tracking-wide px-2 py-0.5 rounded border uppercase"
-              style={{ borderColor: 'var(--border2)', color: 'var(--text3)' }}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
+
+        {files.length === 0 ? (
+          // UI de drag & drop cuando no hay archivos
+          <>
+            <div className="text-3xl mb-3">📂</div>
+            <div className="font-[family-name:var(--font-syne),sans-serif] text-[15px] font-bold" style={{ color: 'var(--text)' }}>
+              Suelta tus archivos aquí
+            </div>
+            <p className="text-[13px] mt-2" style={{ color: 'var(--text2)' }}>
+              CSV, Excel (.xlsx, .xls)
+            </p>
+            <div className="flex flex-wrap justify-center gap-1.5 mt-4">
+              {['CSV', 'XLSX', 'XLS'].map((t) => (
+                <span
+                  key={t}
+                  className="font-[family-name:var(--font-dm-mono),monospace] text-[9px] tracking-wide px-2 py-0.5 rounded border uppercase"
+                  style={{ borderColor: 'var(--border2)', color: 'var(--text3)' }}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          // Archivos cargados DENTRO del dropzone
+          <div className="space-y-4">
+            <div className="sb-label">// Archivos cargados ({files.length})</div>
+            <div className="grid grid-cols-1 gap-2">
+              {files.map((file, i) => (
+                <div key={i} className="file-row-dash">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: 'var(--surface3)', color: 'var(--accent)' }}>
+                      <File size={20} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                        {file.name}
+                      </p>
+                      <p className="text-[11px] font-[family-name:var(--font-dm-mono),monospace]" style={{ color: 'var(--text3)' }}>
+                        {file.size} · {file.headers.length} columnas
+                      </p>
+                    </div>
+                  </div>
+                  <button type="button" className="btn-sm" onClick={() => removeFile(i)} aria-label="Quitar archivo">
+                    <X size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-[12px] text-center" style={{ color: 'var(--text2)' }}>
+              Puedes arrastrar más archivos aquí
+            </p>
+          </div>
+        )}
       </div>
 
+      {/* Botones de acción FUERA del dropzone */}
       {files.length > 0 && (
-        <div className="space-y-4">
-          <div className="sb-label">// Archivos cargados ({files.length})</div>
-          <div className="grid grid-cols-1 gap-2">
-            {files.map((file, i) => (
-              <div key={i} className="file-row-dash">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: 'var(--surface3)', color: 'var(--accent)' }}>
-                    <File size={20} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                      {file.name}
-                    </p>
-                    <p className="text-[11px] font-[family-name:var(--font-dm-mono),monospace]" style={{ color: 'var(--text3)' }}>
-                      {file.size} · {file.headers.length} columnas
-                    </p>
-                  </div>
-                </div>
-                <button type="button" className="btn-sm" onClick={() => removeFile(i)} aria-label="Quitar archivo">
-                  <X size={18} />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Botón principal de acción */}
+        <div className="space-y-3">
           {(() => {
             const allAnalyzed = files.every(f => f.analysis);
             const hasUnanalyzed = files.some(f => !f.analysis);
-            
+
             return (
               <button
                 type="button"

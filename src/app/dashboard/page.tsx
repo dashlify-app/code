@@ -161,6 +161,11 @@ const badgeClass = (val: string) => {
 // ── Gráficas dinámicas ───────────────────────────────────────────────────────
 function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; types: ReturnType<typeof detectColumnTypes> & { headers?: string[] }; view: string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
+
+  const toggleFlip = (chartId: string) => {
+    setFlipped(prev => ({ ...prev, [chartId]: !prev[chartId] }));
+  };
 
   if (rows.length === 0) return null;
 
@@ -219,6 +224,9 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 <div className="chart-sub">Evolución temporal</div>
               </div>
               <div className="chart-actions">
+                <button type="button" className="chart-btn" onClick={() => toggleFlip('time')} title="Información">
+                  ℹ️
+                </button>
                 <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-time', 'evolucion-temporal')}>
                   <Download size={13} />
                 </button>
@@ -227,7 +235,20 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 </button>
               </div>
             </div>
-            <div className="chart-wrap" id="chart-time">
+            {flipped['time'] ? (
+              <div className="chart-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
+                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
+                  <strong>📈 Evolución Temporal</strong>
+                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
+                    Este gráfico muestra cómo cambia <strong>{numCol}</strong> a lo largo del tiempo. La línea ascendente/descendente indica la tendencia general, mientras que los picos representan variaciones en fechas específicas.
+                  </p>
+                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
+                    Use este gráfico para identificar patrones temporales y detectar anomalías.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="chart-wrap" id="chart-time">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={timeData} margin={{top:4,right:8,left:-15,bottom:0}}>
                   <defs>
@@ -245,6 +266,7 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+            )}
           </div>
         )}
 
@@ -257,6 +279,9 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 <div className="chart-sub">Distribución por {catCol}</div>
               </div>
               <div className="chart-actions">
+                <button type="button" className="chart-btn" onClick={() => toggleFlip('cat')} title="Información">
+                  ℹ️
+                </button>
                 <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-cat', 'distribucion-categoria')}>
                   <Download size={13} />
                 </button>
@@ -265,7 +290,20 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 </button>
               </div>
             </div>
-            <div className="chart-wrap" id="chart-cat">
+            {flipped['cat'] ? (
+              <div className="chart-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
+                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
+                  <strong>📊 Distribución por Categoría</strong>
+                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
+                    Este gráfico muestra la distribución de <strong>{numCol}</strong> entre las diferentes categorías de <strong>{catCol}</strong>. Las barras más largas indican categorías con mayor valor o cantidad.
+                  </p>
+                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
+                    Use este gráfico para comparar el desempeño entre categorías e identificar cuál es la más relevante.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="chart-wrap" id="chart-cat">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={catData.slice(0,8)} layout="vertical" margin={{top:4,right:8,left:80,bottom:0}}>
                   <CartesianGrid {...gridProps} horizontal={false} />
@@ -279,6 +317,7 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            )}
           </div>
         )}
 
@@ -291,6 +330,9 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 <div className="chart-sub">Comparación de métrica secundaria</div>
               </div>
               <div className="chart-actions">
+                <button type="button" className="chart-btn" onClick={() => toggleFlip('comp')} title="Información">
+                  ℹ️
+                </button>
                 <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-comp', 'comparativa')}>
                   <Download size={13} />
                 </button>
@@ -299,7 +341,20 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 </button>
               </div>
             </div>
-            <div className="chart-wrap" id="chart-comp">
+            {flipped['comp'] ? (
+              <div className="chart-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
+                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
+                  <strong>📈 Comparación de Métrica Secundaria</strong>
+                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
+                    Este gráfico compara <strong>{numCol2}</strong> entre las diferentes categorías de <strong>{catCol}</strong>, permitiendo analizar una segunda métrica importante.
+                  </p>
+                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
+                    Use este gráfico para comparar alternativas y tomar decisiones basadas en múltiples criterios.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="chart-wrap" id="chart-comp">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={catData2.slice(0,8)} margin={{top:4,right:8,left:-15,bottom:0}}>
                   <CartesianGrid {...gridProps} />
@@ -313,6 +368,7 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            )}
           </div>
         )}
       </div>
@@ -327,6 +383,9 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 <div className="chart-sub">Vista consolidada · {rows.length} registros totales</div>
               </div>
               <div className="chart-actions">
+                <button type="button" className="chart-btn" onClick={() => toggleFlip('full')} title="Información">
+                  ℹ️
+                </button>
                 <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-full', 'tendencia-completa')}>
                   <Download size={13} />
                 </button>
@@ -335,18 +394,32 @@ function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; typ
                 </button>
               </div>
             </div>
-            <div className="chart-wrap" style={{height:220}} id="chart-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={timeData} margin={{top:4,right:8,left:-15,bottom:0}}>
-                  <CartesianGrid {...gridProps} />
-                  <XAxis dataKey="name" {...axisProps} tickFormatter={v => String(v).slice(0, 10)} />
-                  <YAxis {...axisProps} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend verticalAlign="top" height={36} iconType="square" />
-                  <Line type="monotone" dataKey="value" name={numCol} stroke="#0ea5e9" strokeWidth={3} dot={{r:4, fill:'#fff', stroke:'#0ea5e9', strokeWidth:2}} activeDot={{r:6, strokeWidth:0, fill:'#0ea5e9'}} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            {flipped['full'] ? (
+              <div className="chart-wrap" style={{height:220, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
+                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
+                  <strong>📈 Análisis de Tendencia</strong>
+                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
+                    Esta es la vista consolidada que muestra la tendencia completa de <strong>{numCol}</strong> a través del tiempo. Los puntos representan variaciones significativas, mientras que la línea general muestra la dirección del cambio.
+                  </p>
+                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
+                    Excelente para visualizar patrones a largo plazo y hacer pronósticos.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="chart-wrap" style={{height:220}} id="chart-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timeData} margin={{top:4,right:8,left:-15,bottom:0}}>
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="name" {...axisProps} tickFormatter={v => String(v).slice(0, 10)} />
+                    <YAxis {...axisProps} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend verticalAlign="top" height={36} iconType="square" />
+                    <Line type="monotone" dataKey="value" name={numCol} stroke="#0ea5e9" strokeWidth={3} dot={{r:4, fill:'#fff', stroke:'#0ea5e9', strokeWidth:2}} activeDot={{r:6, strokeWidth:0, fill:'#0ea5e9'}} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -361,17 +434,59 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
   numeric: string[];
   categorical: string[];
 }) {
-  const displayCols = headers.slice(0, 7);
+  const [pageSize, setPageSize] = useState<number | 'all'>(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const displayCols = headers;
   const lastCatCol  = categorical[categorical.length - 1];
+
+  // Calcular registros a mostrar
+  const itemsPerPage = pageSize === 'all' ? rows.length : pageSize;
+  const totalPages = Math.ceil(rows.length / itemsPerPage);
+  const startIdx = (currentPage - 1) * itemsPerPage;
+  const endIdx = startIdx + itemsPerPage;
+  const displayedRows = rows.slice(startIdx, endIdx);
+
+  // Reset a página 1 cuando cambia pageSize
+  const handlePageSizeChange = (newSize: number | 'all') => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="table-card">
       <div className="chart-hd">
         <div>
-          <div className="chart-title">Detalle de datos — últimos {Math.min(rows.length, 10)} registros</div>
+          <div className="chart-title">Detalle de datos — {displayedRows.length} de {rows.length} registros</div>
           <div className="chart-sub">{rows.length} registros totales · {headers.length} columnas</div>
         </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <label style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--font-dm-mono)' }}>
+            Mostrar por página:
+          </label>
+          <select
+            value={pageSize === 'all' ? 'all' : pageSize}
+            onChange={(e) => handlePageSizeChange(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            style={{
+              padding: '6px 12px',
+              fontSize: '11px',
+              border: '1px solid var(--border2)',
+              background: 'var(--surface2)',
+              color: 'var(--text)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-dm-mono)',
+            }}
+          >
+            <option value={10}>10 registros</option>
+            <option value={20}>20 registros</option>
+            <option value={50}>50 registros</option>
+            <option value={100}>100 registros</option>
+            <option value="all">Todos los registros</option>
+          </select>
+        </div>
       </div>
+
       <table className="data-table">
         <thead>
           <tr>
@@ -380,7 +495,7 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
           </tr>
         </thead>
         <tbody>
-          {rows.slice(0, 10).map((row, ri) => (
+          {displayedRows.map((row, ri) => (
             <tr key={ri}>
               {displayCols.map((col, ci) => {
                 const val = row[col] ?? '—';
@@ -417,6 +532,86 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
           ))}
         </tbody>
       </table>
+
+      {/* Controles de paginación */}
+      {pageSize !== 'all' && totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 24px',
+          borderTop: '1px solid var(--border2)',
+          fontSize: '12px',
+          color: 'var(--text2)',
+          fontFamily: 'var(--font-dm-mono)',
+        }}>
+          <div>
+            Página {currentPage} de {totalPages}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              style={{
+                padding: '6px 12px',
+                fontSize: '11px',
+                border: '1px solid var(--border2)',
+                background: currentPage === 1 ? 'var(--surface3)' : 'transparent',
+                color: currentPage === 1 ? 'var(--text3)' : 'var(--text)',
+                borderRadius: '4px',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                opacity: currentPage === 1 ? 0.5 : 1,
+              }}
+            >
+              ← Anterior
+            </button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else {
+                const start = Math.max(1, currentPage - 2);
+                pageNum = start + i;
+                if (pageNum > totalPages) return null;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: currentPage === pageNum ? 'bold' : '500',
+                    border: currentPage === pageNum ? '2px solid var(--accent)' : '1px solid var(--border2)',
+                    background: currentPage === pageNum ? 'var(--surface2)' : 'transparent',
+                    color: 'var(--text)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '6px 12px',
+                fontSize: '11px',
+                border: '1px solid var(--border2)',
+                background: currentPage === totalPages ? 'var(--surface3)' : 'transparent',
+                color: currentPage === totalPages ? 'var(--text3)' : 'var(--text)',
+                borderRadius: '4px',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                opacity: currentPage === totalPages ? 0.5 : 1,
+              }}
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

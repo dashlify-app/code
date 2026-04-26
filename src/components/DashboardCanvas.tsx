@@ -31,13 +31,13 @@ const THEME_CONFIG: Record<ThemeId, { canvas: string; header: string; grid: stri
     subtitle:   'text-slate-500',
   },
   enterprise: {
-    canvas:     'bg-[#f0f4f8] font-sans text-[#1a2b45]',
-    header:     'bg-[#1a2b45] border border-[#1a2b45] shadow-md',
+    canvas:     'bg-transparent font-sans text-slate-800',
+    header:     'bg-white/90 border border-slate-200 shadow-sm backdrop-blur-xl',
     grid:       'bg-transparent',
-    select:     'bg-[#243755] border border-[#2e4870] text-[#94b8e0] rounded-md',
-    saveBtn:    'bg-[#0052cc] text-white hover:bg-[#0041a8] rounded-md shadow-lg',
-    titleInput: 'text-white',
-    subtitle:   'text-[#94b8e0]',
+    select:     'bg-white border border-slate-200 text-slate-700 rounded-lg',
+    saveBtn:    'bg-sky-500 text-slate-950 hover:bg-white rounded-lg shadow-sky-500/20 shadow-lg',
+    titleInput: 'text-slate-800',
+    subtitle:   'text-slate-400',
   },
   dark: {
     canvas:     'bg-slate-950 font-sans text-white',
@@ -161,9 +161,13 @@ function CanvasInner({
         widgets: widgets.map(w => ({
           type: w.type,
           title: w.title,
-          config: w.config,
-          datasetIndex: w.config?.datasetIndex ?? 0,
-          datasetName: w.config?.datasetName,
+          config: {
+            ...w.config,
+            // Asegurar que se guarde el sampleData
+            sampleData: w.config?.sampleData || [],
+            datasetIndex: w.config?.datasetIndex ?? 0,
+            datasetName: w.config?.datasetName,
+          },
         })),
       };
 
@@ -199,21 +203,21 @@ function CanvasInner({
   const tc = THEME_CONFIG[theme];
 
   return (
-    <div className={`space-y-4 animate-in fade-in duration-700 p-8 transition-all duration-500 ${
-      theme === 'enterprise' ? 'rounded-lg' : 'rounded-[2rem]'
+    <div className={`space-y-4 animate-in fade-in duration-700 p-8 transition-all ${
+      theme === 'enterprise' ? 'dash-canvas-enterprise rounded-[13px]' : 'rounded-4xl'
     } ${tc.canvas}`}>
 
       {/* Enterprise banner */}
       {theme === 'enterprise' && (
-        <div className="flex items-center gap-3 px-5 py-2 bg-[#0052cc] rounded-t-md text-[10px] tracking-[2px] uppercase font-bold text-white/70 font-mono">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+        <div className="flex items-center gap-3 px-5 py-2 rounded-t-[13px] border border-slate-200 bg-white/70 text-[10px] tracking-[2px] uppercase font-bold text-slate-400 font-mono backdrop-blur-xl">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           Dashlify Enterprise · Business Intelligence
         </div>
       )}
 
       {/* Header */}
       <div className={`flex items-center justify-between p-4 transition-all ${
-        theme === 'enterprise' ? 'rounded-b-md' : 'rounded-2xl'
+        theme === 'enterprise' ? 'rounded-b-[13px]' : 'rounded-2xl'
       } ${tc.header}`}>
         <div className="flex items-center gap-4">
           <div className="bg-amber-50 text-amber-600 p-2 rounded-lg">
@@ -245,7 +249,7 @@ function CanvasInner({
             <option value="dark">Tema Oscuro (Noir)</option>
           </select>
           <button className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all ${
-            theme === 'enterprise' ? 'rounded-md text-[#94b8e0] hover:bg-[#243755]' :
+            theme === 'enterprise' ? 'rounded-lg text-slate-500 hover:bg-slate-100 hover:text-sky-600' :
             theme === 'dark' ? 'rounded-xl text-slate-300 hover:bg-slate-800' :
             'rounded-xl text-slate-600 hover:bg-slate-50'
           }`}>
@@ -294,7 +298,7 @@ function CanvasInner({
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-8 right-8 px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-8 fade-in duration-300 z-[9999] text-sm font-bold text-white max-w-sm ${
+        <div className={`fixed bottom-8 right-8 px-5 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-8 fade-in duration-300 z-9999 text-sm font-bold text-white max-w-sm ${
           toast.type === 'error' ? 'bg-red-500' : 'bg-slate-900'
         }`}>
           {toast.type === 'success'

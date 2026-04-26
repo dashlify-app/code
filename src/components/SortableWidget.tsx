@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Maximize2, Download, X } from 'lucide-react';
+import { Maximize2, Download, Info, X } from 'lucide-react';
 import { downloadSvgAsImage } from '@/lib/exportUtils';
 import ChartEngine from './ChartEngine';
 import { useFilters } from './FilterContext';
@@ -203,6 +203,7 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
   };
 
   const [expanded, setExpanded] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   const resolved: ThemeId = isDark ? 'dark' : theme;
 
   const chartTypeLabel: Record<string, string> = {
@@ -210,7 +211,30 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
     area: 'ÁREA', scatter: 'CORRELACIÓN', bubble: 'BUBBLE', donut: 'DONUT',
   };
 
+  const chartExplanations: Record<string, string> = {
+    bar: 'Gráfico de barras que compara valores entre categorías. Útil para visualizar comparaciones entre grupos.',
+    line: 'Gráfico de línea que muestra tendencias a lo largo del tiempo o una secuencia. Ideal para observar cambios continuos.',
+    pie: 'Gráfico de pastel que muestra la distribución proporcional de un total. Cada sección representa una parte del conjunto.',
+    stat: 'Indicador clave de desempeño (KPI) que muestra una métrica principal y su tendencia reciente.',
+    area: 'Gráfico de área que combina líneas con áreas rellenas para enfatizar magnitud. Bueno para mostrar tendencias y volumen.',
+    scatter: 'Gráfico de dispersión que muestra la correlación entre dos variables. Cada punto representa una observación.',
+    bubble: 'Gráfico de burbujas que visualiza tres dimensiones: posición X, posición Y y tamaño de la burbuja.',
+    donut: 'Gráfico de rosquilla similar al pastel, mostrando proporciones con un espacio central.',
+  };
+
   const renderChart = (forExpanded = false) => {
+    // Mostrar explicación si está flipped
+    if (flipped && !forExpanded) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-6">
+          <Info size={40} className="text-sky-500 dark:text-cyan-400 mb-4 opacity-70" />
+          <p className="text-sm text-center opacity-80 leading-relaxed">
+            {chartExplanations[widget.type] || 'Gráfico de visualización de datos.'}
+          </p>
+        </div>
+      );
+    }
+
     const cfg = widget.config ?? {};
     const rows: Record<string, any>[] = cfg?.sampleData ?? [];
 
@@ -350,7 +374,14 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
               )}
             </div>
           </div>
-          <div className="chart-actions opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="chart-actions opacity-100 transition-opacity flex gap-1">
+            <button
+              className="chart-btn"
+              title="Explicación"
+              onClick={(e) => { e.stopPropagation(); setFlipped(!flipped); }}
+            >
+              <Info size={12} />
+            </button>
             <select
               value={widget.config?.colSpan || 1}
               onChange={(e) => {

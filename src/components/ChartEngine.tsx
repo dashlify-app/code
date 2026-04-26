@@ -49,17 +49,18 @@ const PALETTE = [
   { border: '#f97316', bg: 'rgba(249, 115, 22, 0.1)', glow: 'rgba(249, 115, 22, 0.5)' },
 ];
 
-export default function ChartEngine({ type, labels, datasets, title, isDark = true, onElementClick }: Props) {
+export default function ChartEngine({ type, labels, datasets, title, theme = 'modern', isDark = true, onElementClick }: Props) {
   const chartRef = useRef<any>(null);
 
-  const tickColor = isDark ? '#4a6b82' : '#94a3b8';
-  const gridColor = isDark ? 'rgba(26, 42, 58, 0.3)' : 'rgba(226, 232, 240, 0.5)';
+  const isEnterprise = theme === 'enterprise';
+  const tickColor = isEnterprise ? '#4a6b82' : isDark ? '#4a6b82' : '#94a3b8';
+  const gridColor = isEnterprise ? 'rgba(26, 42, 58, 0.55)' : isDark ? 'rgba(26, 42, 58, 0.3)' : 'rgba(226, 232, 240, 0.5)';
 
   const baseTooltip = {
-    backgroundColor: isDark ? 'rgba(17, 24, 32, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-    titleColor: isDark ? '#e8f4fd' : '#1e293b',
-    bodyColor: isDark ? '#00d4ff' : '#0ea5e9',
-    borderColor: isDark ? 'rgba(0, 212, 255, 0.2)' : 'rgba(14, 165, 233, 0.2)',
+    backgroundColor: isEnterprise ? '#111820' : isDark ? 'rgba(17, 24, 32, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+    titleColor: isEnterprise ? '#00d4ff' : isDark ? '#e8f4fd' : '#1e293b',
+    bodyColor: isEnterprise ? '#8bafc7' : isDark ? '#00d4ff' : '#0ea5e9',
+    borderColor: isEnterprise ? '#1a2a3a' : isDark ? 'rgba(0, 212, 255, 0.2)' : 'rgba(14, 165, 233, 0.2)',
     borderWidth: 1,
     padding: 15,
     cornerRadius: 12,
@@ -105,7 +106,7 @@ export default function ChartEngine({ type, labels, datasets, title, isDark = tr
             pointStyle: 'circle',
             padding: 16,
             font: { family: 'DM Mono', size: 10 },
-            color: isDark ? '#8bafc7' : '#64748b',
+            color: isEnterprise ? '#8bafc7' : isDark ? '#8bafc7' : '#64748b',
           }
         },
         tooltip: {
@@ -218,7 +219,7 @@ export default function ChartEngine({ type, labels, datasets, title, isDark = tr
     },
     scales: {
       x: {
-        grid: { display: false },
+        grid: { display: isEnterprise, color: gridColor },
         ticks: {
           color: tickColor,
           font: { family: 'DM Mono', size: 10 },
@@ -228,7 +229,7 @@ export default function ChartEngine({ type, labels, datasets, title, isDark = tr
       },
       y: {
         grid: { color: gridColor, drawTicks: false },
-        border: { display: false },
+        border: { display: isEnterprise, color: 'rgba(26, 42, 58, 0.6)' },
         ticks: {
           color: tickColor,
           font: { family: 'DM Mono', size: 10 },
@@ -245,18 +246,18 @@ export default function ChartEngine({ type, labels, datasets, title, isDark = tr
       return {
         label: ds.label,
         data: ds.data,
-        borderColor: color.border,
+        borderColor: isEnterprise ? '#00d4ff' : color.border,
         backgroundColor: (context: any) => {
-          if (type === 'bar') return color.border + 'bb';
+          if (type === 'bar') return isEnterprise ? 'rgba(0, 212, 255, 0.35)' : color.border + 'bb';
           const ctx = context.chart?.ctx;
           if (!ctx) return color.bg;
           const gradient = ctx.createLinearGradient(0, 0, 0, 280);
-          gradient.addColorStop(0, color.bg);
+          gradient.addColorStop(0, isEnterprise ? 'rgba(0, 212, 255, 0.06)' : color.bg);
           gradient.addColorStop(1, 'rgba(0,0,0,0)');
           return gradient;
         },
-        borderWidth: type === 'line' ? 3 : 1.5,
-        borderRadius: type === 'bar' ? 6 : 0,
+        borderWidth: type === 'line' ? (isEnterprise ? 2 : 3) : 1,
+        borderRadius: type === 'bar' ? 4 : 0,
         pointRadius: 0,
         pointHoverRadius: 6,
         fill: type === 'line',
