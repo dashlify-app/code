@@ -259,13 +259,12 @@ function WidgetCalcExplain({
   }
 
   return (
-    <div className="calc-explain p-2 overflow-hidden flex flex-col max-h-full">
-      <p className="text-[var(--text)] text-[12px] font-bold leading-tight">Cómo se calcula</p>
-      <p className="text-[var(--text2)] text-[11px] leading-tight mb-1">
-        <strong className="text-[var(--text)]">{rows.length}</strong> fila{rows.length !== 1 ? 's' : ''}{rawTotal > rows.length ? <> (de {rawTotal})</> : null}
+    <div className="calc-explain p-2 overflow-hidden flex flex-col">
+      <p className="text-[var(--text2)] text-[11px] leading-tight mb-2">
+        Se usan <strong className="text-[var(--text)]">{rows.length}</strong> fila{rows.length !== 1 ? 's' : ''}{rawTotal > rows.length ? <> (de {rawTotal} antes de filtrar)</> : null}.
       </p>
 
-      <dl className="grid gap-2" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      <dl className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         <div className="p-2 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
           <dt className="text-[10px] font-mono text-[var(--text2)] uppercase mb-0.5">Grupos (eje X)</dt>
           <dd className="text-[11px] font-medium text-blue-500 truncate">{xKey || '—'}</dd>
@@ -281,28 +280,25 @@ function WidgetCalcExplain({
       </dl>
 
       {resolvedType === 'scatter' && (
-        <p className="text-[var(--text2)] text-[14px] leading-relaxed">
-          Cada punto toma <strong className="text-[var(--text)]">{xKey}</strong> y{' '}
-          <strong className="text-[var(--text)]">{yKeys[0]}</strong> como números; se muestran hasta 500
-          filas.
+        <p className="text-[var(--text2)] text-[11px] leading-tight">
+          Cada punto: <strong>{xKey}</strong> vs <strong>{yKeys[0]}</strong> (máx 500 filas).
         </p>
       )}
 
       {widgetType === 'stat' && (
-        <p className="text-[var(--text2)] text-[14px] leading-relaxed">
-          El número grande es la <strong className="text-[var(--text)]">suma</strong> de los totales por
-          categoría; las barras finas son la serie resumida.
+        <p className="text-[var(--text2)] text-[11px] leading-tight">
+          El número grande es la <strong>suma</strong> de totales por categoría.
         </p>
       )}
 
       {resolvedType !== 'scatter' && widgetType !== 'stat' && (
-        <p className="text-[var(--text2)] text-[11px] leading-tight mt-1">
-          Las filas se agrupan por «{xKey}». {aggregate === 'mom' || aggregate === 'cumulative' ? (
-            <>Se ordenan <strong className="text-[var(--text)]">cronológicamente</strong> (máx 15).</>
+        <p className="text-[var(--text2)] text-[11px] leading-tight">
+          Se agrupan por «{xKey}». {aggregate === 'mom' || aggregate === 'cumulative' ? (
+            <>Se ordenan <strong>cronológicamente</strong> (máx 15 categorías).</>
           ) : aggregate === 'count' ? (
-            <>Se ordenan por <strong className="text-[var(--text)]">cantidad</strong> (máx 15).</>
+            <>Se ordenan por <strong>número de filas</strong> (máx 15).</>
           ) : (
-            <>Se ordenan por <strong className="text-[var(--text)]">suma</strong> (máx 15).</>
+            <>Se ordenan por <strong>suma de {yKeys[0] || 'Y'}</strong> (máx 15).</>
           )}
         </p>
       )}
