@@ -8,6 +8,7 @@ import { downloadSvgAsImage } from '@/lib/exportUtils';
 import ChartEngine from './ChartEngine';
 import { useFilters } from './FilterContext';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary';
+import { executeJoinedQuery } from '@/lib/multiDatasetJoin';
 
 type ThemeId = 'modern' | 'enterprise' | 'dark';
 
@@ -371,7 +372,27 @@ export function SortableWidget({
       if (!isDate) finalType = 'bar';
     }
 
-    const { labels, datasets } = processData(cfg, finalType, activeFilters);
+    // Si tiene multiDatasetConfig, usar el motor de joins local
+    let labels: string[];
+    let datasets: { label: string; data: (number | { x: number; y: number })[] }[];
+
+    if (cfg?.multiDatasetConfig && cfg?.allDatasets) {
+      // Procesar con joins cruzados
+      const { primary, joins = [], calculations = [] } = cfg.multiDatasetConfig;
+      const primaryDataset = (cfg.allDatasets[primary] || rows) as Record<string, any>[];
+      const allDatasetsMap = new Map(
+        Object.entries(cfg.allDatasets || {}).map(([k, v]) => [k, v as Record<string, any>[]])
+      );
+
+      const joinedData = executeJoinedQuery(primaryDataset, joins, calculations, allDatasetsMap);
+      labels = joinedData.labels;
+      datasets = joinedData.datasets;
+    } else {
+      // Procesamiento normal (single dataset)
+      const result = processData(cfg, finalType, activeFilters);
+      labels = result.labels;
+      datasets = result.datasets;
+    }
 
     if (!labels.length && finalType !== 'scatter') {
       return (
