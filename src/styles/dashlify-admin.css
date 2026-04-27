@@ -1037,6 +1037,31 @@
   color: var(--accent);
   background: var(--surface);
 }
+#dash-admin .widget-delete-btn {
+  position: absolute;
+  right: 50px;
+  bottom: 14px;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #ef4444;
+  background: var(--surface2);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    background 0.2s;
+}
+#dash-admin .widget-delete-btn:hover {
+  border-color: #dc2626;
+  color: #ffffff;
+  background: #ef4444;
+}
 #dash-admin .calc-explain {
   display: flex;
   flex-direction: column;

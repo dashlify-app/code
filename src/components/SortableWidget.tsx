@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Maximize2, Download, Info, RotateCcw } from 'lucide-react';
+import { Maximize2, Download, Info, RotateCcw, Trash2 } from 'lucide-react';
 import { downloadSvgAsImage } from '@/lib/exportUtils';
 import ChartEngine from './ChartEngine';
 import { useFilters } from './FilterContext';
@@ -18,6 +18,8 @@ interface Props {
   isDark?: boolean;
   widget: { title: string; type: string; config: any };
   onUpdate?: (newConfig: any) => void;
+  /** Si se provee, muestra un botón de basura en la cara trasera para eliminar el widget */
+  onDelete?: () => void;
   /** Solo lectura en panel Visualizar: sin arrastre (el ancho 1/3·2/3·full sigue disponible en vista) */
   disableDrag?: boolean;
 }
@@ -330,6 +332,7 @@ export function SortableWidget({
   isDark,
   theme = 'modern',
   onUpdate,
+  onDelete,
   disableDrag = false,
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -609,6 +612,22 @@ export function SortableWidget({
                     activeFilters={activeFilters}
                   />
                 </div>
+                {onDelete && (
+                  <button
+                    type="button"
+                    className="widget-delete-btn"
+                    title="Eliminar widget"
+                    aria-label="Eliminar widget"
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (window.confirm('¿Eliminar este widget?')) {
+                        onDelete();
+                      }
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
                 <button
                   type="button"
                   className="widget-info-btn"

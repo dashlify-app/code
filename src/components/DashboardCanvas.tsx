@@ -308,6 +308,9 @@ function CanvasInner({
                     w.id === widget.id ? { ...w, config: { ...w.config, ...newConfig } } : w
                   ));
                 }}
+                onDelete={() => {
+                  setWidgets(prev => prev.filter(w => w.id !== widget.id));
+                }}
               />
             ))}
           </SortableContext>
