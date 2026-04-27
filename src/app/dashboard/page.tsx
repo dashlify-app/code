@@ -184,15 +184,8 @@ function KpiFlippableCard({
       >
         <div className="widget-face widget-face-front h-full">
           <div className="kpi-card relative h-full min-h-[200px] group" style={{ paddingBottom: 20 }}>
-            <div className="kpi-icon">{k.icon}</div>
-            <div className="kpi-label">{k.label}</div>
-            <div className={`kpi-value ${k.color}`}>{k.value}</div>
-            <div className={`kpi-delta ${k.dir}`}>▲ {k.delta}</div>
-            <div className="kpi-bar-wrap">
-              <div className="kpi-bar" style={{ width: `${k.pct}%`, background: k.bar }} />
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.1)', padding: '4px', borderRadius: '4px' }}>
+            <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,0.05)', padding: '4px', borderRadius: '4px' }}>
                 <button
                   type="button"
                   onClick={e => {
@@ -200,8 +193,8 @@ function KpiFlippableCard({
                     onWidthChange?.('third');
                   }}
                   style={{
-                    padding: '4px 8px',
-                    fontSize: '10px',
+                    padding: '3px 6px',
+                    fontSize: '9px',
                     border: width === 'third' ? '1px solid var(--accent)' : '1px solid transparent',
                     background: width === 'third' ? 'var(--accent)' : 'transparent',
                     color: width === 'third' ? 'white' : 'var(--text2)',
@@ -220,8 +213,8 @@ function KpiFlippableCard({
                     onWidthChange?.('twoThirds');
                   }}
                   style={{
-                    padding: '4px 8px',
-                    fontSize: '10px',
+                    padding: '3px 6px',
+                    fontSize: '9px',
                     border: width === 'twoThirds' ? '1px solid var(--accent)' : '1px solid transparent',
                     background: width === 'twoThirds' ? 'var(--accent)' : 'transparent',
                     color: width === 'twoThirds' ? 'white' : 'var(--text2)',
@@ -240,8 +233,8 @@ function KpiFlippableCard({
                     onWidthChange?.('full');
                   }}
                   style={{
-                    padding: '4px 8px',
-                    fontSize: '10px',
+                    padding: '3px 6px',
+                    fontSize: '9px',
                     border: width === 'full' ? '1px solid var(--accent)' : '1px solid transparent',
                     background: width === 'full' ? 'var(--accent)' : 'transparent',
                     color: width === 'full' ? 'white' : 'var(--text2)',
@@ -265,6 +258,13 @@ function KpiFlippableCard({
               >
                 <Info size={16} />
               </button>
+            </div>
+            <div className="kpi-icon">{k.icon}</div>
+            <div className="kpi-label">{k.label}</div>
+            <div className={`kpi-value ${k.color}`}>{k.value}</div>
+            <div className={`kpi-delta ${k.dir}`}>▲ {k.delta}</div>
+            <div className="kpi-bar-wrap">
+              <div className="kpi-bar" style={{ width: `${k.pct}%`, background: k.bar }} />
             </div>
           </div>
         </div>
