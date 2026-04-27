@@ -19,6 +19,7 @@ import {
 import { Sparkles, Save, Palette, Share2, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { SortableWidget } from './SortableWidget';
 import { FilterProvider, useFilters } from './FilterContext';
+import { cleanWidgetForSave, estimatePayloadSize } from '@/lib/cleanWidgetForSave';
 
 const THEME_CONFIG: Record<ThemeId, { canvas: string; header: string; grid: string; select: string; saveBtn: string; titleInput: string; subtitle: string }> = {
   modern: {
@@ -155,26 +156,38 @@ function CanvasInner({
   const saveDashboard = async () => {
     setSaving(true);
     try {
+      // Construye widgets con metadata y los limpia (remueve sampleData/headers/etc).
+      // Esto evita 413 Content Too Large: los datos pesados se recargan al visualizar
+      // mediante hydrateDashboardWidgets() usando datasetIndex/datasetName.
+      const builtWidgets = widgets.map((w) => {
+        const meta = w as { category?: string; description?: string };
+        return {
+          type: w.type,
+          title: w.title,
+          category: meta.category,
+          description: meta.description,
+          config: {
+            ...w.config,
+            category: meta.category ?? (w.config as { category?: string })?.category,
+            description: meta.description ?? (w.config as { description?: string })?.description,
+          },
+        };
+      });
+
       const payload = {
         title,
         templateId: theme,
-        widgets: widgets.map((w) => {
-          const meta = w as { category?: string; description?: string };
-          return {
-            type: w.type,
-            title: w.title,
-            category: meta.category,
-            description: meta.description,
-            config: {
-              ...w.config,
-              category: meta.category ?? (w.config as { category?: string })?.category,
-              description: meta.description ?? (w.config as { description?: string })?.description,
-              datasetIndex: w.config?.datasetIndex ?? 0,
-              datasetName: w.config?.datasetName,
-            },
-          };
-        }),
+        widgets: builtWidgets.map(cleanWidgetForSave),
       };
+
+      // Logging de seguridad: alerta si el payload se acerca al límite
+      const payloadBytes = estimatePayloadSize(payload);
+      if (payloadBytes > 500_000) {
+        console.warn(
+          `[DashboardCanvas] Payload grande: ${(payloadBytes / 1024).toFixed(1)} KB ` +
+          `(${widgets.length} widgets). Si supera 1MB causará 413.`
+        );
+      }
 
       const res = dashboardId
         ? await fetch(`/api/dashboards/${dashboardId}`, {
