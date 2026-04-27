@@ -47,22 +47,41 @@ export default function DataCopilot({
   const [widgets, setWidgets] = useState<GeneratedWidget[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Resuelve qué archivo (dataset) corresponde al widget.
+   * Prioridad: sourceFile → datasetName → primer archivo (fallback).
+   * Soporta multi-dataset cuando la IA especifica el origen.
+   */
+  const resolveFileForWidget = (cfg: any) => {
+    const requestedName =
+      (typeof cfg?.sourceFile === 'string' && cfg.sourceFile) ||
+      (typeof cfg?.datasetName === 'string' && cfg.datasetName) ||
+      null;
+    const matched = requestedName ? files.find((f) => f?.name === requestedName) : null;
+    const target = matched ?? files[0];
+    return {
+      file: target,
+      datasetIndex: target ? Math.max(0, files.indexOf(target)) : 0,
+      datasetName: target?.name,
+    };
+  };
+
   // Cargar widgets propuestos automáticamente al inicio
   useEffect(() => {
     if (analysis?.proposedWidgets && Array.isArray(analysis.proposedWidgets) && widgets.length === 0) {
-      // Tomamos el sampleData del primer archivo analizado (el actual)
-      const dataSet = files[0]?.sampleData || [];
-      
-      const formatted = analysis.proposedWidgets.map((w: any) => ({
-        ...w,
-        description: w.description || `Análisis de ${w.config?.yAxis || 'datos'} por ${w.config?.xAxis || 'categoría'}.`,
-        config: {
-          ...w.config,
-          sampleData: dataSet,
-          datasetIndex: 0,
-          datasetName: files[0]?.name
-        }
-      }));
+      const formatted = analysis.proposedWidgets.map((w: any) => {
+        const { file, datasetIndex, datasetName } = resolveFileForWidget(w.config);
+        return {
+          ...w,
+          description: w.description || `Análisis de ${w.config?.yAxis || 'datos'} por ${w.config?.xAxis || 'categoría'}.`,
+          config: {
+            ...w.config,
+            sampleData: file?.sampleData || [],
+            datasetIndex,
+            datasetName,
+          },
+        };
+      });
       setWidgets(formatted);
     }
   }, [analysis, widgets.length, files]);
@@ -102,13 +121,14 @@ export default function DataCopilot({
       }]);
 
       if (data.widget) {
+        const { file, datasetIndex, datasetName } = resolveFileForWidget(data.widget.config);
         const enrichedWidget = {
           ...data.widget,
           config: {
             ...data.widget.config,
-            sampleData: files[0]?.sampleData || [],
-            datasetIndex: 0,
-            datasetName: files[0]?.name
+            sampleData: file?.sampleData || [],
+            datasetIndex,
+            datasetName,
           }
         };
         setWidgets(prev => [...prev, enrichedWidget]);

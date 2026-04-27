@@ -416,6 +416,7 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
       sampleDataByFile={Object.fromEntries(
         files.map((f) => [f.name, f.sampleData ?? []] as const)
       )}
+      defaultDatasetName={files[0]?.name}
       onSave={(selected) => {
         setSelectedWidgets(selected);
         setShowCanvas(true);

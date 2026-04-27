@@ -50,6 +50,7 @@ export default function WidgetCatalog({
   availableHeaders = [],
   sampleData = [],
   sampleDataByFile = {},
+  defaultDatasetName,
 }: {
   suggestions: WidgetSuggestion[];
   onSave: (selected: any[]) => void;
@@ -57,6 +58,8 @@ export default function WidgetCatalog({
   sampleData?: Record<string, any>[];
   /** Por nombre de archivo: filas para que cada widget use el dataset correcto en cargas múltiples */
   sampleDataByFile?: Record<string, Record<string, any>[]>;
+  /** Nombre del dataset activo, usado como fallback para widgets que no especifiquen origen */
+  defaultDatasetName?: string;
 }) {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [customWidgets, setCustomWidgets] = useState<CustomWidget[]>([]);
@@ -130,13 +133,19 @@ export default function WidgetCatalog({
           datasetName:
             (typeof w.config?.sourceFile === 'string' && w.config.sourceFile) ||
             (typeof w.config?.datasetName === 'string' && w.config.datasetName) ||
+            defaultDatasetName ||
             undefined,
         },
       }))
       .filter((_, i) => selectedIndices.includes(i));
     const customWithData = customWidgets.map(w => ({
       ...w,
-      config: { ...w.config, sampleData, datasetIndex: 0, datasetName: undefined },
+      config: {
+        ...w.config,
+        sampleData,
+        datasetIndex: 0,
+        datasetName: defaultDatasetName ?? undefined,
+      },
     }));
     onSave([...aiSelected, ...customWithData]);
   };
