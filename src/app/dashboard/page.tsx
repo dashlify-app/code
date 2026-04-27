@@ -432,27 +432,58 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
           </tr>
           {showFilters && (
             <tr style={{ background: 'var(--surface3)', borderTop: '1px solid var(--border2)' }}>
-              {displayCols.map(h => (
-                <th key={`filter-${h}`} style={{ padding: '8px 4px' }}>
-                  <input
-                    type="text"
-                    placeholder={`Buscar...`}
-                    value={filters[h] ?? ''}
-                    onChange={(e) => handleFilterChange(h, e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      width: '100%',
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      border: '1px solid var(--border2)',
-                      background: 'var(--surface)',
-                      color: 'var(--text)',
-                      borderRadius: '4px',
-                      fontFamily: 'var(--font-dm-mono)',
-                    }}
-                  />
-                </th>
-              ))}
+              {displayCols.map(h => {
+                const isCategorical = categorical.includes(h);
+                const uniqueValues = isCategorical
+                  ? Array.from(new Set(rows.map(r => String(r[h] ?? '—')).filter(v => v !== '—'))).sort()
+                  : [];
+
+                return (
+                  <th key={`filter-${h}`} style={{ padding: '8px 4px' }}>
+                    {isCategorical ? (
+                      <select
+                        value={filters[h] ?? ''}
+                        onChange={(e) => handleFilterChange(h, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '100%',
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          border: '1px solid var(--border2)',
+                          background: 'var(--surface)',
+                          color: 'var(--text)',
+                          borderRadius: '4px',
+                          fontFamily: 'var(--font-dm-mono)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">Todos</option>
+                        {uniqueValues.map(val => (
+                          <option key={val} value={val}>{val}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder=""
+                        value={filters[h] ?? ''}
+                        onChange={(e) => handleFilterChange(h, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '100%',
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          border: '1px solid var(--border2)',
+                          background: 'var(--surface)',
+                          color: 'var(--text)',
+                          borderRadius: '4px',
+                          fontFamily: 'var(--font-dm-mono)',
+                        }}
+                      />
+                    )}
+                  </th>
+                );
+              })}
               {lastCatCol && !displayCols.includes(lastCatCol) && <th style={{ padding: '8px 4px' }} />}
             </tr>
           )}
