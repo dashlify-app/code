@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Maximize2, Download, Info, RotateCcw } from 'lucide-react';
@@ -18,8 +18,15 @@ interface Props {
   isDark?: boolean;
   widget: { title: string; type: string; config: any };
   onUpdate?: (newConfig: any) => void;
-  /** Solo lectura en panel Visualizar: sin arrastre ni selector de ancho */
+  /** Solo lectura en panel Visualizar: sin arrastre (el ancho 1/3·2/3·full sigue disponible en vista) */
   disableDrag?: boolean;
+}
+
+function normalizeColSpan(raw: unknown): 1 | 2 | 3 {
+  const n = Number(raw);
+  if (n === 2) return 2;
+  if (n === 3) return 3;
+  return 1;
 }
 
 /** Encuentra la columna real haciendo fuzzy match */
@@ -340,6 +347,12 @@ export function SortableWidget({
 
   const [expanded, setExpanded] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  const persistedColSpan = normalizeColSpan(widget.config?.colSpan);
+  const [localColSpan, setLocalColSpan] = useState<1 | 2 | 3>(persistedColSpan);
+  useEffect(() => {
+    if (!onUpdate) setLocalColSpan(persistedColSpan);
+  }, [id, persistedColSpan, onUpdate]);
+  const colSpan = onUpdate ? persistedColSpan : localColSpan;
   const resolved: ThemeId = isDark ? 'dark' : theme;
 
   const chartTypeLabel: Record<string, string> = {
@@ -441,11 +454,12 @@ export function SortableWidget({
     );
   };
 
-  const colSpanClass = widget.config?.colSpan === 3
-    ? 'lg:col-span-3 md:col-span-2'
-    : widget.config?.colSpan === 2
-    ? 'lg:col-span-2'
-    : 'lg:col-span-1';
+  const colSpanClass =
+    colSpan === 3
+      ? 'lg:col-span-3 md:col-span-2'
+      : colSpan === 2
+        ? 'lg:col-span-2'
+        : 'lg:col-span-1';
 
   // Resaltar visualmente si este widget tiene un filtro activo
   const xAxisCol = widget.config?.x || widget.config?.xAxis;
@@ -516,22 +530,22 @@ export function SortableWidget({
                     </div>
                   </div>
                   <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
-                    {!disableDrag && (
-                      <select
-                        value={widget.config?.colSpan || 1}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          onUpdate?.({ colSpan: Number(e.target.value) });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="chart-btn cursor-pointer appearance-none text-center outline-none"
-                        title="Ancho del Gráfico"
-                      >
-                        <option value={1}>1/3 Ancho</option>
-                        <option value={2}>2/3 Ancho</option>
-                        <option value={3}>Full Ancho</option>
-                      </select>
-                    )}
+                    <select
+                      value={colSpan}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        const next = normalizeColSpan(e.target.value);
+                        if (onUpdate) onUpdate({ colSpan: next });
+                        else setLocalColSpan(next);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="chart-btn cursor-pointer appearance-none text-center outline-none"
+                      title="Ancho del Gráfico"
+                    >
+                      <option value={1}>1/3 Ancho</option>
+                      <option value={2}>2/3 Ancho</option>
+                      <option value={3}>Full Ancho</option>
+                    </select>
                     <button
                       className="chart-btn"
                       title="Descargar"

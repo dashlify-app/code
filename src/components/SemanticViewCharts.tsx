@@ -1,6 +1,17 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useId, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   ResponsiveContainer as RechartsRC,
   BarChart,
@@ -176,6 +187,79 @@ const PANEL_CHART_FOOTER_H = 40;
 /** Misma idea que SortableWidget (canvas): escena 3D con altura suficiente para gráfico + cabecera + franja acciones. */
 const PANEL_FLIP_MIN = 360 + PANEL_CHART_FOOTER_H;
 
+/** En `.charts-grid` (CSS grid 1→2→3 cols), el ancho debe ser `grid-column span`, no `w-*` (eso solo llena la celda). */
+function panelGridSpanClass(width: 'third' | 'twoThirds' | 'full'): string {
+  if (width === 'full') return 'min-w-0 lg:col-span-3 md:col-span-2';
+  if (width === 'twoThirds') return 'min-w-0 lg:col-span-2';
+  return 'min-w-0 lg:col-span-1';
+}
+
+function panelWidthToSelectValue(width: 'third' | 'twoThirds' | 'full'): 1 | 2 | 3 {
+  if (width === 'twoThirds') return 2;
+  if (width === 'full') return 3;
+  return 1;
+}
+
+function selectValueToPanelWidth(raw: string): 'third' | 'twoThirds' | 'full' {
+  const n = Number(raw);
+  if (n === 2) return 'twoThirds';
+  if (n === 3) return 'full';
+  return 'third';
+}
+
+function mergePanelOrder(stored: string[] | undefined, available: string[]): string[] {
+  if (!stored?.length) return [...available];
+  const valid = stored.filter((id) => available.includes(id));
+  const missing = available.filter((id) => !valid.includes(id));
+  return [...valid, ...missing];
+}
+
+function SemanticDndGrid({
+  viewKey,
+  itemIds,
+  panelOrderByView,
+  commitPanelOrder,
+  children,
+}: {
+  viewKey: SemanticViewKey;
+  itemIds: string[];
+  panelOrderByView: Partial<Record<SemanticViewKey, string[]>>;
+  commitPanelOrder: (v: SemanticViewKey, ids: string[]) => void;
+  children: (id: string) => ReactNode;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const merged = useMemo(
+    () => mergePanelOrder(panelOrderByView[viewKey], itemIds),
+    [viewKey, itemIds, panelOrderByView[viewKey]]
+  );
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldI = merged.indexOf(String(active.id));
+    const newI = merged.indexOf(String(over.id));
+    if (oldI < 0 || newI < 0) return;
+    commitPanelOrder(viewKey, arrayMove(merged, oldI, newI));
+  };
+
+  if (itemIds.length === 0) return null;
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={merged} strategy={rectSortingStrategy}>
+        <div className="charts-grid">
+          {merged.map((id) => (
+            <Fragment key={id}>{children(id)}</Fragment>
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
 function ChartBox({ children }: { children: ReactNode }) {
   return (
     <div className="semantic-chart-box" style={{ width: '100%', height: CHART_H, minHeight: CHART_H, position: 'relative' }}>
@@ -203,6 +287,7 @@ function Panel({
   children,
   back,
   id,
+  sortableId,
   width = 'full',
   onWidthChange,
 }: {
@@ -211,84 +296,64 @@ function Panel({
   children: ReactNode;
   back?: ReactNode;
   id?: string;
+  /** Dentro de `SemanticDndGrid`: arrastrar desde el título para reordenar */
+  sortableId?: string;
   width?: 'third' | 'twoThirds' | 'full';
   onWidthChange?: (w: 'third' | 'twoThirds' | 'full') => void;
 }) {
   const [flip, setFlip] = useState(false);
   const panelId = useMemo(() => id || `panel-${title.replace(/\s+/g, '-').toLowerCase().slice(0, 30)}-${Math.random().toString(36).slice(2, 9)}`, [id, title]);
-  const widthClass = width === 'third' ? 'w-1/3' : width === 'twoThirds' ? 'w-2/3' : 'w-full';
+  const spanClass = panelGridSpanClass(width);
+  const noSortId = useId();
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: sortableId ?? noSortId,
+    disabled: !sortableId,
+  });
+  const dragStyle: CSSProperties = sortableId
+    ? {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 1,
+        opacity: isDragging ? 0.5 : 1,
+      }
+    : {};
 
   if (!back) {
     return (
-      <div className={`chart-card group ${widthClass}`} style={{ minHeight: 120 }} id={`${panelId}-wrap`}>
+      <div
+        ref={setNodeRef}
+        className={`chart-card group ${spanClass}`}
+        style={{ minHeight: 120, ...dragStyle }}
+        id={`${panelId}-wrap`}
+      >
         <div className="chart-hd">
           <div>
-            <div className="chart-title">{title}</div>
+            <div
+              className="chart-title"
+              style={{ cursor: sortableId ? 'grab' : undefined }}
+              {...(sortableId ? attributes : {})}
+              {...(sortableId ? listeners : {})}
+            >
+              {title}
+            </div>
             {subtitle && <div className="chart-sub" style={{ marginTop: 3 }}>{subtitle}</div>}
           </div>
-          <div className="chart-actions flex gap-2 items-center">
-            <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,0.05)', padding: '3px', borderRadius: '4px' }}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onWidthChange?.('third');
-                }}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '11px',
-                  border: width === 'third' ? '2px solid var(--accent)' : '1px solid #d1d5db',
-                  background: width === 'third' ? 'var(--accent)' : 'white',
-                  color: width === 'third' ? 'white' : '#374151',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                }}
-                title="Ancho 1/3"
-              >
-                1/3
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onWidthChange?.('twoThirds');
-                }}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '11px',
-                  border: width === 'twoThirds' ? '2px solid var(--accent)' : '1px solid #d1d5db',
-                  background: width === 'twoThirds' ? 'var(--accent)' : 'white',
-                  color: width === 'twoThirds' ? 'white' : '#374151',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                }}
-                title="Ancho 2/3"
-              >
-                2/3
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onWidthChange?.('full');
-                }}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '11px',
-                  border: width === 'full' ? '2px solid var(--accent)' : '1px solid #d1d5db',
-                  background: width === 'full' ? 'var(--accent)' : 'white',
-                  color: width === 'full' ? 'white' : '#374151',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                }}
-                title="Ancho completo"
-              >
-                Full
-              </button>
-            </div>
+          <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1 items-center">
+            <select
+              value={panelWidthToSelectValue(width)}
+              onChange={(e) => {
+                e.stopPropagation();
+                onWidthChange?.(selectValueToPanelWidth(e.target.value));
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="chart-btn cursor-pointer appearance-none text-center outline-none"
+              title="Ancho del gráfico"
+              aria-label="Ancho del gráfico"
+            >
+              <option value={1}>1/3 Ancho</option>
+              <option value={2}>2/3 Ancho</option>
+              <option value={3}>Full Ancho</option>
+            </select>
             <button
               className="chart-btn"
               title="Descargar"
@@ -314,8 +379,9 @@ function Panel({
 
   return (
     <div
-      className={`widget-flip-scene ${widthClass}`}
-      style={{ position: 'relative' as const, minHeight: PANEL_FLIP_MIN }}
+      ref={setNodeRef}
+      className={`widget-flip-scene ${spanClass}`}
+      style={{ position: 'relative' as const, minHeight: PANEL_FLIP_MIN, ...dragStyle }}
       id={`${panelId}-flip`}
     >
       <div
@@ -329,72 +395,32 @@ function Panel({
           >
             <div className="chart-hd">
               <div>
-                <div className="chart-title">{title}</div>
+                <div
+                  className="chart-title"
+                  style={{ cursor: sortableId ? 'grab' : undefined }}
+                  {...(sortableId ? attributes : {})}
+                  {...(sortableId ? listeners : {})}
+                >
+                  {title}
+                </div>
                 {subtitle && <div className="chart-sub" style={{ marginTop: 3 }}>{subtitle}</div>}
               </div>
-              <div className="chart-actions flex gap-2 items-center">
-                <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,0.05)', padding: '3px', borderRadius: '4px' }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onWidthChange?.('third');
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      border: width === 'third' ? '2px solid var(--accent)' : '1px solid #d1d5db',
-                      background: width === 'third' ? 'var(--accent)' : 'white',
-                      color: width === 'third' ? 'white' : '#374151',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                    }}
-                    title="Ancho 1/3"
-                  >
-                    1/3
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onWidthChange?.('twoThirds');
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      border: width === 'twoThirds' ? '2px solid var(--accent)' : '1px solid #d1d5db',
-                      background: width === 'twoThirds' ? 'var(--accent)' : 'white',
-                      color: width === 'twoThirds' ? 'white' : '#374151',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                    }}
-                    title="Ancho 2/3"
-                  >
-                    2/3
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onWidthChange?.('full');
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      border: width === 'full' ? '2px solid var(--accent)' : '1px solid #d1d5db',
-                      background: width === 'full' ? 'var(--accent)' : 'white',
-                      color: width === 'full' ? 'white' : '#374151',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                    }}
-                    title="Ancho completo"
-                  >
-                    Full
-                  </button>
-                </div>
+              <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1 items-center">
+                <select
+                  value={panelWidthToSelectValue(width)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onWidthChange?.(selectValueToPanelWidth(e.target.value));
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="chart-btn cursor-pointer appearance-none text-center outline-none"
+                  title="Ancho del gráfico"
+                  aria-label="Ancho del gráfico"
+                >
+                  <option value={1}>1/3 Ancho</option>
+                  <option value={2}>2/3 Ancho</option>
+                  <option value={3}>Full Ancho</option>
+                </select>
                 <button
                   className="chart-btn"
                   title="Descargar"
@@ -722,7 +748,57 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
       .slice(0, 400);
   }, [rows, sem]);
 
-  const grid = (c: ReactNode) => <div className="charts-grid">{c}</div>;
+  const [panelOrderByView, setPanelOrderByView] = useState<Partial<Record<SemanticViewKey, string[]>>>({});
+  const commitPanelOrder = useCallback((v: SemanticViewKey, ids: string[]) => {
+    setPanelOrderByView((p) => ({ ...p, [v]: ids }));
+  }, []);
+
+  const businessItemIds = useMemo((): string[] => {
+    if (view !== 'business') return [];
+    const ids: string[] = [];
+    if (effectiveBarCol) ids.push('bar-category');
+    if (effectivePieCol) ids.push('pie-family');
+    if (revenueByMonth.length > 1 && totalLikeCol) ids.push('revenue-monthly');
+    if (sem.brand) ids.push('brands-volume');
+    return ids;
+  }, [view, effectiveBarCol, effectivePieCol, revenueByMonth.length, totalLikeCol, sem.brand]);
+
+  const financialItemIds = useMemo((): string[] => {
+    if (view !== 'financial' || !sem.price || !sem.cost) return [];
+    return ['price-cost', 'margin-ordered', 'profitability-top', 'margin-dispersion'];
+  }, [view, sem.price, sem.cost]);
+
+  const inventoryItemIds = useMemo((): string[] => {
+    if (view !== 'inventory') return [];
+    const ids: string[] = [];
+    if (pairData.length > 0) ids.push('stock-min');
+    if (sem.warehouse && sem.stock) ids.push('stock-warehouse');
+    if (sem.supplier && leadBySup.length > 0) ids.push('leadtime-supplier');
+    return ids;
+  }, [view, pairData.length, sem.warehouse, sem.stock, sem.supplier, leadBySup.length]);
+
+  const suppliersItemIds = useMemo((): string[] => {
+    if (view !== 'suppliers' || !sem.supplier) return [];
+    const ids: string[] = ['supplier-volume'];
+    if (leadBySup.length > 0) ids.push('leadtime-avg');
+    if (sem.country) ids.push('country-origin');
+    return ids;
+  }, [view, sem.supplier, sem.country, leadBySup.length]);
+
+  const qualityItemIds = useMemo((): string[] => {
+    if (view !== 'quality' || !sem.rating) return [];
+    const ids: string[] = [];
+    if (qualityPts.length > 0) ids.push('rating-volume');
+    ids.push('top-rated');
+    if (sem.stock) ids.push('risk-rating');
+    return ids;
+  }, [view, sem.rating, qualityPts.length, sem.stock]);
+
+  const temporalItemIds = useMemo((): string[] => {
+    if (view !== 'temporal') return [];
+    if (!sem.dateField && !sem.dateColumns?.[0]) return [];
+    return ['monthly-activity', 'trend-line'];
+  }, [view, sem.dateField, sem.dateColumns]);
 
   if (view === 'business') {
     const need: string[] = [];
@@ -734,130 +810,146 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
       <>
         <InsightBanner items={insights} />
         <MissingHint need={need} />
-        {grid(
-          <>
-            {effectiveBarCol && (
-              <Panel
-                title={barCountCol ? 'Productos por categoría (o eje comercial)' : 'Distribución por dimensión detectada'}
-                subtitle={`Conteo por «${effectiveBarCol}»${!barCountCol ? ' (inferida del archivo)' : ''}`}
-                back={
-                  <p>
-                    Cada barra es la cantidad de filas cuyo campo «{effectiveBarCol}» coincide. Útil para ver peso
-                    de surtido o actividad por esa dimensión.
-                  </p>
-                }
-                width={chartWidths['bar-category'] ?? 'full'}
-                onWidthChange={(w) => handleWidthChange('bar-category', w)}
-              >
-                <ChartBox>
-                  <BarChart data={groupCount(rows, effectiveBarCol)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                    <CartesianGrid {...gridProps} />
-                    <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
-                    <YAxis {...axisProps} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="value" name="Conteo" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ChartBox>
-              </Panel>
-            )}
-            {effectivePieCol && (
-              <Panel
-                title={businessPieCol ? 'Distribución por familia / subfamilia' : 'Distribución proporcional'}
-                subtitle={`Segmento «${effectivePieCol}»${!businessPieCol ? ' (inferida)' : ''}`}
-                back={
-                  <p>Participación de cada valor en el total de filas. Ideal para ver concentración de surtido.</p>
-                }
-                width={chartWidths['pie-family'] ?? 'full'}
-                onWidthChange={(w) => handleWidthChange('pie-family', w)}
-              >
-                <ChartBox>
-                  <PieChart>
-                    <Pie
-                      data={groupCount(rows, effectivePieCol, 8).map((d) => ({ name: d.name, value: d.value }))}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={90}
-                      paddingAngle={2}
-                    >
-                      {groupCount(rows, effectivePieCol, 8).map((_, i) => (
-                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend />
-                  </PieChart>
-                </ChartBox>
-              </Panel>
-            )}
-            {revenueByMonth.length > 1 && totalLikeCol && (
-              <Panel
-                title="Evolución mensual"
-                subtitle={`Suma de «${totalLikeCol}» por mes`}
-                back={
-                  <p>
-                    Se agrupan las filas por mes según la columna de fecha detectada y se suman los valores de «
-                    {totalLikeCol}».
-                  </p>
-                }
-                width={chartWidths['revenue-monthly'] ?? 'full'}
-                onWidthChange={(w) => handleWidthChange('revenue-monthly', w)}
-              >
-                <ChartBox>
-                  <LineChart data={revenueByMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                    <CartesianGrid {...gridProps} />
-                    <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 7)} />
-                    <YAxis {...axisProps} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="value" name="Total" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ChartBox>
-              </Panel>
-            )}
-            {invTotal !== null && (
-              <div className="chart-card flex flex-col justify-center" style={{ minHeight: 200, padding: 24 }}>
-                <div className="sb-label" style={{ marginBottom: 6 }}>
-                  Valor total de inventario
-                </div>
-                <div className="kpi-value blue" style={{ fontSize: 28 }}>
-                  {invTotal > 1_000_000
-                    ? `${(invTotal / 1_000_000).toFixed(2)} M`
-                    : invTotal > 1_000
-                    ? `${(invTotal / 1_000).toFixed(1)} K`
-                    : invTotal.toFixed(0)}
-                </div>
-                <div className="chart-sub" style={{ marginTop: 6 }}>
-                  Σ (costo × stock) con columnas detectadas
-                </div>
-              </div>
-            )}
-            {sem.brand && (
-              <Panel
-                title="Top marcas por volumen"
-                subtitle="Productos por marca"
-                back={<p>Conteo de filas por columna de marca. Identifica liderazgo de surtido.</p>}
-                width={chartWidths['brands-volume'] ?? 'full'}
-                onWidthChange={(w) => handleWidthChange('brands-volume', w)}
-              >
-                <ChartBox>
-                  <BarChart layout="vertical" data={groupCount(rows, sem.brand, 10)} margin={{ top: 8, right: 8, left: 60, bottom: 0 }}>
-                    <CartesianGrid {...gridProps} horizontal={false} />
-                    <XAxis type="number" {...axisProps} />
-                    <YAxis dataKey="name" type="category" width={88} {...axisProps} tickFormatter={(v) => String(v).slice(0, 16)} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]}>
-                      {groupCount(rows, sem.brand, 10).map((_, i) => (
-                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ChartBox>
-              </Panel>
-            )}
-          </>
+        {invTotal !== null && (
+          <div className="chart-card flex flex-col justify-center" style={{ minHeight: 200, padding: 24, marginBottom: 16 }}>
+            <div className="sb-label" style={{ marginBottom: 6 }}>
+              Valor total de inventario
+            </div>
+            <div className="kpi-value blue" style={{ fontSize: 28 }}>
+              {invTotal > 1_000_000
+                ? `${(invTotal / 1_000_000).toFixed(2)} M`
+                : invTotal > 1_000
+                  ? `${(invTotal / 1_000).toFixed(1)} K`
+                  : invTotal.toFixed(0)}
+            </div>
+            <div className="chart-sub" style={{ marginTop: 6 }}>
+              Σ (costo × stock) con columnas detectadas
+            </div>
+          </div>
         )}
+        <SemanticDndGrid
+          viewKey="business"
+          itemIds={businessItemIds}
+          panelOrderByView={panelOrderByView}
+          commitPanelOrder={commitPanelOrder}
+        >
+          {(pid) => {
+            if (pid === 'bar-category' && effectiveBarCol) {
+              return (
+                <Panel
+                  sortableId="bar-category"
+                  title={barCountCol ? 'Productos por categoría (o eje comercial)' : 'Distribución por dimensión detectada'}
+                  subtitle={`Conteo por «${effectiveBarCol}»${!barCountCol ? ' (inferida del archivo)' : ''}`}
+                  back={
+                    <p>
+                      Cada barra es la cantidad de filas cuyo campo «{effectiveBarCol}» coincide. Útil para ver peso de
+                      surtido o actividad por esa dimensión.
+                    </p>
+                  }
+                  width={chartWidths['bar-category'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('bar-category', w)}
+                >
+                  <ChartBox>
+                    <BarChart data={groupCount(rows, effectiveBarCol)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+                      <CartesianGrid {...gridProps} />
+                      <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
+                      <YAxis {...axisProps} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" name="Conteo" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartBox>
+                </Panel>
+              );
+            }
+            if (pid === 'pie-family' && effectivePieCol) {
+              return (
+                <Panel
+                  sortableId="pie-family"
+                  title={businessPieCol ? 'Distribución por familia / subfamilia' : 'Distribución proporcional'}
+                  subtitle={`Segmento «${effectivePieCol}»${!businessPieCol ? ' (inferida)' : ''}`}
+                  back={<p>Participación de cada valor en el total de filas. Ideal para ver concentración de surtido.</p>}
+                  width={chartWidths['pie-family'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('pie-family', w)}
+                >
+                  <ChartBox>
+                    <PieChart>
+                      <Pie
+                        data={groupCount(rows, effectivePieCol, 8).map((d) => ({ name: d.name, value: d.value }))}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={90}
+                        paddingAngle={2}
+                      >
+                        {groupCount(rows, effectivePieCol, 8).map((_, i) => (
+                          <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Legend />
+                    </PieChart>
+                  </ChartBox>
+                </Panel>
+              );
+            }
+            if (pid === 'revenue-monthly' && revenueByMonth.length > 1 && totalLikeCol) {
+              return (
+                <Panel
+                  sortableId="revenue-monthly"
+                  title="Evolución mensual"
+                  subtitle={`Suma de «${totalLikeCol}» por mes`}
+                  back={
+                    <p>
+                      Se agrupan las filas por mes según la columna de fecha detectada y se suman los valores de «
+                      {totalLikeCol}».
+                    </p>
+                  }
+                  width={chartWidths['revenue-monthly'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('revenue-monthly', w)}
+                >
+                  <ChartBox>
+                    <LineChart data={revenueByMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+                      <CartesianGrid {...gridProps} />
+                      <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 7)} />
+                      <YAxis {...axisProps} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Line type="monotone" dataKey="value" name="Total" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ChartBox>
+                </Panel>
+              );
+            }
+            if (pid === 'brands-volume' && sem.brand) {
+              return (
+                <Panel
+                  sortableId="brands-volume"
+                  title="Top marcas por volumen"
+                  subtitle="Productos por marca"
+                  back={<p>Conteo de filas por columna de marca. Identifica liderazgo de surtido.</p>}
+                  width={chartWidths['brands-volume'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('brands-volume', w)}
+                >
+                  <ChartBox>
+                    <BarChart layout="vertical" data={groupCount(rows, sem.brand, 10)} margin={{ top: 8, right: 8, left: 60, bottom: 0 }}>
+                      <CartesianGrid {...gridProps} horizontal={false} />
+                      <XAxis type="number" {...axisProps} />
+                      <YAxis dataKey="name" type="category" width={88} {...axisProps} tickFormatter={(v) => String(v).slice(0, 16)} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]}>
+                        {groupCount(rows, sem.brand, 10).map((_, i) => (
+                          <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ChartBox>
+                </Panel>
+              );
+            }
+            return null;
+          }}
+        </SemanticDndGrid>
       </>
     );
   }
@@ -867,117 +959,143 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
       <>
         <InsightBanner items={insights} />
         {!sem.price || !sem.cost ? <MissingHint need={['Precio de venta', 'Costo unitario']} /> : null}
-        {sem.price && sem.cost
-          ? grid(
-              <>
-                <Panel
-                  title="Precio vs costo"
-                  subtitle="Cada punto es un producto / fila"
-                  back={
-                    <p>La recta y=x sería costo= precio. Puntos abajo de la diagonal suelen implicar buen margen; por encima, margen ajustado o datos raros.</p>
-                  }
-                  width={chartWidths['price-cost'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('price-cost', w)}
-                >
-                  {priceCostPts.length === 0 ? (
-                    <ChartEmpty message="No hay filas con precio y costo numéricos. Revisa formato de moneda o columnas detectadas." />
-                  ) : (
-                    <ChartBox>
-                      <ScatterChart margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                        <CartesianGrid />
-                        <XAxis dataKey="x" name="Precio" type="number" unit="" {...axisProps} />
-                        <YAxis dataKey="y" name="Costo" type="number" {...axisProps} />
-                        <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} />
-                        <Scatter name="Items" data={priceCostPts} fill="#0ea5e9" />
-                      </ScatterChart>
-                    </ChartBox>
-                  )}
-                </Panel>
-                <Panel
-                  title="Margen % aprox. por fila (ordenado)"
-                  subtitle="(Precio − costo) / precio"
-                  back={<p>Margen bruto aproximado. Valida nombres de columnas y moneda en origen.</p>}
-                  width={chartWidths['margin-ordered'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('margin-ordered', w)}
-                >
-                  {marginRows.length === 0 ? (
-                    <ChartEmpty message="Ninguna fila con precio &gt; 0 para calcular margen." />
-                  ) : (
-                    <ChartBox>
-                      <BarChart data={marginRows.map((m) => ({ name: m.name.slice(0, 14), m: m.margin }))} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
-                        <YAxis {...axisProps} unit="%" />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Bar dataKey="m" name="Margen %" fill="#8b5cf6" maxBarSize={32} />
-                      </BarChart>
-                    </ChartBox>
-                  )}
-                </Panel>
-                <Panel
-                  title="Top filas por rentabilidad aproximada"
-                  subtitle="(Precio − costo) × factor stock si existe"
-                  back={<p>Ordena por mayor contribución aproximada. Revisa unidades (stock) en tu archivo.</p>}
-                  width={chartWidths['profitability-top'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('profitability-top', w)}
-                >
-                  {marginRows.length === 0 ? (
-                    <ChartEmpty message="Sin filas con precio y costo válidos para rentabilidad." />
-                  ) : (
-                    <ChartBox>
-                      <BarChart
-                        data={marginRows.map((m) => ({ name: m.name.slice(0, 12), p: m.profit }))}
-                        margin={{ top: 8, right: 8, left: -10, bottom: 40 }}
-                      >
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
-                        <YAxis {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Bar dataKey="p" name="Contrib. relativa" fill="#f97316" maxBarSize={32} />
-                      </BarChart>
-                    </ChartBox>
-                  )}
-                </Panel>
-                <Panel
-                  title="Dispersión de márgenes"
-                  subtitle="Histograma de % margen"
-                  back={<p>Agrupación de filas en rangos de margen. Detecta colas y outliers.</p>}
-                  width={chartWidths['margin-dispersion'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('margin-dispersion', w)}
-                >
-                  {marginRows.length === 0 ? (
-                    <ChartEmpty message="Sin márgenes calculables (se necesita precio &gt; 0 y costo)." />
-                  ) : (
-                    <ChartBox>
-                      <BarChart
-                        data={(() => {
-                          const labels = ['0-10', '10-20', '20-30', '30-40', '40-50', '50+'];
-                          const c = new Array(6).fill(0);
-                          for (const m of marginRows) {
-                            const p = m.margin;
-                            if (p < 10) c[0]!++;
-                            else if (p < 20) c[1]!++;
-                            else if (p < 30) c[2]!++;
-                            else if (p < 40) c[3]!++;
-                            else if (p < 50) c[4]!++;
-                            else c[5]!++;
-                          }
-                          return labels.map((name, i) => ({ name, value: c[i] }));
-                        })()}
-                        margin={{ top: 8, right: 8, left: -10, bottom: 0 }}
-                      >
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} />
-                        <YAxis {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Bar dataKey="value" fill="#14b8a6" />
-                      </BarChart>
-                    </ChartBox>
-                  )}
-                </Panel>
-              </>
-            )
-          : null}
+        {sem.price && sem.cost ? (
+          <SemanticDndGrid
+            viewKey="financial"
+            itemIds={financialItemIds}
+            panelOrderByView={panelOrderByView}
+            commitPanelOrder={commitPanelOrder}
+          >
+            {(pid) => {
+              if (pid === 'price-cost') {
+                return (
+                  <Panel
+                    sortableId="price-cost"
+                    title="Precio vs costo"
+                    subtitle="Cada punto es un producto / fila"
+                    back={
+                      <p>La recta y=x sería costo= precio. Puntos abajo de la diagonal suelen implicar buen margen; por encima, margen ajustado o datos raros.</p>
+                    }
+                    width={chartWidths['price-cost'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('price-cost', w)}
+                  >
+                    {priceCostPts.length === 0 ? (
+                      <ChartEmpty message="No hay filas con precio y costo numéricos. Revisa formato de moneda o columnas detectadas." />
+                    ) : (
+                      <ChartBox>
+                        <ScatterChart margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                          <CartesianGrid />
+                          <XAxis dataKey="x" name="Precio" type="number" unit="" {...axisProps} />
+                          <YAxis dataKey="y" name="Costo" type="number" {...axisProps} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} />
+                          <Scatter name="Items" data={priceCostPts} fill="#0ea5e9" />
+                        </ScatterChart>
+                      </ChartBox>
+                    )}
+                  </Panel>
+                );
+              }
+              if (pid === 'margin-ordered') {
+                return (
+                  <Panel
+                    sortableId="margin-ordered"
+                    title="Margen % aprox. por fila (ordenado)"
+                    subtitle="(Precio − costo) / precio"
+                    back={<p>Margen bruto aproximado. Valida nombres de columnas y moneda en origen.</p>}
+                    width={chartWidths['margin-ordered'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('margin-ordered', w)}
+                  >
+                    {marginRows.length === 0 ? (
+                      <ChartEmpty message="Ninguna fila con precio &gt; 0 para calcular margen." />
+                    ) : (
+                      <ChartBox>
+                        <BarChart data={marginRows.map((m) => ({ name: m.name.slice(0, 14), m: m.margin }))} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
+                          <CartesianGrid {...gridProps} />
+                          <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
+                          <YAxis {...axisProps} unit="%" />
+                          <Tooltip contentStyle={tooltipStyle} />
+                          <Bar dataKey="m" name="Margen %" fill="#8b5cf6" maxBarSize={32} />
+                        </BarChart>
+                      </ChartBox>
+                    )}
+                  </Panel>
+                );
+              }
+              if (pid === 'profitability-top') {
+                return (
+                  <Panel
+                    sortableId="profitability-top"
+                    title="Top filas por rentabilidad aproximada"
+                    subtitle="(Precio − costo) × factor stock si existe"
+                    back={<p>Ordena por mayor contribución aproximada. Revisa unidades (stock) en tu archivo.</p>}
+                    width={chartWidths['profitability-top'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('profitability-top', w)}
+                  >
+                    {marginRows.length === 0 ? (
+                      <ChartEmpty message="Sin filas con precio y costo válidos para rentabilidad." />
+                    ) : (
+                      <ChartBox>
+                        <BarChart
+                          data={marginRows.map((m) => ({ name: m.name.slice(0, 12), p: m.profit }))}
+                          margin={{ top: 8, right: 8, left: -10, bottom: 40 }}
+                        >
+                          <CartesianGrid {...gridProps} />
+                          <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
+                          <YAxis {...axisProps} />
+                          <Tooltip contentStyle={tooltipStyle} />
+                          <Bar dataKey="p" name="Contrib. relativa" fill="#f97316" maxBarSize={32} />
+                        </BarChart>
+                      </ChartBox>
+                    )}
+                  </Panel>
+                );
+              }
+              if (pid === 'margin-dispersion') {
+                return (
+                  <Panel
+                    sortableId="margin-dispersion"
+                    title="Dispersión de márgenes"
+                    subtitle="Histograma de % margen"
+                    back={<p>Agrupación de filas en rangos de margen. Detecta colas y outliers.</p>}
+                    width={chartWidths['margin-dispersion'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('margin-dispersion', w)}
+                  >
+                    {marginRows.length === 0 ? (
+                      <ChartEmpty message="Sin márgenes calculables (se necesita precio &gt; 0 y costo)." />
+                    ) : (
+                      <ChartBox>
+                        <BarChart
+                          data={(() => {
+                            const labels = ['0-10', '10-20', '20-30', '30-40', '40-50', '50+'];
+                            const c = new Array(6).fill(0);
+                            for (const m of marginRows) {
+                              const p = m.margin;
+                              if (p < 10) c[0]!++;
+                              else if (p < 20) c[1]!++;
+                              else if (p < 30) c[2]!++;
+                              else if (p < 40) c[3]!++;
+                              else if (p < 50) c[4]!++;
+                              else c[5]!++;
+                            }
+                            return labels.map((name, i) => ({ name, value: c[i] }));
+                          })()}
+                          margin={{ top: 8, right: 8, left: -10, bottom: 0 }}
+                        >
+                          <CartesianGrid {...gridProps} />
+                          <XAxis dataKey="name" {...axisProps} />
+                          <YAxis {...axisProps} />
+                          <Tooltip contentStyle={tooltipStyle} />
+                          <Bar dataKey="value" fill="#14b8a6" />
+                        </BarChart>
+                      </ChartBox>
+                    )}
+                  </Panel>
+                );
+              }
+              return null;
+            }}
+          </SemanticDndGrid>
+        ) : null}
       </>
     );
   }
@@ -991,74 +1109,85 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
             ? `Riesgo operativo: ${riskRows} fila(s) bajo mínimo (según columnas detectadas).`
             : 'Añade columnas de stock mínimo / reorden para ver alertas automáticas.'}
         </p>
-        {grid(
-          <>
-            {pairData.length > 0 && (
-              <Panel
-                title="Stock vs mínimo (muestra)"
-                subtitle="Comparación por fila / SKU"
-                back={<p>Barras agrupadas: existencia frente a umbral. Amplía mínimos en el archivo para mayor precisión.</p>}
-                width={chartWidths['stock-min'] ?? 'full'}
-                onWidthChange={(w) => handleWidthChange('stock-min', w)}
-              >
-                <ChartBox>
-                  <BarChart data={pairData} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
-                    <CartesianGrid {...gridProps} />
-                    <XAxis dataKey="name" {...axisProps} tick={{ fontSize: 8 }} angle={-25} textAnchor="end" height={50} />
-                    <YAxis {...axisProps} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend />
-                    <Bar dataKey="stock" name="Stock" fill="#0ea5e9" />
-                    <Bar dataKey="min" name="Mínimo" fill="#f97316" />
-                  </BarChart>
-                </ChartBox>
-              </Panel>
-            )}
-            {sem.warehouse && sem.stock && (
-              <Panel
-                title="Stock por ubicación / almacén"
-                subtitle={`Suma de «${sem.stock}»`}
-                back={<p>Distribución de inventario físico o lógico.</p>}
-                width={chartWidths['stock-warehouse'] ?? 'full'}
-                onWidthChange={(w) => handleWidthChange('stock-warehouse', w)}
-              >
-                <ChartBox>
-                  <BarChart layout="vertical" data={groupSum(rows, sem.warehouse, sem.stock)} margin={{ top: 8, right: 8, left: 70, bottom: 0 }}>
-                    <CartesianGrid {...gridProps} horizontal={false} />
-                    <XAxis type="number" {...axisProps} />
-                    <YAxis dataKey="name" type="category" width={64} {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="value" fill="#10b981" />
-                  </BarChart>
-                </ChartBox>
-              </Panel>
-            )}
-            {sem.supplier && leadBySup.length > 0 && (
-              <Panel
-                title="Tiempo de entrega por proveedor (si existe en datos)"
-                subtitle="Días promedio"
-                back={<p>Requiere columnas de proveedor y días de entrega con valores numéricos.</p>}
-                width={chartWidths['leadtime-supplier'] ?? 'full'}
-                onWidthChange={(w) => handleWidthChange('leadtime-supplier', w)}
-              >
-                <ChartBox>
-                  <BarChart
-                    data={leadBySup}
-                    layout="vertical"
-                    margin={{ top: 8, right: 8, left: 70, bottom: 0 }}
-                  >
-                    <CartesianGrid {...gridProps} horizontal={false} />
-                    <XAxis type="number" {...axisProps} />
-                    <YAxis dataKey="name" type="category" width={64} {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="value" fill="#ec4899" />
-                  </BarChart>
-                </ChartBox>
-              </Panel>
-            )}
-            {!sem.stock && <div className="ai-text p-4">Incluye columna de existencias (stock) para activar gráficos de inventario.</div>}
-          </>
-        )}
+        {!sem.stock && <div className="ai-text p-4">Incluye columna de existencias (stock) para activar gráficos de inventario.</div>}
+        <SemanticDndGrid
+          viewKey="inventory"
+          itemIds={inventoryItemIds}
+          panelOrderByView={panelOrderByView}
+          commitPanelOrder={commitPanelOrder}
+        >
+          {(pid) => {
+            if (pid === 'stock-min' && pairData.length > 0) {
+              return (
+                <Panel
+                  sortableId="stock-min"
+                  title="Stock vs mínimo (muestra)"
+                  subtitle="Comparación por fila / SKU"
+                  back={<p>Barras agrupadas: existencia frente a umbral. Amplía mínimos en el archivo para mayor precisión.</p>}
+                  width={chartWidths['stock-min'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('stock-min', w)}
+                >
+                  <ChartBox>
+                    <BarChart data={pairData} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
+                      <CartesianGrid {...gridProps} />
+                      <XAxis dataKey="name" {...axisProps} tick={{ fontSize: 8 }} angle={-25} textAnchor="end" height={50} />
+                      <YAxis {...axisProps} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Legend />
+                      <Bar dataKey="stock" name="Stock" fill="#0ea5e9" />
+                      <Bar dataKey="min" name="Mínimo" fill="#f97316" />
+                    </BarChart>
+                  </ChartBox>
+                </Panel>
+              );
+            }
+            if (pid === 'stock-warehouse' && sem.warehouse && sem.stock) {
+              return (
+                <Panel
+                  sortableId="stock-warehouse"
+                  title="Stock por ubicación / almacén"
+                  subtitle={`Suma de «${sem.stock}»`}
+                  back={<p>Distribución de inventario físico o lógico.</p>}
+                  width={chartWidths['stock-warehouse'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('stock-warehouse', w)}
+                >
+                  <ChartBox>
+                    <BarChart layout="vertical" data={groupSum(rows, sem.warehouse, sem.stock)} margin={{ top: 8, right: 8, left: 70, bottom: 0 }}>
+                      <CartesianGrid {...gridProps} horizontal={false} />
+                      <XAxis type="number" {...axisProps} />
+                      <YAxis dataKey="name" type="category" width={64} {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" fill="#10b981" />
+                    </BarChart>
+                  </ChartBox>
+                </Panel>
+              );
+            }
+            if (pid === 'leadtime-supplier' && sem.supplier && leadBySup.length > 0) {
+              return (
+                <Panel
+                  sortableId="leadtime-supplier"
+                  title="Tiempo de entrega por proveedor (si existe en datos)"
+                  subtitle="Días promedio"
+                  back={<p>Requiere columnas de proveedor y días de entrega con valores numéricos.</p>}
+                  width={chartWidths['leadtime-supplier'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('leadtime-supplier', w)}
+                >
+                  <ChartBox>
+                    <BarChart data={leadBySup} layout="vertical" margin={{ top: 8, right: 8, left: 70, bottom: 0 }}>
+                      <CartesianGrid {...gridProps} horizontal={false} />
+                      <XAxis type="number" {...axisProps} />
+                      <YAxis dataKey="name" type="category" width={64} {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Bar dataKey="value" fill="#ec4899" />
+                    </BarChart>
+                  </ChartBox>
+                </Panel>
+              );
+            }
+            return null;
+          }}
+        </SemanticDndGrid>
       </>
     );
   }
@@ -1067,28 +1196,40 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
     return (
       <>
         <InsightBanner items={insights} />
-        {sem.supplier
-          ? grid(
-              <>
-                <Panel
-                  title="Volumen por proveedor"
-                  subtitle="Nº de filas / productos"
-                  back={<p>Conteo de filas asociadas a cada proveedor en el catálogo.</p>}
-                  width={chartWidths['supplier-volume'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('supplier-volume', w)}
-                >
-                  <ChartBox>
-                    <BarChart data={groupCount(rows, sem.supplier)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                      <CartesianGrid {...gridProps} />
-                      <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 10)} />
-                      <YAxis {...axisProps} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="value" fill="#0ea5e9" />
-                    </BarChart>
-                  </ChartBox>
-                </Panel>
-                {leadBySup.length > 0 && (
+        {sem.supplier ? (
+          <SemanticDndGrid
+            viewKey="suppliers"
+            itemIds={suppliersItemIds}
+            panelOrderByView={panelOrderByView}
+            commitPanelOrder={commitPanelOrder}
+          >
+            {(pid) => {
+              if (pid === 'supplier-volume') {
+                return (
                   <Panel
+                    sortableId="supplier-volume"
+                    title="Volumen por proveedor"
+                    subtitle="Nº de filas / productos"
+                    back={<p>Conteo de filas asociadas a cada proveedor en el catálogo.</p>}
+                    width={chartWidths['supplier-volume'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('supplier-volume', w)}
+                  >
+                    <ChartBox>
+                      <BarChart data={groupCount(rows, sem.supplier!)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+                        <CartesianGrid {...gridProps} />
+                        <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 10)} />
+                        <YAxis {...axisProps} />
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Bar dataKey="value" fill="#0ea5e9" />
+                      </BarChart>
+                    </ChartBox>
+                  </Panel>
+                );
+              }
+              if (pid === 'leadtime-avg' && leadBySup.length > 0) {
+                return (
+                  <Panel
+                    sortableId="leadtime-avg"
                     title="Lead time promedio por proveedor"
                     subtitle="Días (media simple)"
                     back={<p>Compara proveedores según días; útil negociar plazos.</p>}
@@ -1105,9 +1246,12 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                       </LineChart>
                     </ChartBox>
                   </Panel>
-                )}
-                {sem.country && (
+                );
+              }
+              if (pid === 'country-origin' && sem.country) {
+                return (
                   <Panel
+                    sortableId="country-origin"
                     title="Origen por país / región"
                     subtitle={sem.country}
                     back={<p>Concentración geográfica del surtido (riesgo, compliance, lead times).</p>}
@@ -1131,12 +1275,14 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                       </PieChart>
                     </ChartBox>
                   </Panel>
-                )}
-              </>
-            )
-          : (
-            <MissingHint need={['Proveedor (nombre o clave)']} />
-          )}
+                );
+              }
+              return null;
+            }}
+          </SemanticDndGrid>
+        ) : (
+          <MissingHint need={['Proveedor (nombre o clave)']} />
+        )}
       </>
     );
   }
@@ -1145,11 +1291,18 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
     return (
       <>
         <InsightBanner items={insights} />
-        {sem.rating
-          ? grid(
-              <>
-                {qualityPts.length > 0 && (
+        {sem.rating ? (
+          <SemanticDndGrid
+            viewKey="quality"
+            itemIds={qualityItemIds}
+            panelOrderByView={panelOrderByView}
+            commitPanelOrder={commitPanelOrder}
+          >
+            {(pid) => {
+              if (pid === 'rating-volume' && qualityPts.length > 0) {
+                return (
                   <Panel
+                    sortableId="rating-volume"
                     title="Rating vs volumen (reseñas o índice)"
                     subtitle="Detecta sujetos con buena nota poca conversación, y al revés"
                     back={
@@ -1168,33 +1321,41 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                       </ScatterChart>
                     </ChartBox>
                   </Panel>
-                )}
-                <Panel
-                  title="Top calificados (muestra)"
-                  subtitle="Mayor rating"
-                  back={<p>Orden por rating descendente. Si hay muchos empates, cruzar con reseñas o stock.</p>}
-                  width={chartWidths['top-rated'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('top-rated', w)}
-                >
-                  <ChartBox>
-                    <BarChart
-                      data={rows
-                        .map((r, i) => ({ name: (sem.productName && String(r[sem.productName!] ?? i).slice(0, 12)) || `F${i + 1}`, v: toNum(r[sem.rating!]) }))
-                        .filter((d) => d.v > 0)
-                        .sort((a, b) => b.v - a.v)
-                        .slice(0, 12)}
-                      margin={{ top: 8, right: 8, left: -10, bottom: 40 }}
-                    >
-                      <CartesianGrid {...gridProps} />
-                      <XAxis dataKey="name" {...axisProps} tick={{ fontSize: 8 }} angle={-20} textAnchor="end" height={50} />
-                      <YAxis domain={[0, 5]} {...axisProps} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Bar dataKey="v" fill="#10b981" />
-                    </BarChart>
-                  </ChartBox>
-                </Panel>
-                {sem.stock && (
+                );
+              }
+              if (pid === 'top-rated') {
+                return (
                   <Panel
+                    sortableId="top-rated"
+                    title="Top calificados (muestra)"
+                    subtitle="Mayor rating"
+                    back={<p>Orden por rating descendente. Si hay muchos empates, cruzar con reseñas o stock.</p>}
+                    width={chartWidths['top-rated'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('top-rated', w)}
+                  >
+                    <ChartBox>
+                      <BarChart
+                        data={rows
+                          .map((r, i) => ({ name: (sem.productName && String(r[sem.productName!] ?? i).slice(0, 12)) || `F${i + 1}`, v: toNum(r[sem.rating!]) }))
+                          .filter((d) => d.v > 0)
+                          .sort((a, b) => b.v - a.v)
+                          .slice(0, 12)}
+                        margin={{ top: 8, right: 8, left: -10, bottom: 40 }}
+                      >
+                        <CartesianGrid {...gridProps} />
+                        <XAxis dataKey="name" {...axisProps} tick={{ fontSize: 8 }} angle={-20} textAnchor="end" height={50} />
+                        <YAxis domain={[0, 5]} {...axisProps} />
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Bar dataKey="v" fill="#10b981" />
+                      </BarChart>
+                    </ChartBox>
+                  </Panel>
+                );
+              }
+              if (pid === 'risk-rating' && sem.stock) {
+                return (
+                  <Panel
+                    sortableId="risk-rating"
                     title="Riesgo: rating bajo y stock relevante (heurística)"
                     subtitle="Filas con rating bajo y stock alto"
                     back={<p>Combinación de columnas; úsalo para campañas o liquidación con cuidado de marca.</p>}
@@ -1206,12 +1367,14 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                       aprox. con criterio de riesgo.
                     </p>
                   </Panel>
-                )}
-              </>
-            )
-          : (
-            <MissingHint need={['Rating o puntuación', 'Reseñas (opcional)']} />
-          )}
+                );
+              }
+              return null;
+            }}
+          </SemanticDndGrid>
+        ) : (
+          <MissingHint need={['Rating o puntuación', 'Reseñas (opcional)']} />
+        )}
       </>
     );
   }
@@ -1220,62 +1383,78 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
     return (
       <>
         <InsightBanner items={insights} />
-        {sem.dateField || sem.dateColumns[0]
-          ? grid(
-              <>
-                <Panel
-                  title="Altas o movimientos por mes"
-                  subtitle="Frecuencia de filas por periodo (fecha detectada)"
-                  back={<p>Se agrupa la columna de fecha al mes. Úsalo para ver ritmo de carga al catálogo.</p>}
-                  width={chartWidths['monthly-activity'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('monthly-activity', w)}
-                >
-                  {byMonth.length === 0 ? (
-                    <ChartEmpty message="No se pudieron leer fechas en las columnas detectadas. Prueba fechas en formato ISO, dd/mm/aaaa, o numérico Excel." />
-                  ) : (
-                    <ChartBox>
-                      <AreaChart data={byMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="lgT2" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 7)} />
-                        <YAxis {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Area dataKey="value" stroke="#0ea5e9" fill="url(#lgT2)" name="Eventos" />
-                      </AreaChart>
-                    </ChartBox>
-                  )}
-                </Panel>
-                <Panel
-                  title="Tendencia (línea) de incorporación"
-                  subtitle="Mismo agregado mensual"
-                  back={<p>Tendencia simple del número de filas con fecha en cada mes.</p>}
-                  width={chartWidths['trend-line'] ?? 'full'}
-                  onWidthChange={(w) => handleWidthChange('trend-line', w)}
-                >
-                  {byMonth.length === 0 ? (
-                    <ChartEmpty message="Sin fechas parseables: revisa el archivo o ajusta la columna de fecha en ajustes." />
-                  ) : (
-                    <ChartBox>
-                      <LineChart data={byMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} />
-                        <YAxis {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
-                        <Line dataKey="value" stroke="#10b981" strokeWidth={2} dot />
-                      </LineChart>
-                    </ChartBox>
-                  )}
-                </Panel>
-              </>
-            )
-          : (
-            <MissingHint need={['Fecha de alta / creado / modificado']} />
-          )}
+        {sem.dateField || sem.dateColumns?.[0] ? (
+          <SemanticDndGrid
+            viewKey="temporal"
+            itemIds={temporalItemIds}
+            panelOrderByView={panelOrderByView}
+            commitPanelOrder={commitPanelOrder}
+          >
+            {(pid) => {
+              if (pid === 'monthly-activity') {
+                return (
+                  <Panel
+                    sortableId="monthly-activity"
+                    title="Altas o movimientos por mes"
+                    subtitle="Frecuencia de filas por periodo (fecha detectada)"
+                    back={<p>Se agrupa la columna de fecha al mes. Úsalo para ver ritmo de carga al catálogo.</p>}
+                    width={chartWidths['monthly-activity'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('monthly-activity', w)}
+                  >
+                    {byMonth.length === 0 ? (
+                      <ChartEmpty message="No se pudieron leer fechas en las columnas detectadas. Prueba fechas en formato ISO, dd/mm/aaaa, o numérico Excel." />
+                    ) : (
+                      <ChartBox>
+                        <AreaChart data={byMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="lgT2" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid {...gridProps} />
+                          <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 7)} />
+                          <YAxis {...axisProps} />
+                          <Tooltip contentStyle={tooltipStyle} />
+                          <Area dataKey="value" stroke="#0ea5e9" fill="url(#lgT2)" name="Eventos" />
+                        </AreaChart>
+                      </ChartBox>
+                    )}
+                  </Panel>
+                );
+              }
+              if (pid === 'trend-line') {
+                return (
+                  <Panel
+                    sortableId="trend-line"
+                    title="Tendencia (línea) de incorporación"
+                    subtitle="Mismo agregado mensual"
+                    back={<p>Tendencia simple del número de filas con fecha en cada mes.</p>}
+                    width={chartWidths['trend-line'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('trend-line', w)}
+                  >
+                    {byMonth.length === 0 ? (
+                      <ChartEmpty message="Sin fechas parseables: revisa el archivo o ajusta la columna de fecha en ajustes." />
+                    ) : (
+                      <ChartBox>
+                        <LineChart data={byMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+                          <CartesianGrid {...gridProps} />
+                          <XAxis dataKey="name" {...axisProps} />
+                          <YAxis {...axisProps} />
+                          <Tooltip contentStyle={tooltipStyle} />
+                          <Line dataKey="value" stroke="#10b981" strokeWidth={2} dot />
+                        </LineChart>
+                      </ChartBox>
+                    )}
+                  </Panel>
+                );
+              }
+              return null;
+            }}
+          </SemanticDndGrid>
+        ) : (
+          <MissingHint need={['Fecha de alta / creado / modificado']} />
+        )}
       </>
     );
   }

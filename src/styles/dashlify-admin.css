@@ -856,12 +856,23 @@
 }
 
 /* ── CHARTS GRID ─────────────────────────────────────────────────────────── */
+/* 1 col → 2 (md) → 3 (lg) para alinear 1/3 · 2/3 · full con grid-column span en paneles */
 #dash-admin .charts-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
   animation: dashFadeUp 0.5s 0.16s ease both;
+}
+@media (min-width: 768px) {
+  #dash-admin .charts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  #dash-admin .charts-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 #dash-admin .chart-card {
   background: var(--surface);
@@ -1409,7 +1420,6 @@
   #dash-admin .sidebar { display: none; }
   #dash-admin .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   #dash-admin .export-bar { left: 0; }
-  #dash-admin .charts-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 580px) {
   #dash-admin .kpi-grid { grid-template-columns: 1fr 1fr; }
