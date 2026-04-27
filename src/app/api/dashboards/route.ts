@@ -81,6 +81,13 @@ export async function POST(req: Request) {
       const now = new Date().toISOString();
       const widgetsToInsert = widgets.map((w: any) => {
         const c = w.config && typeof w.config === 'object' ? w.config : {};
+
+        // ⚠️ Remove sampleData and headers to reduce payload size
+        // These will be loaded from the original Dataset when rendering
+        const cleanConfig = { ...c };
+        delete cleanConfig.sampleData;
+        delete cleanConfig.headers;
+
         const datasetIndex = typeof c.datasetIndex === 'number' ? c.datasetIndex : w.datasetIndex ?? 0;
         const datasetName =
           typeof c.datasetName === 'string' && c.datasetName
@@ -103,7 +110,7 @@ export async function POST(req: Request) {
           dashboardId: dashboard.id,
           type: w.type,
           dataSourceConfig: {
-            ...c,
+            ...cleanConfig,
             title: w.title || w.type,
             ...(category ? { category } : {}),
             ...(description ? { description } : {}),
