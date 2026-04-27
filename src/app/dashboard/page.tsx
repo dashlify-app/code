@@ -174,6 +174,7 @@ function KpiFlippableCard({
               style={{ position: 'relative' as const, paddingBottom: 20 }}
             >
               <div className="calc-explain p-2 pb-10">
+                <p className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>Cómo se calcula</p>
                 <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text2)' }}>
                   {k.isPercent ? (
                     <>
