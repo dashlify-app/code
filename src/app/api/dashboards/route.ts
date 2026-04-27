@@ -76,6 +76,24 @@ export async function POST(req: Request) {
 
     if (dashError || !dashboard) throw dashError || new Error('No se pudo crear el dashboard');
 
+    // Resolve all dataset names → ids in a single query (avoids N+1)
+    const allDatasetNames = Array.from(
+      new Set(
+        (widgets || [])
+          .map((w: any) => w?.config?.datasetName ?? w?.datasetName)
+          .filter((n: any): n is string => typeof n === 'string' && n.length > 0)
+      )
+    );
+    let nameToId: Record<string, string> = {};
+    if (allDatasetNames.length > 0) {
+      const { data: dsRows } = await supabaseAdmin
+        .from('Dataset')
+        .select('id, name')
+        .in('name', allDatasetNames)
+        .or(`organizationId.eq.${orgId},organizationId.is.null`);
+      nameToId = Object.fromEntries((dsRows || []).map((d: any) => [d.name, d.id]));
+    }
+
     // Create Widgets
     if (widgets && widgets.length > 0) {
       const now = new Date().toISOString();
@@ -93,6 +111,11 @@ export async function POST(req: Request) {
           typeof c.datasetName === 'string' && c.datasetName
             ? c.datasetName
             : (w.datasetName || null);
+        const datasetId =
+          (typeof c.datasetId === 'string' && c.datasetId) ||
+          (typeof w.datasetId === 'string' && w.datasetId) ||
+          (datasetName && nameToId[datasetName]) ||
+          null;
         const category =
           typeof w.category === 'string' && w.category
             ? w.category
@@ -118,6 +141,7 @@ export async function POST(req: Request) {
           stylingOptions: w.styling || {},
           datasetIndex,
           datasetName,
+          datasetId,
           createdAt: now,
           updatedAt: now,
         };

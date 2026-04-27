@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 
-function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unknown; datasetIndex?: number; datasetName?: string | null }) {
+function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unknown; datasetIndex?: number; datasetName?: string | null; datasetId?: string | null }) {
   const cfg = (w.dataSourceConfig && typeof w.dataSourceConfig === 'object'
     ? (w.dataSourceConfig as Record<string, unknown>)
     : {}) as Record<string, unknown>;
@@ -16,6 +16,9 @@ function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unk
   const dn = w.datasetName != null && w.datasetName !== undefined && w.datasetName !== ''
     ? w.datasetName
     : (typeof config.datasetName === 'string' ? config.datasetName : null);
+  const dId = w.datasetId != null && w.datasetId !== undefined && w.datasetId !== ''
+    ? w.datasetId
+    : (typeof config.datasetId === 'string' ? config.datasetId : null);
   const category = typeof config.category === 'string' ? config.category : undefined;
   const description = typeof config.description === 'string' ? config.description : undefined;
   return {
@@ -24,7 +27,7 @@ function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unk
     type: w.type,
     category,
     description,
-    config: { ...config, datasetIndex: di, datasetName: dn },
+    config: { ...config, datasetIndex: di, datasetName: dn, datasetId: dId },
   };
 }
 
@@ -96,6 +99,31 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       await supabaseAdmin.from('Dashboard').update(updateData).eq('id', id);
     }
 
+    // Resolve all dataset names → ids in a single query (avoids N+1)
+    const allDatasetNames = Array.from(
+      new Set(
+        (body.widgets || [])
+          .map((w: any) => w?.config?.datasetName ?? w?.datasetName)
+          .filter((n: any): n is string => typeof n === 'string' && n.length > 0)
+      )
+    );
+    let nameToId: Record<string, string> = {};
+    if (allDatasetNames.length > 0) {
+      // Get organizationId from the dashboard for scoping
+      const { data: dashRow } = await supabaseAdmin
+        .from('Dashboard')
+        .select('organizationId')
+        .eq('id', id)
+        .single();
+      const orgId = dashRow?.organizationId ?? null;
+      const { data: dsRows } = await supabaseAdmin
+        .from('Dataset')
+        .select('id, name')
+        .in('name', allDatasetNames)
+        .or(orgId ? `organizationId.eq.${orgId},organizationId.is.null` : `organizationId.is.null`);
+      nameToId = Object.fromEntries((dsRows || []).map((d: any) => [d.name, d.id]));
+    }
+
     // Insertar nuevos widgets (datasetIndex / datasetName vienen en w.config desde el canvas)
     if (body.widgets.length > 0) {
       const now = new Date().toISOString();
@@ -113,6 +141,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           typeof c.datasetName === 'string' && c.datasetName
             ? c.datasetName
             : (w.datasetName || null);
+        const datasetId =
+          (typeof c.datasetId === 'string' && c.datasetId) ||
+          (typeof w.datasetId === 'string' && w.datasetId) ||
+          (datasetName && nameToId[datasetName]) ||
+          null;
         const category =
           typeof w.category === 'string' && w.category
             ? w.category
@@ -138,6 +171,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           stylingOptions: w.styling || {},
           datasetIndex,
           datasetName,
+          datasetId,
           createdAt: now,
           updatedAt: now,
         };

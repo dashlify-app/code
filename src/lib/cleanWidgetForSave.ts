@@ -25,7 +25,7 @@ const STRIPPED_KEYS = ['sampleData', 'headers', 'rawSchema', 'analysis'] as cons
 
 /**
  * Devuelve una copia del widget con su `config` limpio de campos pesados.
- * Mantiene `datasetIndex` y `datasetName` (referencias al Dataset original).
+ * Mantiene `datasetId` (FK), `datasetName` y `datasetIndex` como referencias al Dataset original.
  */
 export function cleanWidgetForSave<T extends { config?: any; [key: string]: any }>(
   widget: T
@@ -37,7 +37,8 @@ export function cleanWidgetForSave<T extends { config?: any; [key: string]: any 
     delete cfg[key];
   }
 
-  // Asegura referencias al dataset
+  // Asegura referencias al dataset (id es preferido, name/index son fallback)
+  cfg.datasetId = typeof cfg.datasetId === 'string' && cfg.datasetId ? cfg.datasetId : undefined;
   cfg.datasetIndex = typeof cfg.datasetIndex === 'number' ? cfg.datasetIndex : 0;
   cfg.datasetName = typeof cfg.datasetName === 'string' ? cfg.datasetName : undefined;
 

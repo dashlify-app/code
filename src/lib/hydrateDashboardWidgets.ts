@@ -1,6 +1,10 @@
-/** Rehidrata sampleData de widgets guardados usando datasets actuales (por nombre o índice). */
+/** Rehidrata sampleData de widgets guardados usando datasets actuales (por id, nombre o índice). */
 
-export type DatasetRow = { name?: string; rawSchema?: { sampleData?: Record<string, unknown>[] } };
+export type DatasetRow = {
+  id?: string;
+  name?: string;
+  rawSchema?: { sampleData?: Record<string, unknown>[] };
+};
 
 export function hydrateDashboardWidgets(
   rawWidgets: Array<{
@@ -22,11 +26,18 @@ export function hydrateDashboardWidgets(
 }> {
   return rawWidgets.map((w) => {
     const c = w.config && typeof w.config === 'object' ? { ...w.config } : {};
+
+    // Resolution priority: datasetId (FK) → datasetName → datasetIndex
+    const datasetId =
+      typeof c.datasetId === 'string' && c.datasetId.trim() ? c.datasetId.trim() : null;
     const datasetIndex = typeof c.datasetIndex === 'number' ? c.datasetIndex : 0;
     const name =
       typeof c.datasetName === 'string' && c.datasetName.trim() ? c.datasetName.trim() : null;
-    const byName = name ? datasets.find((ds) => ds.name === name) : undefined;
-    const targetDataset = byName ?? datasets[datasetIndex];
+
+    const byId = datasetId ? datasets.find((ds) => ds.id === datasetId) : undefined;
+    const byName = !byId && name ? datasets.find((ds) => ds.name === name) : undefined;
+    const targetDataset = byId ?? byName ?? datasets[datasetIndex];
+
     const fromDataset = targetDataset?.rawSchema?.sampleData || [];
     const embedded = Array.isArray(c.sampleData) ? c.sampleData : [];
     const sampleData = fromDataset.length > 0 ? fromDataset : embedded;
@@ -50,7 +61,8 @@ export function hydrateDashboardWidgets(
         ...c,
         sampleData,
         datasetIndex: resolvedIndex,
-        datasetName: (c.datasetName as string | undefined) ?? name ?? undefined,
+        datasetName: targetDataset?.name ?? (c.datasetName as string | undefined) ?? name ?? undefined,
+        datasetId: targetDataset?.id ?? datasetId ?? undefined,
       },
     };
   });
