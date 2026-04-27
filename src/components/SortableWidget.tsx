@@ -259,32 +259,24 @@ function WidgetCalcExplain({
   }
 
   return (
-    <div className="calc-explain p-4 pb-2">
-      <p className="text-[var(--text)] text-[15px] font-bold leading-snug">Cómo se calcula</p>
-      <p className="text-[var(--text2)] text-[14px] leading-relaxed">
-        Se usan <strong className="text-[var(--text)]">{rows.length}</strong> fila
-        {rows.length !== 1 ? 's' : ''}
-        {rawTotal > rows.length ? (
-          <>
-            {' '}
-            (de {rawTotal} antes de filtrar)
-          </>
-        ) : null}
-        .
+    <div className="calc-explain p-3 overflow-hidden flex flex-col">
+      <p className="text-[var(--text)] text-[13px] font-bold leading-tight mb-1">Cómo se calcula</p>
+      <p className="text-[var(--text2)] text-[12px] leading-tight mb-2">
+        Se usan <strong className="text-[var(--text)]">{rows.length}</strong> fila{rows.length !== 1 ? 's' : ''}{rawTotal > rows.length ? <> (de {rawTotal} antes de filtrar)</> : null}.
       </p>
 
-      <dl className="grid gap-3 mt-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <div className="p-3 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
-          <dt className="text-xs font-mono text-[var(--text2)] uppercase mb-1">Grupos (eje X)</dt>
-          <dd className="text-sm font-medium text-blue-500 truncate">{xKey || '—'}</dd>
+      <dl className="grid gap-2" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <div className="p-2 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
+          <dt className="text-[10px] font-mono text-[var(--text2)] uppercase mb-0.5">Grupos (eje X)</dt>
+          <dd className="text-[11px] font-medium text-blue-500 truncate">{xKey || '—'}</dd>
         </div>
-        <div className="p-3 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
-          <dt className="text-xs font-mono text-[var(--text2)] uppercase mb-1">Valores (eje Y)</dt>
-          <dd className="text-sm font-medium text-blue-500 truncate">{yKeys.filter(Boolean).join(', ') || '—'}</dd>
+        <div className="p-2 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
+          <dt className="text-[10px] font-mono text-[var(--text2)] uppercase mb-0.5">Valores (eje Y)</dt>
+          <dd className="text-[11px] font-medium text-blue-500 truncate">{yKeys.filter(Boolean).join(', ') || '—'}</dd>
         </div>
-        <div className="p-3 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
-          <dt className="text-xs font-mono text-[var(--text2)] uppercase mb-1">Agregación</dt>
-          <dd className="text-sm font-medium text-blue-500 truncate">{AGGREGATE_LABEL[aggregate] ?? aggregate}</dd>
+        <div className="p-2 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
+          <dt className="text-[10px] font-mono text-[var(--text2)] uppercase mb-0.5">Agregación</dt>
+          <dd className="text-[11px] font-medium text-blue-500 truncate">{AGGREGATE_LABEL[aggregate] ?? aggregate}</dd>
         </div>
       </dl>
 
