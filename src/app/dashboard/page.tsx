@@ -375,9 +375,37 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
               borderRadius: '6px',
               cursor: 'pointer',
               fontWeight: hasActiveFilters ? '600' : '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            ⚙️ FILTROS {hasActiveFilters && `(${Object.values(filters).filter(v => v).length})`}
+            <span>⚙️ FILTROS {hasActiveFilters && `(${Object.values(filters).filter(v => v).length})`}</span>
+            {hasActiveFilters && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearAllFilters();
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '3px',
+                  padding: '2px 6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '24px',
+                }}
+                title="Limpiar filtros"
+              >
+                ✕
+              </span>
+            )}
           </button>
           <label style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--font-dm-mono)' }}>
             Mostrar:
@@ -543,23 +571,6 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           {pageSize !== 'all' && totalPages > 1 && (
             <div>Página {currentPage} de {totalPages}</div>
-          )}
-          {hasActiveFilters && (
-            <button
-              onClick={clearAllFilters}
-              style={{
-                padding: '4px 10px',
-                fontSize: '11px',
-                border: '1px solid var(--border2)',
-                background: 'transparent',
-                color: 'var(--accent)',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: '600',
-              }}
-            >
-              ✕ Limpiar filtros
-            </button>
           )}
         </div>
         {pageSize !== 'all' && totalPages > 1 && (
