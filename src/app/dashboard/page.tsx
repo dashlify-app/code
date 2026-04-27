@@ -274,7 +274,7 @@ const badgeClass = (val: string) => {
   return 'badge-p';
 };
 
-// ── Tabla dinámica ───────────────────────────────────────────────────────────
+// ── Tabla dinámica avanzada ───────────────────────────────────────────────────
 function DynamicTable({ rows, headers, numeric, categorical }: {
   rows: Record<string, any>[];
   headers: string[];
@@ -283,33 +283,103 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
 }) {
   const [pageSize, setPageSize] = useState<number | 'all'>(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [showFilters, setShowFilters] = useState(false);
 
   const displayCols = headers;
   const lastCatCol  = categorical[categorical.length - 1];
 
+  // Aplicar filtros
+  const filteredRows = rows.filter(row => {
+    return Object.entries(filters).every(([col, filterVal]) => {
+      if (!filterVal) return true;
+      const cellVal = String(row[col] ?? '').toLowerCase();
+      return cellVal.includes(filterVal.toLowerCase());
+    });
+  });
+
+  // Aplicar ordenamiento
+  const sortedRows = sortCol ? [...filteredRows].sort((a, b) => {
+    const aVal = a[sortCol];
+    const bVal = b[sortCol];
+    const isNum = numeric.includes(sortCol);
+
+    if (isNum) {
+      const aNum = toNum(aVal);
+      const bNum = toNum(bVal);
+      return sortDir === 'asc' ? aNum - bNum : bNum - aNum;
+    }
+
+    const aStr = String(aVal ?? '').toLowerCase();
+    const bStr = String(bVal ?? '').toLowerCase();
+    const cmp = aStr.localeCompare(bStr);
+    return sortDir === 'asc' ? cmp : -cmp;
+  }) : filteredRows;
+
   // Calcular registros a mostrar
-  const itemsPerPage = pageSize === 'all' ? rows.length : pageSize;
-  const totalPages = Math.ceil(rows.length / itemsPerPage);
+  const itemsPerPage = pageSize === 'all' ? sortedRows.length : pageSize;
+  const totalPages = Math.ceil(sortedRows.length / itemsPerPage);
   const startIdx = (currentPage - 1) * itemsPerPage;
   const endIdx = startIdx + itemsPerPage;
-  const displayedRows = rows.slice(startIdx, endIdx);
+  const displayedRows = sortedRows.slice(startIdx, endIdx);
 
-  // Reset a página 1 cuando cambia pageSize
+  // Reset a página 1 cuando cambia pageSize o filtros
   const handlePageSizeChange = (newSize: number | 'all') => {
     setPageSize(newSize);
     setCurrentPage(1);
   };
 
+  const handleFilterChange = (col: string, val: string) => {
+    setFilters(prev => ({...prev, [col]: val}));
+    setCurrentPage(1);
+  };
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  };
+
+  const clearAllFilters = () => {
+    setFilters({});
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = Object.values(filters).some(v => v);
+
   return (
     <div className="table-card">
       <div className="chart-hd">
         <div>
-          <div className="chart-title">Detalle de datos — {displayedRows.length} de {rows.length} registros</div>
+          <div className="chart-title">
+            Detalle de datos — {displayedRows.length} de {sortedRows.length} registros
+            {hasActiveFilters && ` (filtrados de ${rows.length})`}
+          </div>
           <div className="chart-sub">{rows.length} registros totales · {headers.length} columnas</div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            style={{
+              padding: '6px 12px',
+              fontSize: '11px',
+              border: hasActiveFilters ? '2px solid var(--accent)' : '1px solid var(--border2)',
+              background: hasActiveFilters ? 'var(--accent)' : 'transparent',
+              color: hasActiveFilters ? 'white' : 'var(--text)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: hasActiveFilters ? '600' : '500',
+            }}
+          >
+            ⚙️ FILTROS {hasActiveFilters && `(${Object.values(filters).filter(v => v).length})`}
+          </button>
           <label style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--font-dm-mono)' }}>
-            Mostrar por página:
+            Mostrar:
           </label>
           <select
             value={pageSize === 'all' ? 'all' : pageSize}
@@ -337,9 +407,55 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
       <table className="data-table">
         <thead>
           <tr>
-            {displayCols.map(h => <th key={h}>{h}</th>)}
+            {displayCols.map(h => (
+              <th
+                key={h}
+                onClick={() => handleSort(h)}
+                style={{
+                  cursor: 'pointer',
+                  background: sortCol === h ? 'var(--surface2)' : 'transparent',
+                  fontWeight: sortCol === h ? 'bold' : '500',
+                  userSelect: 'none',
+                  position: 'relative',
+                }}
+                title="Click para ordenar"
+              >
+                {h}
+                {sortCol === h && (
+                  <span style={{ marginLeft: 6, fontSize: '10px' }}>
+                    {sortDir === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
+              </th>
+            ))}
             {lastCatCol && !displayCols.includes(lastCatCol) && <th>Estado</th>}
           </tr>
+          {showFilters && (
+            <tr style={{ background: 'var(--surface3)', borderTop: '1px solid var(--border2)' }}>
+              {displayCols.map(h => (
+                <th key={`filter-${h}`} style={{ padding: '8px 4px' }}>
+                  <input
+                    type="text"
+                    placeholder={`Buscar...`}
+                    value={filters[h] ?? ''}
+                    onChange={(e) => handleFilterChange(h, e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: '100%',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      border: '1px solid var(--border2)',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      borderRadius: '4px',
+                      fontFamily: 'var(--font-dm-mono)',
+                    }}
+                  />
+                </th>
+              ))}
+              {lastCatCol && !displayCols.includes(lastCatCol) && <th style={{ padding: '8px 4px' }} />}
+            </tr>
+          )}
         </thead>
         <tbody>
           {displayedRows.map((row, ri) => (
@@ -380,21 +496,41 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
         </tbody>
       </table>
 
-      {/* Controles de paginación */}
-      {pageSize !== 'all' && totalPages > 1 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '16px 24px',
-          borderTop: '1px solid var(--border2)',
-          fontSize: '12px',
-          color: 'var(--text2)',
-          fontFamily: 'var(--font-dm-mono)',
-        }}>
-          <div>
-            Página {currentPage} de {totalPages}
-          </div>
+      {/* Controles de paginación y acciones */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '16px 24px',
+        borderTop: '1px solid var(--border2)',
+        fontSize: '12px',
+        color: 'var(--text2)',
+        fontFamily: 'var(--font-dm-mono)',
+        background: hasActiveFilters ? 'rgba(139, 92, 246, 0.05)' : 'transparent',
+      }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          {pageSize !== 'all' && totalPages > 1 && (
+            <div>Página {currentPage} de {totalPages}</div>
+          )}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              style={{
+                padding: '4px 10px',
+                fontSize: '11px',
+                border: '1px solid var(--border2)',
+                background: 'transparent',
+                color: 'var(--accent)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: '600',
+              }}
+            >
+              ✕ Limpiar filtros
+            </button>
+          )}
+        </div>
+        {pageSize !== 'all' && totalPages > 1 && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
@@ -457,8 +593,8 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
               Siguiente →
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
