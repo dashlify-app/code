@@ -11,12 +11,22 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
+    console.log('[/api/analyze] Recibiendo solicitud...');
+
     const session = await getServerSession(authOptions);
+    console.log('[/api/analyze] Session:', session);
+    console.log('[/api/analyze] Session.user:', session?.user);
+    console.log('[/api/analyze] Session.user.id:', session?.user?.id);
+
     if (!session?.user?.id) {
+      console.log('[/api/analyze] ❌ 401: No hay sesión válida');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    console.log('[/api/analyze] ✓ Usuario autenticado:', session.user.id);
+
     const allowed = await checkRateLimit(session.user.id, 'analyze');
+    console.log('[/api/analyze] Rate limit check:', allowed);
     if (!allowed) {
       return NextResponse.json(
         { error: 'Límite de llamadas excedido. Máximo 10 por minuto.' },
