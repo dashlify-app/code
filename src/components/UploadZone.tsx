@@ -10,7 +10,9 @@ import CorrelationUI from './CorrelationUI';
 import WidgetCatalog from './WidgetCatalog';
 import DashboardCanvas from './DashboardCanvas';
 import DataCopilot from './DataCopilot';
+import MultiDatasetAnalysisResult from './MultiDatasetAnalysisResult';
 import { computeColumnStats } from '@/lib/columnStats';
+import { MultiDatasetAnalysis, ProposedWidget } from '@/lib/types/multiDataset';
 
 interface DatasetPreview {
   id?: string;
@@ -35,6 +37,8 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
   const [showCopilot, setShowCopilot] = useState(false);
   const [selectedWidgets, setSelectedWidgets] = useState<any[]>([]);
   const [showCanvas, setShowCanvas] = useState(false);
+  const [multiDatasetAnalysis, setMultiDatasetAnalysis] = useState<MultiDatasetAnalysis | null>(null);
+  const [showMultiAnalysis, setShowMultiAnalysis] = useState(false);
 
   const hasLoadedFromDb = useRef(false);
 
@@ -227,8 +231,8 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     try {
       const res = await fetch('/api/correlate', {
         method: 'POST',
-        body: JSON.stringify({ 
-          datasets: files.map(f => ({ ...f, sampleData: f.sampleData.slice(0, 5) })) 
+        body: JSON.stringify({
+          datasets: files.map(f => ({ ...f, sampleData: f.sampleData.slice(0, 5) }))
         }),
         headers: { 'Content-Type': 'application/json' }
       });
@@ -246,6 +250,75 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const analyzeMultiDataset = async () => {
+    if (files.length < 2) return;
+    setAnalyzing(true);
+    try {
+      // Preparar datos para análisis cruzado
+      // Enviar: primeras 5 filas + 5 random = 10 filas máximo
+      const datasetsForAnalysis = files.map(f => {
+        const allRows = f.sampleData || [];
+        const first5 = allRows.slice(0, 5);
+        const remaining = allRows.slice(5);
+        const random5 = remaining.slice(0, Math.min(5, remaining.length));
+        const sampleData = [...first5, ...random5].slice(0, 10);
+
+        return {
+          id: f.id || f.name,
+          name: f.name,
+          headers: f.headers,
+          sampleData,
+          columnStats: computeColumnStats(sampleData, f.headers)
+        };
+      });
+
+      const res = await fetch('/api/analyze-multi', {
+        method: 'POST',
+        body: JSON.stringify({ datasets: datasetsForAnalysis }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = typeof data?.error === 'string' ? data.error : 'Error al analizar con IA';
+        throw new Error(msg);
+      }
+
+      setMultiDatasetAnalysis(data.analysis);
+      setShowMultiAnalysis(true);
+    } catch (err) {
+      console.error('Error al analizar multi-dataset:', err);
+      const msg = err instanceof Error ? err.message : 'Error en análisis cruzado';
+      alert(msg);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleCreateMultiDatasetWidgets = (widgets: ProposedWidget[]) => {
+    // Convertir ProposedWidget a formato de widget del dashboard
+    const dashboardWidgets = widgets.map((w, idx) => ({
+      id: `widget-multi-${idx}`,
+      title: w.title,
+      type: w.type,
+      config: {
+        ...w.config,
+        // Guardar la configuración de joins para procesamiento local
+        multiDatasetConfig: w.datasetConfig,
+        // Incluir todos los datos de todos los datasets para el motor local
+        allDatasets: Object.fromEntries(
+          files.map(f => [f.name, f.sampleData || []])
+        ),
+      },
+      category: w.category,
+      description: w.description,
+    }));
+
+    setSelectedWidgets(dashboardWidgets);
+    setShowCanvas(true);
+    setShowMultiAnalysis(false);
   };
 
   const getWidgetSuggestions = async (approvedRels: any[] = []) => {
@@ -295,10 +368,22 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
   };
 
   if (showCanvas && selectedWidgets.length > 0) {
-    return <DashboardCanvas 
-      initialWidgets={selectedWidgets} 
+    return <DashboardCanvas
+      initialWidgets={selectedWidgets}
       onSave={(final) => {
         console.log('Dashboard final guardado:', final);
+      }}
+    />;
+  }
+
+  if (showMultiAnalysis && multiDatasetAnalysis) {
+    return <MultiDatasetAnalysisResult
+      analysis={multiDatasetAnalysis}
+      files={files}
+      onCreateWidgets={handleCreateMultiDatasetWidgets}
+      onBack={() => {
+        setShowMultiAnalysis(false);
+        setMultiDatasetAnalysis(null);
       }}
     />;
   }
@@ -439,17 +524,29 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
             );
           })()}
 
-          {/* Botón secundario: correlación opcional si hay 2+ archivos analizados */}
+          {/* Botones opcionales si hay 2+ archivos analizados */}
           {files.filter(f => f.analysis).length >= 2 && (
-            <button
-              type="button"
-              disabled={analyzing}
-              onClick={findCorrelations}
-              className="btn-analyze-dash flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
-              style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)' }}
-            >
-              🔗 Vincular datasets (opcional)
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={analyzing}
+                onClick={analyzeMultiDataset}
+                className="flex-1 btn-analyze-dash flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
+                style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                title="Analiza relaciones cruzadas entre datasets"
+              >
+                🔀 Análisis Cruzado
+              </button>
+              <button
+                type="button"
+                disabled={analyzing}
+                onClick={findCorrelations}
+                className="flex-1 btn-analyze-dash flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
+                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)' }}
+              >
+                🔗 Vincular datasets
+              </button>
+            </div>
           )}
         </div>
       )}
