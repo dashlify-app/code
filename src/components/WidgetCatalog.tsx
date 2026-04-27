@@ -109,6 +109,15 @@ export default function WidgetCatalog({
 
   const totalSelected = selectedIndices.length + customWidgets.length;
 
+  const resolveSampleForWidget = (cfg: any) => {
+    const src =
+      (typeof cfg?.sourceFile === 'string' && cfg.sourceFile) ||
+      (typeof cfg?.datasetName === 'string' && cfg.datasetName) ||
+      '';
+    if (src && sampleDataByFile[src]?.length) return sampleDataByFile[src];
+    return sampleData;
+  };
+
   const handleBuild = () => {
     const aiSelected = suggestions
       .map((w, i) => ({
@@ -116,6 +125,7 @@ export default function WidgetCatalog({
         type: overriddenTypes[i] || w.type,
         config: {
           ...w.config,
+          sampleData: resolveSampleForWidget(w.config),
           datasetIndex: 0,
           datasetName:
             (typeof w.config?.sourceFile === 'string' && w.config.sourceFile) ||
@@ -126,7 +136,7 @@ export default function WidgetCatalog({
       .filter((_, i) => selectedIndices.includes(i));
     const customWithData = customWidgets.map(w => ({
       ...w,
-      config: { ...w.config, datasetIndex: 0, datasetName: undefined },
+      config: { ...w.config, sampleData, datasetIndex: 0, datasetName: undefined },
     }));
     onSave([...aiSelected, ...customWithData]);
   };
