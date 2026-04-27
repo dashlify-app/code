@@ -543,17 +543,6 @@ export function SortableWidget({
                     >
                       <Download size={14} />
                     </button>
-                    <button
-                      className="chart-btn"
-                      title="Expandir"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpanded(true);
-                      }}
-                    >
-                      <Maximize2 size={14} />
-                    </button>
                   </div>
                 </div>
 
