@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Maximize2, Download } from 'lucide-react';
+import { Maximize2, Download, Info, RotateCcw } from 'lucide-react';
 import { downloadSvgAsImage } from '@/lib/exportUtils';
 import ChartEngine from './ChartEngine';
 import { useFilters } from './FilterContext';
@@ -339,6 +339,7 @@ export function SortableWidget({
   };
 
   const [expanded, setExpanded] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   const resolved: ThemeId = isDark ? 'dark' : theme;
 
   const chartTypeLabel: Record<string, string> = {
@@ -490,7 +491,7 @@ export function SortableWidget({
           style={{ position: 'relative' as const, minHeight: 320 }}
         >
           <div
-            className="widget-flip-inner h-full"
+            className={`widget-flip-inner h-full ${flipped ? 'is-flipped' : ''}`}
             style={{ minHeight: 320 }}
           >
             <div className="widget-face widget-face-front h-full">
@@ -571,6 +572,19 @@ export function SortableWidget({
                   <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
                     {renderChart()}
                   </WidgetErrorBoundary>
+                  <button
+                    type="button"
+                    className="widget-info-btn"
+                    title="Cómo se calcula"
+                    aria-pressed={flipped}
+                    aria-label="Ver cómo se calcula"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setFlipped(true);
+                    }}
+                  >
+                    <Info size={16} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -592,6 +606,18 @@ export function SortableWidget({
                     activeFilters={activeFilters}
                   />
                 </div>
+                <button
+                  type="button"
+                  className="widget-info-btn"
+                  title="Volver al gráfico"
+                  aria-label="Volver al gráfico"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setFlipped(false);
+                  }}
+                >
+                  <RotateCcw size={16} />
+                </button>
               </div>
             </div>
           </div>
