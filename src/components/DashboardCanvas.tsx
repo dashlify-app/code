@@ -169,7 +169,6 @@ function CanvasInner({
               ...w.config,
               category: meta.category ?? (w.config as { category?: string })?.category,
               description: meta.description ?? (w.config as { description?: string })?.description,
-              sampleData: w.config?.sampleData || [],
               datasetIndex: w.config?.datasetIndex ?? 0,
               datasetName: w.config?.datasetName,
             },
