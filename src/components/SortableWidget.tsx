@@ -515,7 +515,7 @@ export function SortableWidget({
                       )}
                     </div>
                   </div>
-                  <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
+                  <div className="chart-actions flex gap-1">
                     {!disableDrag && (
                       <select
                         value={widget.config?.colSpan || 1}
