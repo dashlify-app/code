@@ -20,9 +20,10 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { Info, RotateCcw } from 'lucide-react';
+import { Info, RotateCcw, Download } from 'lucide-react';
 import type { SemanticContext, SemanticViewKey } from '@/lib/semanticContext';
 import { computeSemanticInsights, type Insight } from '@/lib/semanticInsights';
+import { downloadSvgAsImage } from '@/lib/exportUtils';
 
 function toNum(val: any): number {
   return parseFloat(String(val).replace(/[$,\s%]/g, '')) || 0;
@@ -201,21 +202,37 @@ function Panel({
   subtitle,
   children,
   back,
+  id,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   back?: ReactNode;
+  id?: string;
 }) {
   const [flip, setFlip] = useState(false);
+  const panelId = useMemo(() => id || `panel-${title.replace(/\s+/g, '-').toLowerCase().slice(0, 30)}-${Math.random().toString(36).slice(2, 9)}`, [id, title]);
 
   if (!back) {
     return (
-      <div className="chart-card group" style={{ minHeight: 120 }}>
+      <div className="chart-card group" style={{ minHeight: 120 }} id={`${panelId}-wrap`}>
         <div className="chart-hd">
           <div>
             <div className="chart-title">{title}</div>
             {subtitle && <div className="chart-sub" style={{ marginTop: 3 }}>{subtitle}</div>}
+          </div>
+          <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
+            <button
+              className="chart-btn"
+              title="Descargar"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadSvgAsImage(`${panelId}-wrap`, title);
+              }}
+            >
+              <Download size={14} />
+            </button>
           </div>
         </div>
         <div
@@ -232,6 +249,7 @@ function Panel({
     <div
       className="widget-flip-scene w-full"
       style={{ position: 'relative' as const, minHeight: PANEL_FLIP_MIN }}
+      id={`${panelId}-flip`}
     >
       <div
         className={`widget-flip-inner h-full ${flip ? 'is-flipped' : ''}`}
@@ -246,6 +264,19 @@ function Panel({
               <div>
                 <div className="chart-title">{title}</div>
                 {subtitle && <div className="chart-sub" style={{ marginTop: 3 }}>{subtitle}</div>}
+              </div>
+              <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
+                <button
+                  className="chart-btn"
+                  title="Descargar"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadSvgAsImage(`${panelId}-flip`, title);
+                  }}
+                >
+                  <Download size={14} />
+                </button>
               </div>
             </div>
             <div
