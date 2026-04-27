@@ -81,6 +81,12 @@ function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) 
   const BARS   = ['#0ea5e9','#10b981','#8b5cf6','#f97316'];
   const ICONS  = ['📊','💰','📈','⚙️'];
 
+  // Detectar tipo de columna por nombre
+  const isIdColumn = (col: string) => /\bid\b|identifier|código/i.test(col);
+  const isMoneyColumn = (col: string) => /precio|costo|cost|price|tarifa|rate|monto|amount|total|ingreso|revenue|venta|sales/i.test(col);
+  const isQuantityColumn = (col: string) => /cantidad|cant|stock|units?|unidades|qty/i.test(col);
+  const isPercentColumn = (col: string) => /porcentaje|percent|%|margen|margin|tasa|rate(?!icio)/i.test(col);
+
   return kpiCols.map((col, i) => {
     const vals = rows.map(r => toNum(r[col])).filter(v => !isNaN(v));
     const total = vals.reduce((a, b) => a + b, 0);
@@ -88,16 +94,46 @@ function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) 
     const max   = vals.length ? Math.max(...vals) : 0;
     const count = vals.length;
 
-    // Decide qué mostrar: si los valores tienen % literal -> porcentaje y promedio, si no, sumar.
-    // Solo mostrar % si la columna original explícitamente tiene el signo, no asumir % por valores pequeños.
-    const isPercent = String(rows[0]?.[col] ?? '').includes('%');
-    const displayVal = isPercent
-      ? `${avg.toFixed(1)}%`
-      : total > 1_000_000
-      ? `$${(total/1_000_000).toFixed(2)}M`
-      : total > 1_000
-      ? `$${(total/1_000).toFixed(1)}K`
-      : total.toFixed(0);
+    // Detectar si tiene % en los datos
+    const dataHasPercent = String(rows[0]?.[col] ?? '').includes('%');
+
+    let displayVal: string;
+    let metricType: string;
+
+    // Lógica de formateo por tipo de columna
+    if (isIdColumn(col)) {
+      // IDs: mostrar COUNT, no suma
+      displayVal = count.toString();
+      metricType = 'count';
+    } else if (dataHasPercent || isPercentColumn(col)) {
+      // Porcentajes: mostrar promedio
+      displayVal = `${avg.toFixed(1)}%`;
+      metricType = 'percent';
+    } else if (isMoneyColumn(col)) {
+      // Moneda: mostrar suma con $
+      displayVal = total > 1_000_000
+        ? `$${(total/1_000_000).toFixed(2)}M`
+        : total > 1_000
+        ? `$${(total/1_000).toFixed(1)}K`
+        : `$${total.toFixed(0)}`;
+      metricType = 'money';
+    } else if (isQuantityColumn(col)) {
+      // Cantidad: mostrar suma sin $
+      displayVal = total > 1_000_000
+        ? `${(total/1_000_000).toFixed(2)}M`
+        : total > 1_000
+        ? `${(total/1_000).toFixed(1)}K`
+        : total.toFixed(0);
+      metricType = 'quantity';
+    } else {
+      // Por defecto: mostrar suma con formato inteligente
+      displayVal = total > 1_000_000
+        ? `$${(total/1_000_000).toFixed(2)}M`
+        : total > 1_000
+        ? `$${(total/1_000).toFixed(1)}K`
+        : total.toFixed(0);
+      metricType = 'default';
+    }
 
     const pct = Math.min(100, Math.round((total / (max * count || 1)) * 100));
 
@@ -110,8 +146,9 @@ function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) 
       icon: ICONS[i],
       pct: pct || 50,
       bar: BARS[i],
-      isPercent,
+      isPercent: dataHasPercent || isPercentColumn(col),
       valueCount: count,
+      metricType,
     };
   });
 }
@@ -175,10 +212,25 @@ function KpiFlippableCard({
             >
               <div className="calc-explain p-2 pb-10">
                 <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text2)' }}>
-                  {k.isPercent ? (
+                  {k.metricType === 'count' ? (
+                    <>
+                      Se <strong style={{ color: 'var(--text)' }}>cuenta</strong> el número total de registros válidos
+                      en la columna «{k.label}» (identificadores únicos).
+                    </>
+                  ) : k.metricType === 'percent' ? (
                     <>
                       Se muestra el <strong style={{ color: 'var(--text)' }}>promedio</strong> de los valores
                       numéricos de la columna «{k.label}» cuando los datos se interpretan como porcentaje.
+                    </>
+                  ) : k.metricType === 'money' ? (
+                    <>
+                      Se <strong style={{ color: 'var(--text)' }}>suma</strong> el total de valores monetarios
+                      de «{k.label}» en el dataset activo (expresado en moneda).
+                    </>
+                  ) : k.metricType === 'quantity' ? (
+                    <>
+                      Se <strong style={{ color: 'var(--text)' }}>suma</strong> la cantidad total de unidades
+                      en la columna «{k.label}» (expresado como número sin moneda).
                     </>
                   ) : (
                     <>
