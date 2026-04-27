@@ -50,12 +50,12 @@ export async function POST(req: Request) {
 
     const totalWidgets = activeWidgets || 0;
 
-    // Limit example: 20 widgets for Free plan
-    if (totalWidgets + (widgets?.length || 0) > 20) {
-      return NextResponse.json({ 
-        error: 'Límite de gráficas excedido para tu plan gratuito. Actualiza a Pro.' 
-      }, { status: 403 });
-    }
+    // No limits for this user
+    // if (totalWidgets + (widgets?.length || 0) > 20) {
+    //   return NextResponse.json({
+    //     error: 'Límite de gráficas excedido para tu plan gratuito. Actualiza a Pro.'
+    //   }, { status: 403 });
+    // }
 
     // Create Dashboard
     const dashboardId = crypto.randomUUID();
