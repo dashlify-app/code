@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { logAIUsage } from '@/lib/aiLogger';
 import {
   MultiDatasetAnalysisRequest,
   MultiDatasetAnalysis,
@@ -53,7 +54,27 @@ export async function POST(request: Request) {
     const prompt = buildAnalysisPrompt(body.datasets);
 
     // Llamar a OpenAI
-    const analysis = await analyzeWithAI(prompt);
+    const { analysis, usage, promptTruncated } = await analyzeWithAI(prompt);
+
+    // Registrar uso en AILog
+    if (usage) {
+      await logAIUsage({
+        userId: ((session?.user as { id?: string })?.id || undefined) as string | undefined,
+        actionType: 'multi-dataset-analysis',
+        usage,
+        requestPayload: {
+          datasetCount: body.datasets.length,
+          totalColumns: body.datasets.reduce((s, d) => s + d.headers.length, 0),
+          totalSampleRows: body.datasets.reduce((s, d) => s + d.sampleData.length, 0),
+        },
+        responsePayload: {
+          domain: analysis.domain,
+          relationshipCount: analysis.relationships.length,
+          proposedWidgetCount: analysis.proposedWidgets.length,
+          mainKPIs: analysis.mainKPIs,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -178,7 +199,11 @@ Sé creativo pero práctico. Enfócate en gráficos que el usuario realmente nec
 /**
  * Llamar a OpenAI API
  */
-async function analyzeWithAI(prompt: string): Promise<MultiDatasetAnalysis> {
+async function analyzeWithAI(prompt: string): Promise<{
+  analysis: MultiDatasetAnalysis;
+  usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+  promptTruncated?: boolean;
+}> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -206,6 +231,7 @@ async function analyzeWithAI(prompt: string): Promise<MultiDatasetAnalysis> {
 
   const data = await response.json();
   const content = data.choices[0]?.message?.content;
+  const usage = data.usage;
 
   if (!content) {
     throw new Error('No response from OpenAI');
@@ -220,7 +246,10 @@ async function analyzeWithAI(prompt: string): Promise<MultiDatasetAnalysis> {
       .trim();
 
     const parsed = JSON.parse(jsonStr) as MultiDatasetAnalysis;
-    return parsed;
+    return {
+      analysis: parsed,
+      usage: usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    };
   } catch (parseError) {
     console.error('Error parsing OpenAI response:', content);
     throw new Error('Invalid JSON response from OpenAI');
