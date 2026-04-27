@@ -63,11 +63,11 @@ export async function POST(req: Request) {
     const result = JSON.parse(response.choices[0].message.content || '{}');
 
     if (response.usage) {
-      logAIUsage({
+      await logAIUsage({
         userId: session.user.id,
         actionType: 'chat-copilot',
         usage: response.usage,
-        requestPayload: { message },
+        requestPayload: { message: message.substring(0, 500) },
         responsePayload: result,
       });
     }

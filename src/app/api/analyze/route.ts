@@ -125,12 +125,12 @@ DEVUELVE EXACTAMENTE ESTE JSON (sin markdown, sin bloques de código):
     console.log('-----------------------------');
 
     if (response.usage) {
-      logAIUsage({
+      await logAIUsage({
         userId: session?.user?.id,
         actionType: 'dataset-analysis',
         usage: response.usage,
-        requestPayload: { prompt },
-        responsePayload: analysis,
+        requestPayload: { prompt: prompt.substring(0, 500) },
+        responsePayload: { domain: analysis.analysis?.domain, main_kpis: analysis.analysis?.main_kpis },
       });
     }
 

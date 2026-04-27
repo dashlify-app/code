@@ -71,11 +71,11 @@ export async function POST(req: Request) {
     const suggestions = JSON.parse(response.choices[0].message.content || '{}');
 
     if (response.usage) {
-      logAIUsage({
+      await logAIUsage({
         userId: session.user.id,
         actionType: 'chart-suggestion',
         usage: response.usage,
-        requestPayload: { prompt },
+        requestPayload: { prompt: prompt.substring(0, 500) },
         responsePayload: suggestions,
       });
     }

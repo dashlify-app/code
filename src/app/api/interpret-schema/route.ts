@@ -143,12 +143,12 @@ ${OUTPUT_SHAPE}
     };
 
     if (response.usage) {
-      logAIUsage({
+      await logAIUsage({
         userId: session.user.id,
         actionType: 'interpret-schema',
         usage: response.usage,
         requestPayload: { fileName, headerCount: headers.length },
-        responsePayload: out,
+        responsePayload: { columnRoles: out.columnRoles },
       });
     }
     await logApiCall(session.user.id, 'interpret-schema');
