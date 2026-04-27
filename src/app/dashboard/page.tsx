@@ -433,14 +433,14 @@ function DynamicTable({ rows, headers, numeric, categorical }: {
           {showFilters && (
             <tr style={{ background: 'var(--surface3)', borderTop: '1px solid var(--border2)' }}>
               {displayCols.map(h => {
-                const isCategorical = categorical.includes(h);
-                const uniqueValues = isCategorical
+                const isCategoria = h === 'CATEGORÍA' || h === 'Categoría' || h === 'categoria';
+                const uniqueValues = isCategoria
                   ? Array.from(new Set(rows.map(r => String(r[h] ?? '—')).filter(v => v !== '—'))).sort()
                   : [];
 
                 return (
                   <th key={`filter-${h}`} style={{ padding: '8px 4px' }}>
-                    {isCategorical ? (
+                    {isCategoria ? (
                       <select
                         value={filters[h] ?? ''}
                         onChange={(e) => handleFilterChange(h, e.target.value)}
