@@ -3,6 +3,68 @@ import { getServerSession } from 'next-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 
+async function getOrgId(userId: string) {
+  const { data: user, error: userError } = await supabaseAdmin
+    .from('User')
+    .select('organizationId')
+    .eq('id', userId)
+    .single();
+  if (userError || !user?.organizationId) return null;
+  return user.organizationId as string;
+}
+
+/**
+ * Fusión parcial: guarda `interpretation` (resultado de interpret-schema) sin tocar el resto de rawSchema.
+ */
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as { id?: string })?.id;
+  if (!userId) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+
+  const orgId = await getOrgId(userId);
+  if (!orgId) return NextResponse.json({ error: 'Organización no asignada' }, { status: 400 });
+
+  const { id } = await ctx.params;
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body.interpretation !== 'object') {
+    return NextResponse.json({ error: 'body.interpretation requerido' }, { status: 400 });
+  }
+
+  const { data: current, error: fetchError } = await supabaseAdmin
+    .from('Dataset')
+    .select('id, rawSchema')
+    .eq('id', id)
+    .eq('organizationId', orgId)
+    .single();
+
+  if (fetchError || !current) {
+    return NextResponse.json({ error: 'Dataset no encontrado' }, { status: 404 });
+  }
+
+  const existingSchema = (current.rawSchema as Record<string, unknown>) || {};
+  const nextRaw = {
+    ...existingSchema,
+    interpretation: body.interpretation,
+  };
+
+  const { data: updated, error: upError } = await supabaseAdmin
+    .from('Dataset')
+    .update({
+      rawSchema: nextRaw,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('organizationId', orgId)
+    .select('id, name, rawSchema, updatedAt')
+    .single();
+
+  if (upError) {
+    return NextResponse.json({ error: upError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ dataset: updated });
+}
+
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as any)?.id as string | undefined;

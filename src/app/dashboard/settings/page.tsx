@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CreditCard, BarChart, HardDrive, ShieldCheck, Zap } from 'lucide-react';
+import { CreditCard, BarChart, HardDrive, ShieldCheck, Zap, Type } from 'lucide-react';
+import { useTextScale } from '@/components/TextScaleProvider';
+import { TEXT_SCALE_OPTIONS, type TextScalePercent } from '@/lib/textScale';
 
 interface UsageData {
   tier: string;
@@ -10,6 +12,46 @@ interface UsageData {
     widgets: { used: number; limit: number; percentage: number };
   };
   organization: any;
+}
+
+function TextScaleControl() {
+  const { scalePercent, setScalePercent } = useTextScale();
+  return (
+    <div className="space-y-4">
+      <p className="text-slate-500 text-sm max-w-lg leading-relaxed">
+        Aumenta o reduce el tamaño de textos, botones y gráficos en toda la plataforma (inicio, login y
+        dashboard). La preferencia se guarda en este navegador.
+      </p>
+      <div
+        className="flex flex-wrap gap-2"
+        role="radiogroup"
+        aria-label="Tamaño de texto de la plataforma"
+      >
+        {TEXT_SCALE_OPTIONS.map((opt) => {
+          const selected = scalePercent === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setScalePercent(opt.value as TextScalePercent)}
+              className={[
+                'rounded-2xl border px-4 py-3 text-left transition-all',
+                'min-w-30 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:ring-offset-2',
+                selected
+                  ? 'border-sky-500 bg-sky-50 shadow-sm shadow-sky-100'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
+              ].join(' ')}
+            >
+              <div className="text-sm font-black text-slate-900">{opt.label}</div>
+              <div className="text-xs font-bold text-slate-400 tabular-nums">{opt.hint}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function SettingsPage() {
@@ -42,6 +84,14 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-3xl font-black text-slate-900 tracking-tighter mb-2">Configuración y Consumo</h2>
         <p className="text-slate-500 font-medium font-sans">Administra tu plan SaaS y monitorea tus límites de uso.</p>
+      </div>
+
+      <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem]">
+        <h4 className="font-black text-slate-900 mb-2 flex items-center gap-2">
+          <Type className="text-sky-500" size={20} strokeWidth={2.5} aria-hidden />
+          Tamaño de texto
+        </h4>
+        <TextScaleControl />
       </div>
 
       {/* Plan Card */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart2, PieChart, LineChart, TrendingUp, Check, LayoutGrid, Plus, Trash2, Settings2, Sparkles } from 'lucide-react';
+import { BarChart2, PieChart, LineChart, TrendingUp, ChartScatter, Check, LayoutGrid, Plus, Trash2, Settings2, Sparkles } from 'lucide-react';
 
 interface WidgetSuggestion {
   title: string;
@@ -35,7 +35,10 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   bar:  <BarChart2 size={20} />,
   pie:  <PieChart size={20} />,
   line: <LineChart size={20} />,
+  area: <LineChart size={20} />,
   stat: <TrendingUp size={20} />,
+  scatter: <ChartScatter size={20} />,
+  donut: <PieChart size={20} />,
 };
 
 let customIdCounter = 0;
@@ -46,11 +49,14 @@ export default function WidgetCatalog({
   onSave,
   availableHeaders = [],
   sampleData = [],
+  sampleDataByFile = {},
 }: {
   suggestions: WidgetSuggestion[];
   onSave: (selected: any[]) => void;
   availableHeaders?: string[];
   sampleData?: Record<string, any>[];
+  /** Por nombre de archivo: filas para que cada widget use el dataset correcto en cargas múltiples */
+  sampleDataByFile?: Record<string, Record<string, any>[]>;
 }) {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [customWidgets, setCustomWidgets] = useState<CustomWidget[]>([]);
@@ -103,12 +109,29 @@ export default function WidgetCatalog({
 
   const totalSelected = selectedIndices.length + customWidgets.length;
 
+  const resolveSampleForWidget = (cfg: any) => {
+    const src =
+      (typeof cfg?.sourceFile === 'string' && cfg.sourceFile) ||
+      (typeof cfg?.datasetName === 'string' && cfg.datasetName) ||
+      '';
+    if (src && sampleDataByFile[src]?.length) return sampleDataByFile[src];
+    return sampleData;
+  };
+
   const handleBuild = () => {
     const aiSelected = suggestions
       .map((w, i) => ({
         ...w,
         type: overriddenTypes[i] || w.type,
-        config: { ...w.config, sampleData, datasetIndex: 0, datasetName: undefined }
+        config: {
+          ...w.config,
+          sampleData: resolveSampleForWidget(w.config),
+          datasetIndex: 0,
+          datasetName:
+            (typeof w.config?.sourceFile === 'string' && w.config.sourceFile) ||
+            (typeof w.config?.datasetName === 'string' && w.config.datasetName) ||
+            undefined,
+        },
       }))
       .filter((_, i) => selectedIndices.includes(i));
     const customWithData = customWidgets.map(w => ({
@@ -119,286 +142,298 @@ export default function WidgetCatalog({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 flex-shrink-0">
-            <LayoutGrid size={24} />
+    <div className="flex w-full min-w-0 flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="w-full min-w-0 space-y-3 overflow-x-hidden px-0.5 pb-2">
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200/60">
+              <LayoutGrid size={18} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-bold tracking-tight text-slate-900">Constructor de Dashboard</h3>
+              <p className="line-clamp-2 text-xs font-medium text-slate-500">Sugerencias de IA o vistas personalizadas.</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">Constructor de Dashboard</h3>
-            <p className="text-slate-500 text-sm font-medium">Usa las sugerencias de la IA o crea tus propias vistas.</p>
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab('ai')}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition-all ${
+                activeTab === 'ai' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Sparkles size={14} />
+              IA
+              {selectedIndices.length > 0 && (
+                <span className="rounded-full bg-indigo-600 px-1 py-0.5 text-[9px] font-black text-white">
+                  {selectedIndices.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('custom')}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition-all ${
+                activeTab === 'custom' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Settings2 size={14} />
+              Manual
+              {customWidgets.length > 0 && (
+                <span className="rounded-full bg-indigo-600 px-1 py-0.5 text-[9px] font-black text-white">
+                  {customWidgets.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setActiveTab('ai')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === 'ai'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Sparkles size={15} />
-            IA Sugiere
-            {selectedIndices.length > 0 && (
-              <span className="bg-indigo-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                {selectedIndices.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('custom')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === 'custom'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Settings2 size={15} />
-            Mis vistas
-            {customWidgets.length > 0 && (
-              <span className="bg-indigo-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                {customWidgets.length}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
 
-      {/* ── Tab: IA Suggestions ─────────────────────────────────────────── */}
-      {activeTab === 'ai' && (
-        <div className="space-y-10">
-          {Object.entries(
-            suggestions.reduce((acc, widget, i) => {
-              const cat = widget.category || '💡 Sugerencias Generales';
-              if (!acc[cat]) acc[cat] = [];
-              acc[cat].push({ widget, i });
-              return acc;
-            }, {} as Record<string, { widget: WidgetSuggestion; i: number }[]>)
-          ).map(([category, items]) => (
-            <div key={category} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <h4 className="text-lg font-black text-slate-800 border-b-2 border-slate-100 pb-2">{category}</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ── Tab: IA Suggestions ─────────────────────────────────────────── */}
+        {activeTab === 'ai' && (
+          <div className="space-y-5">
+            {Object.entries(
+              suggestions.reduce((acc, widget, i) => {
+                const cat = widget.category || '💡 Sugerencias Generales';
+                if (!acc[cat]) acc[cat] = [];
+                acc[cat].push({ widget, i });
+                return acc;
+              }, {} as Record<string, { widget: WidgetSuggestion; i: number }[]>)
+            ).map(([category, items]) => (
+              <div
+                key={category}
+                className="grid grid-cols-2 content-start gap-2.5 md:grid-cols-3 xl:grid-cols-4"
+              >
+                <h4 className="col-span-full border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
+                  {category}
+                </h4>
                 {items.map(({ widget, i }) => (
                   <div
                     key={i}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleAiSelect(i);
+                      }
+                    }}
                     onClick={() => toggleAiSelect(i)}
-                    className={`border-2 transition-all p-6 rounded-3xl cursor-pointer relative group flex flex-col justify-between h-full ${
+                    className={`group relative flex min-h-0 cursor-pointer flex-col gap-2 rounded-2xl border-2 p-3 transition-all ${
                       selectedIndices.includes(i)
                         ? 'border-indigo-600 bg-indigo-50/50'
-                        : 'border-slate-100 hover:border-slate-200 bg-white'
+                        : 'border-slate-100 bg-white hover:border-slate-200'
                     }`}
                   >
-                    <div>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors ${
-                        selectedIndices.includes(i) ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'
-                      }`}>
-                        {TYPE_ICONS[overriddenTypes[i] || widget.type] ?? <BarChart2 size={20} />}
+                    <div className="flex gap-2.5">
+                      <div
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          selectedIndices.includes(i) ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'
+                        }`}
+                      >
+                        {TYPE_ICONS[overriddenTypes[i] || widget.type] ?? <BarChart2 size={16} />}
                       </div>
-                      <h4 className="font-bold text-slate-900 mb-2">{widget.title}</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed mb-4">{widget.description}</p>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-bold leading-snug text-slate-900">{widget.title}</h4>
+                        <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-slate-500">{widget.description}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo:</span>
+                    <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100/80 pt-2">
+                      <div className="flex min-w-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-slate-400">Tipo</span>
                         <select
                           value={overriddenTypes[i] || widget.type}
-                          onChange={(e) => setOverriddenTypes(prev => ({ ...prev, [i]: e.target.value }))}
-                          className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-50 border-none rounded px-1.5 py-0.5 cursor-pointer outline-none hover:bg-indigo-100 transition-colors focus:ring-0 appearance-none text-center"
-                          style={{ textAlignLast: 'center' }}
+                          onChange={(e) => setOverriddenTypes((prev) => ({ ...prev, [i]: e.target.value }))}
+                          className="max-w-[100px] cursor-pointer rounded border-0 bg-indigo-50 px-1 py-0.5 text-[9px] font-bold uppercase text-indigo-600 outline-none hover:bg-indigo-100 focus:ring-0"
                         >
-                          {CHART_TYPES.map(ct => (
-                            <option key={ct.key} value={ct.key}>{ct.key}</option>
+                          {CHART_TYPES.map((ct) => (
+                            <option key={ct.key} value={ct.key}>
+                              {ct.key}
+                            </option>
                           ))}
                           <option value="donut">donut</option>
                           <option value="area">area</option>
+                          <option value="scatter">scatter</option>
                         </select>
                       </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                        selectedIndices.includes(i) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 text-transparent'
-                      }`}>
-                        <Check size={12} strokeWidth={4} />
+                      <div
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                          selectedIndices.includes(i)
+                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                            : 'border-slate-200 text-transparent'
+                        }`}
+                      >
+                        <Check size={10} strokeWidth={4} />
                       </div>
                     </div>
                     {selectedIndices.includes(i) && (
-                      <div className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded-lg">
-                        SELECCIONADO
+                      <div className="absolute right-1.5 top-1.5 rounded bg-indigo-600 px-1.5 py-0.5 text-[8px] font-black text-white">
+                        OK
                       </div>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {/* ── Tab: Custom Builder ─────────────────────────────────────────── */}
-      {activeTab === 'custom' && (
-        <div className="space-y-6">
-
-          {/* Builder Form */}
-          <div className="border-2 border-dashed border-indigo-200 bg-indigo-50/30 rounded-3xl p-6 space-y-5">
-            <div className="flex items-center gap-2 text-indigo-700 font-bold text-sm">
-              <Plus size={18} />
-              Nuevo widget personalizado
-            </div>
+        {/* ── Tab: Custom Builder ─────────────────────────────────────────── */}
+        {activeTab === 'custom' && (
+          <div className="space-y-3">
+            {/* Builder Form */}
+            <div className="space-y-3 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-4">
+              <div className="flex items-center gap-1.5 text-sm font-bold text-indigo-700">
+                <Plus size={16} />
+                Nuevo widget
+              </div>
 
             {/* Título */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Título del widget</label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="ej. Ventas por Región"
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Tipo de gráfico */}
-            <div>
-              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Tipo de gráfico</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {CHART_TYPES.map(ct => (
-                  <button
-                    key={ct.key}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, type: ct.key }))}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 text-center transition-all ${
-                      form.type === ct.key
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                    }`}
-                  >
-                    <span className="text-xl font-mono font-black leading-none">{ct.icon}</span>
-                    <span className="text-[11px] font-bold">{ct.label}</span>
-                    <span className="text-[9px] text-slate-400">{ct.desc}</span>
-                  </button>
-                ))}
+              <div>
+                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-600">Título</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="ej. Ventas por región"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
               </div>
-            </div>
 
-            {/* Columnas */}
-            {availableHeaders.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {form.type !== 'stat' && (
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-slate-600">Tipo</label>
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  {CHART_TYPES.map((ct) => (
+                    <button
+                      key={ct.key}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, type: ct.key }))}
+                      className={`flex flex-col items-center gap-0.5 rounded-xl border-2 p-2 text-center transition-all ${
+                        form.type === ct.key
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <span className="font-mono text-lg font-black leading-none">{ct.icon}</span>
+                      <span className="text-[10px] font-bold">{ct.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {availableHeaders.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {form.type !== 'stat' && (
+                    <div>
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                        {form.type === 'pie' ? 'Dimensión' : 'Eje X'}
+                      </label>
+                      <select
+                        value={form.colX}
+                        onChange={(e) => setForm((f) => ({ ...f, colX: e.target.value }))}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm"
+                      >
+                        <option value="">— Columna —</option>
+                        {availableHeaders.map((h) => (
+                          <option key={h} value={h}>
+                            {h}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                      {form.type === 'pie' ? 'Dimensión (categoría)' : 'Eje X (categoría / fecha)'}
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                      {form.type === 'stat' ? 'Métrica' : 'Eje Y'}
                     </label>
                     <select
-                      value={form.colX}
-                      onChange={e => setForm(f => ({ ...f, colX: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={form.colY}
+                      onChange={(e) => setForm((f) => ({ ...f, colY: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm"
                     >
-                      <option value="">— Selecciona columna —</option>
-                      {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                      <option value="">— Columna —</option>
+                      {availableHeaders.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                )}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                    {form.type === 'stat' ? 'Columna a mostrar' : 'Eje Y (métrica / valor)'}
-                  </label>
-                  <select
-                    value={form.colY}
-                    onChange={e => setForm(f => ({ ...f, colY: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">— Selecciona columna —</option>
-                    {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
                 </div>
+              ) : (
+                <p className="text-xs italic text-slate-400">Las columnas aparecerán al analizar el archivo.</p>
+              )}
+
+              {formError && <p className="text-xs font-semibold text-red-500">⚠ {formError}</p>}
+
+              <button
+                type="button"
+                onClick={addCustomWidget}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 py-2 text-sm font-bold text-white transition-colors hover:bg-indigo-700 sm:w-auto sm:px-4"
+              >
+                <Plus size={15} /> Agregar
+              </button>
+            </div>
+
+            {customWidgets.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Creados ({customWidgets.length})</p>
+                {customWidgets.map((w) => (
+                  <div
+                    key={w.id}
+                    className="group flex items-center justify-between rounded-xl border-2 border-indigo-100 bg-white px-3 py-2"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                        {TYPE_ICONS[w.type] ?? <BarChart2 size={15} />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-900">{w.title}</p>
+                        <p className="truncate font-mono text-[9px] uppercase tracking-wider text-slate-400">
+                          {w.type}
+                          {w.config.x && ` · ${w.config.x}`}
+                          {w.config.y && ` · ${w.config.y}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeCustom(w.id)}
+                      className="shrink-0 rounded p-1.5 text-red-400 opacity-70 hover:bg-red-50 hover:opacity-100"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-400 italic">
-                Las columnas de tu dataset aparecerán aquí automáticamente una vez analizado el archivo.
-              </p>
+              <div className="py-4 text-center text-slate-400">
+                <Settings2 size={24} className="mx-auto mb-2 opacity-30" />
+                <p className="text-xs">Añade widgets con el formulario arriba.</p>
+              </div>
             )}
-
-            {formError && (
-              <p className="text-red-500 text-xs font-semibold flex items-center gap-1">
-                ⚠ {formError}
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={addCustomWidget}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200"
-            >
-              <Plus size={16} /> Agregar widget
-            </button>
           </div>
+        )}
+      </div>
 
-          {/* Custom Widgets List */}
-          {customWidgets.length > 0 ? (
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Widgets creados ({customWidgets.length})
-              </p>
-              {customWidgets.map(w => (
-                <div key={w.id} className="flex items-center justify-between bg-white border-2 border-indigo-100 rounded-2xl px-5 py-4 group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-indigo-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
-                      {TYPE_ICONS[w.type] ?? <BarChart2 size={18} />}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 text-sm">{w.title}</p>
-                      <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
-                        {w.type}
-                        {w.config.x && ` · X: ${w.config.x}`}
-                        {w.config.y && ` · Y: ${w.config.y}`}
-                        {w.config.dimension && ` · ${w.config.dimension}`}
-                        {w.config.metric && ` · ${w.config.metric}`}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeCustom(w.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                    title="Eliminar"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-slate-400">
-              <Settings2 size={32} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Aún no has creado ningún widget.</p>
-              <p className="text-xs mt-1">Usa el formulario de arriba para agregar tus propias vistas.</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Build Button ────────────────────────────────────────────────── */}
-      <div className="pt-2 space-y-2">
+      <div className="shrink-0 border-t border-slate-200 bg-[var(--surface)] pt-3">
         {totalSelected > 0 && (
-          <p className="text-center text-xs text-slate-500 font-medium">
+          <p className="mb-1.5 text-center text-[11px] font-medium text-slate-500">
             {selectedIndices.length > 0 && `${selectedIndices.length} de IA`}
             {selectedIndices.length > 0 && customWidgets.length > 0 && ' + '}
-            {customWidgets.length > 0 && `${customWidgets.length} personalizados`}
+            {customWidgets.length > 0 && `${customWidgets.length} manual`}
           </p>
         )}
         <button
+          type="button"
           onClick={handleBuild}
           disabled={totalSelected === 0}
-          className="w-full bg-slate-900 text-white py-5 rounded-3xl font-black hover:bg-slate-800 transition-all shadow-xl hover:shadow-2xl disabled:opacity-40 flex items-center justify-center gap-2 text-lg"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-slate-800 disabled:opacity-40"
         >
           {totalSelected === 0
-            ? 'Selecciona o crea al menos una vista'
-            : `Construir Dashboard con ${totalSelected} vista${totalSelected !== 1 ? 's' : ''} →`
-          }
+            ? 'Selecciona al menos una vista'
+            : `Construir con ${totalSelected} vista${totalSelected !== 1 ? 's' : ''} →`}
         </button>
       </div>
     </div>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Maximize2, Download, Info, X } from 'lucide-react';
+import { Maximize2, Download, Info, RotateCcw } from 'lucide-react';
 import { downloadSvgAsImage } from '@/lib/exportUtils';
 import ChartEngine from './ChartEngine';
 import { useFilters } from './FilterContext';
@@ -17,6 +17,8 @@ interface Props {
   isDark?: boolean;
   widget: { title: string; type: string; config: any };
   onUpdate?: (newConfig: any) => void;
+  /** Solo lectura en panel Visualizar: sin arrastre ni selector de ancho */
+  disableDrag?: boolean;
 }
 
 /** Encuentra la columna real haciendo fuzzy match */
@@ -191,8 +193,153 @@ function formatValue(val: number): string {
   return val.toLocaleString();
 }
 
-export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+const AGGREGATE_LABEL: Record<string, string> = {
+  sum: 'Suma de valores en cada categoría',
+  avg: 'Promedio de valores por categoría',
+  median: 'Mediana por categoría',
+  count: 'Número de filas por categoría',
+  mom: 'Variación % respecto al periodo anterior (sobre totales por categoría)',
+  cumulative: 'Total acumulado en orden cronológico',
+  outliers: 'Solo valores atípicos por categoría (IQR, regla 1.5×)',
+};
+
+/** Cara trasera: cómo se calcula (alineado con `processData`) */
+function WidgetCalcExplain({
+  config,
+  widgetType,
+  activeFilters,
+}: {
+  config: any;
+  widgetType: string;
+  activeFilters: Record<string, string>;
+}) {
+  const cfg = config ?? {};
+  let rows: Record<string, any>[] = cfg?.sampleData ?? [];
+  const rawTotal = rows.length;
+
+  if (rawTotal === 0) {
+    return (
+      <div className="calc-explain p-4 h-full flex items-center justify-center">
+        <p className="text-[var(--text2)] text-base">No hay datos en este widget.</p>
+      </div>
+    );
+  }
+
+  if (Object.keys(activeFilters).length > 0) {
+    rows = rows.filter(row =>
+      Object.entries(activeFilters).every(([col, val]) => {
+        const realKey = findRealKey(row, col);
+        return String(row[realKey] ?? '') === val;
+      })
+    );
+  }
+
+  if (!rows.length) {
+    return (
+      <div className="calc-explain p-4 h-full flex flex-col justify-center gap-2">
+        <p className="text-[var(--text)] text-base font-bold">Filtros sin resultados</p>
+        <p className="text-[var(--text2)] text-sm">Ninguna fila coincide con los filtros cruzados activos.</p>
+      </div>
+    );
+  }
+
+  const xKey = findRealKey(rows[0], cfg?.x || cfg?.xAxis);
+  const yAxisRaw = cfg?.y || cfg?.yAxis;
+  const yKeys = Array.isArray(yAxisRaw)
+    ? yAxisRaw.map((k: any) => findRealKey(rows[0], k))
+    : [findRealKey(rows[0], yAxisRaw)];
+  const aggregate = (cfg?.aggregate || 'sum').toLowerCase();
+
+  let resolvedType = widgetType;
+  if (resolvedType === 'line') {
+    const sample = rows.slice(0, 5).map(r => String(r[xKey] ?? ''));
+    const isDate = sample.every(s => s.length >= 6 && !isNaN(Date.parse(s)));
+    if (!isDate) resolvedType = 'bar';
+  }
+
+  return (
+    <div className="calc-explain p-4 pb-2">
+      <p className="text-[var(--text)] text-[15px] font-bold leading-snug">Cómo se calcula</p>
+      <p className="text-[var(--text2)] text-[14px] leading-relaxed">
+        Se usan <strong className="text-[var(--text)]">{rows.length}</strong> fila
+        {rows.length !== 1 ? 's' : ''}
+        {rawTotal > rows.length ? (
+          <>
+            {' '}
+            (de {rawTotal} antes de filtrar)
+          </>
+        ) : null}
+        .
+      </p>
+
+      <dl>
+        <div>
+          <dt>Grupos (eje X)</dt>
+          <dd>{xKey || '—'}</dd>
+        </div>
+        <div>
+          <dt>Valores (eje Y)</dt>
+          <dd>{yKeys.filter(Boolean).join(', ') || '—'}</dd>
+        </div>
+        <div>
+          <dt>Agregación</dt>
+          <dd>{AGGREGATE_LABEL[aggregate] ?? aggregate}</dd>
+        </div>
+      </dl>
+
+      {resolvedType === 'scatter' && (
+        <p className="text-[var(--text2)] text-[14px] leading-relaxed">
+          Cada punto toma <strong className="text-[var(--text)]">{xKey}</strong> y{' '}
+          <strong className="text-[var(--text)]">{yKeys[0]}</strong> como números; se muestran hasta 500
+          filas.
+        </p>
+      )}
+
+      {widgetType === 'stat' && (
+        <p className="text-[var(--text2)] text-[14px] leading-relaxed">
+          El número grande es la <strong className="text-[var(--text)]">suma</strong> de los totales por
+          categoría; las barras finas son la serie resumida.
+        </p>
+      )}
+
+      {resolvedType !== 'scatter' && widgetType !== 'stat' && (
+        <p className="text-[var(--text2)] text-[14px] leading-relaxed">
+          Las filas se agrupan por «{xKey}». {aggregate === 'mom' || aggregate === 'cumulative' ? (
+            <>Las categorías se ordenan en <strong className="text-[var(--text)]">orden cronológico</strong> si las fechas se reconocen; se muestran hasta 15 categorías.</>
+          ) : aggregate === 'count' ? (
+            <>Se ordenan por <strong className="text-[var(--text)]">número de filas</strong> (descendente) y se toman las 15 primeras.</>
+          ) : (
+            <>Se ordenan por <strong className="text-[var(--text)]">suma de {yKeys[0] || 'Y'}</strong> (descendente) y se toman las 15 primeras.</>
+          )}
+        </p>
+      )}
+
+      {Object.keys(activeFilters).length > 0 && (
+        <div className="calc-filters">
+          <span>Filtros cruzados</span>
+          {Object.entries(activeFilters).map(([k, v]) => (
+            <b key={k}>
+              {k}: {v}
+            </b>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function SortableWidget({
+  id,
+  widget,
+  isDark,
+  theme = 'modern',
+  onUpdate,
+  disableDrag = false,
+}: Props) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: disableDrag,
+  });
   const { activeFilters, setFilter } = useFilters();
 
   const style = {
@@ -211,36 +358,13 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
     area: 'ÁREA', scatter: 'CORRELACIÓN', bubble: 'BUBBLE', donut: 'DONUT',
   };
 
-  const chartExplanations: Record<string, string> = {
-    bar: 'Gráfico de barras que compara valores entre categorías. Útil para visualizar comparaciones entre grupos.',
-    line: 'Gráfico de línea que muestra tendencias a lo largo del tiempo o una secuencia. Ideal para observar cambios continuos.',
-    pie: 'Gráfico de pastel que muestra la distribución proporcional de un total. Cada sección representa una parte del conjunto.',
-    stat: 'Indicador clave de desempeño (KPI) que muestra una métrica principal y su tendencia reciente.',
-    area: 'Gráfico de área que combina líneas con áreas rellenas para enfatizar magnitud. Bueno para mostrar tendencias y volumen.',
-    scatter: 'Gráfico de dispersión que muestra la correlación entre dos variables. Cada punto representa una observación.',
-    bubble: 'Gráfico de burbujas que visualiza tres dimensiones: posición X, posición Y y tamaño de la burbuja.',
-    donut: 'Gráfico de rosquilla similar al pastel, mostrando proporciones con un espacio central.',
-  };
-
-  const renderChart = (forExpanded = false) => {
-    // Mostrar explicación si está flipped
-    if (flipped && !forExpanded) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full p-6">
-          <Info size={40} className="text-sky-500 dark:text-cyan-400 mb-4 opacity-70" />
-          <p className="text-sm text-center opacity-80 leading-relaxed">
-            {chartExplanations[widget.type] || 'Gráfico de visualización de datos.'}
-          </p>
-        </div>
-      );
-    }
-
+  const renderChart = () => {
     const cfg = widget.config ?? {};
     const rows: Record<string, any>[] = cfg?.sampleData ?? [];
 
     // Coerción de tipo: line en eje categórico → bar
     let finalType = widget.type;
-    if (finalType === 'line') {
+    if (finalType === 'line' || finalType === 'area') {
       const xKey = findRealKey(rows[0] ?? {}, cfg?.x || cfg?.xAxis);
       const sample = rows.slice(0, 5).map(r => String(r[xKey] ?? ''));
       const isDate = sample.every(s => s.length >= 6 && !isNaN(Date.parse(s)));
@@ -252,7 +376,7 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
     if (!labels.length && finalType !== 'scatter') {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-2 opacity-30">
-          <span className="text-[10px] font-mono uppercase tracking-widest">Sin datos</span>
+          <span className="text-xs font-mono uppercase tracking-widest">Sin datos</span>
         </div>
       );
     }
@@ -262,10 +386,10 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
       const total = allVals.reduce((a, b) => a + (b as number), 0);
       return (
         <div className="flex flex-col justify-center items-center h-full">
-          <div className="text-sky-500 dark:text-cyan-400 font-black" style={{ fontSize: 44 }}>
+          <div className="text-sky-500 dark:text-cyan-400 font-black" style={{ fontSize: 46 }}>
             {formatValue(total)}
           </div>
-          <div className="text-xs font-mono opacity-50 mt-1">
+          <div className="text-sm font-mono opacity-50 mt-1">
             {cfg?.y || cfg?.yAxis || 'Métrica Total'}
           </div>
           <div className="flex items-end gap-1 mt-4 h-8">
@@ -332,16 +456,16 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
               </div>
               <div className="chart-actions">
                 <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage(`widget-exp-${id}`, widget.title)}>
-                  <Download size={13} />
+                  <Download size={15} />
                 </button>
                 <button type="button" className="chart-btn" onClick={() => setExpanded(false)}>
-                  <Maximize2 size={13} />
+                  <Maximize2 size={15} />
                 </button>
               </div>
             </div>
             <div className="chart-wrap" style={{ height: 'calc(100% - 60px)' }} id={`widget-exp-${id}`}>
               <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
-                {renderChart(true)}
+                {renderChart()}
               </WidgetErrorBoundary>
             </div>
           </div>
@@ -351,64 +475,143 @@ export function SortableWidget({ id, widget, isDark, theme = 'modern', onUpdate 
       <div
         ref={setNodeRef}
         style={style}
-        className={`chart-card group flex flex-col ${colSpanClass} ${
-          isFiltered ? 'ring-2 ring-cyan-500/40' : ''
-        }`}
+        className={`w-full min-w-0 ${colSpanClass} ${isFiltered ? 'rounded-[13px] ring-2 ring-cyan-500/40' : ''}`}
       >
-        <div className="chart-hd">
-          <div>
-            <div
-              className="chart-title"
-              style={{ cursor: 'grab' }}
-              {...attributes}
-              {...listeners}
-            >
-              {widget.title}
-            </div>
-            <div className="chart-sub" style={{ marginTop: 3 }}>
-              {chartTypeLabel[widget.type] ?? widget.type.toUpperCase()}
-              {isFiltered && (
-                <span className="ml-2 text-cyan-400">
-                  · {activeFilters[String(xAxisCol)]}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="chart-actions opacity-100 transition-opacity flex gap-1">
-            <button
-              className="chart-btn"
-              title="Explicación"
-              onClick={(e) => { e.stopPropagation(); setFlipped(!flipped); }}
-            >
-              <Info size={12} />
-            </button>
-            <select
-              value={widget.config?.colSpan || 1}
-              onChange={(e) => {
-                e.stopPropagation();
-                onUpdate?.({ colSpan: Number(e.target.value) });
-              }}
-              onClick={e => e.stopPropagation()}
-              className="chart-btn appearance-none text-center outline-none cursor-pointer"
-              title="Ancho del Gráfico"
-            >
-              <option value={1}>1/3 Ancho</option>
-              <option value={2}>2/3 Ancho</option>
-              <option value={3}>Full Ancho</option>
-            </select>
-            <button className="chart-btn" title="Descargar" onClick={(e) => { e.stopPropagation(); downloadSvgAsImage(`widget-${id}`, widget.title); }}>
-              <Download size={12} />
-            </button>
-            <button className="chart-btn" title="Expandir" onClick={(e) => { e.stopPropagation(); setExpanded(true); }}>
-              <Maximize2 size={12} />
-            </button>
-          </div>
-        </div>
+        <div
+          className="widget-flip-scene w-full"
+          style={{ position: 'relative' as const, minHeight: 320 }}
+        >
+          <div
+            className={`widget-flip-inner h-full ${flipped ? 'is-flipped' : ''}`}
+            style={{ minHeight: 320 }}
+          >
+            <div className="widget-face widget-face-front h-full">
+              <div className="chart-card group flex h-full min-h-[320px] flex-col">
+                <div className="chart-hd">
+                  <div>
+                    <div
+                      className="chart-title"
+                      style={{ cursor: disableDrag ? 'default' : 'grab' }}
+                      {...attributes}
+                      {...(disableDrag ? {} : listeners)}
+                    >
+                      {widget.title}
+                    </div>
+                    <div className="chart-sub" style={{ marginTop: 3 }}>
+                      {chartTypeLabel[widget.type] ?? widget.type.toUpperCase()}
+                      {isFiltered && (
+                        <span className="ml-2 text-cyan-400">
+                          · {activeFilters[String(xAxisCol)]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
+                    {!disableDrag && (
+                      <select
+                        value={widget.config?.colSpan || 1}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          onUpdate?.({ colSpan: Number(e.target.value) });
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="chart-btn cursor-pointer appearance-none text-center outline-none"
+                        title="Ancho del Gráfico"
+                      >
+                        <option value={1}>1/3 Ancho</option>
+                        <option value={2}>2/3 Ancho</option>
+                        <option value={3}>Full Ancho</option>
+                      </select>
+                    )}
+                    <button
+                      className="chart-btn"
+                      title="Descargar"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadSvgAsImage(`widget-${id}`, widget.title);
+                      }}
+                    >
+                      <Download size={14} />
+                    </button>
+                    <button
+                      className="chart-btn"
+                      title="Expandir"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpanded(true);
+                      }}
+                    >
+                      <Maximize2 size={14} />
+                    </button>
+                  </div>
+                </div>
 
-        <div className="chart-wrap" style={{ flex: 1 }} id={`widget-${id}`}>
-          <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
-            {renderChart()}
-          </WidgetErrorBoundary>
+                <div
+                  className="chart-wrap min-h-0 flex-1"
+                  style={
+                    {
+                      position: 'relative',
+                      flex: 1,
+                      minHeight: 0,
+                      height: 'auto',
+                    } as React.CSSProperties
+                  }
+                  id={`widget-${id}`}
+                >
+                  <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
+                    {renderChart()}
+                  </WidgetErrorBoundary>
+                  <button
+                    type="button"
+                    className="widget-info-btn"
+                    title="Cómo se calcula"
+                    aria-pressed={flipped}
+                    aria-label="Ver cómo se calcula"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setFlipped(true);
+                    }}
+                  >
+                    <Info size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="widget-face widget-face-back h-full">
+              <div className="chart-card widget-flip-back relative flex h-full min-h-[320px] min-w-0 flex-col">
+                <div className="chart-hd">
+                  <div>
+                    <div className="chart-title">{widget.title}</div>
+                    <div className="chart-sub" style={{ marginTop: 3 }}>
+                      Cómo se calcula
+                    </div>
+                  </div>
+                </div>
+                <div className="widget-explain-body">
+                  <WidgetCalcExplain
+                    config={widget.config}
+                    widgetType={widget.type}
+                    activeFilters={activeFilters}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="widget-info-btn"
+                  title="Volver al gráfico"
+                  aria-label="Volver al gráfico"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setFlipped(false);
+                  }}
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </>

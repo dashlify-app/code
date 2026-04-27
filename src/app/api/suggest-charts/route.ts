@@ -32,23 +32,34 @@ export async function POST(req: Request) {
 
     const prompt = `
       Actúa como un Director de Business Intelligence (BI).
-      He cruzado varios datasets mediante estas relaciones: ${JSON.stringify(approvedRelationships)}.
-      Aquí tienes un resumen de las columnas disponibles en el dataset: ${JSON.stringify(combinedSchema)}.
 
-      Basado en estos datos, quiero que generes una lista avanzada de gráficos (widgets) e indicadores clave de rendimiento (KPIs). 
-      NO sugieras gráficos básicos irrelevantes. Piensa en reglas de negocio reales:
-      - Margen por categoría (Costo vs Precio).
-      - Productos con bajo stock vs alta demanda.
-      - Proveedores más rentables.
-      - Alertas automáticas (ej: "Si stock < mínimo").
+      Relaciones aprobadas entre archivos (puede estar vacío si el usuario no vinculó datasets): ${JSON.stringify(approvedRelationships)}.
+
+      Esquema enriquecido por archivo (nombres de columnas REALES, contexto de dominio y ideas del análisis previo): ${JSON.stringify(combinedSchema)}.
+
+      REQUISITOS OBLIGATORIOS:
+      1. Genera AL MENOS 15 y como máximo 22 entradas en "suggestedWidgets". Si hay pocos datos, sigue proponiendo vistas útiles variando la métrica, la dimensión o el tipo de gráfico.
+      2. Cada widget debe usar ÚNICAMENTE nombres de columnas que existan en "columns" del archivo correspondiente en el esquema (campo "sourceFile" en config indica de qué archivo salen x e y).
+      3. Prioriza ideas alineadas con domain, mainKpis, narrative y perFileWidgetIdeas del esquema; si hay relaciones aprobadas, incluye al menos 3 widgets que explícitamente cruchen esas claves entre datasets.
+      4. Tipos permitidos para "type": "bar", "line", "pie", "area", "stat", "scatter", "donut".
+         - "line" o "area": solo si el eje X es claramente temporal/fecha según los nombres de columnas o el contexto.
+         - "scatter": correlación entre dos columnas numéricas del mismo archivo (o del cruce si aplica).
+         - "stat": un solo número (KPI) con aggregate adecuado en config.
+         - "pie" o "donut": distribución con pocas categorías; si hay muchas categorías, prefiere "bar".
+      5. En "config" incluye siempre:
+         - x o xAxis, y o yAxis (nombres exactos de columnas; para stat puede omitirse x y usar solo y/yAxis como métrica).
+         - sourceFile: nombre del archivo (.xlsx/.csv) al que pertenecen esas columnas.
+         - aggregate cuando aplique: uno de "sum" | "avg" | "count" | "median" | "cumulative" | "mom" | "outliers".
+
+      Piensa en reglas de negocio (margen, stock, rentabilidad, alertas, comparativas entre tablas vinculadas).
 
       Devuelve estrictamente un JSON con:
-      1. Una lista de "suggestedWidgets", cada uno con:
-         - title: Título del gráfico o KPI (Ej: "Alerta: Stock Crítico por Familia").
-         - type: "bar", "line", "pie", "area", "stat"
-         - category: La categoría del dashboard al que pertenece (Ej: "💰 Financiero", "📦 Inventario", "🧠 Comercial"). ¡ESTE CAMPO ES OBLIGATORIO Y DEBE TENER UN EMOJI!
-         - description: El insight de negocio o regla que resuelve este gráfico.
-         - config: Un objeto ficticio con las dimensiones y métricas (ej: { x: "Familia", y: "Margen %" }).
+      - "suggestedWidgets": array (mínimo 15 elementos), cada uno con:
+         - title: Título accionable.
+         - type: uno de los tipos permitidos.
+         - category: categoría con emoji obligatorio (ej. "💰 Financiero", "📦 Inventario").
+         - description: insight o regla de negocio (1-2 frases).
+         - config: objeto con columnas reales, sourceFile, aggregate si aplica.
     `;
 
     const response = await openai.chat.completions.create({

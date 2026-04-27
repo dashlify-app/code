@@ -64,8 +64,8 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
     borderWidth: 1,
     padding: 15,
     cornerRadius: 12,
-    titleFont: { family: 'Syne', size: 13, weight: 'bold' as const },
-    bodyFont: { family: 'DM Mono', size: 12, weight: 'bold' as const },
+    titleFont: { family: 'Syne', size: 15, weight: 'bold' as const },
+    bodyFont: { family: 'DM Mono', size: 14, weight: 'bold' as const },
     callbacks: {
       label: (context: any) => {
         const val = context.parsed?.y ?? context.parsed ?? 0;
@@ -105,7 +105,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
             usePointStyle: true,
             pointStyle: 'circle',
             padding: 16,
-            font: { family: 'DM Mono', size: 10 },
+            font: { family: 'DM Mono', size: 12 },
             color: isEnterprise ? '#8bafc7' : isDark ? '#8bafc7' : '#64748b',
           }
         },
@@ -123,14 +123,14 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
         x: {
           grid: { color: gridColor },
           border: { display: false },
-          ticks: { color: tickColor, font: { family: 'DM Mono', size: 10 } },
+          ticks: { color: tickColor, font: { family: 'DM Mono', size: 12 } },
         },
         y: {
           grid: { color: gridColor },
           border: { display: false },
           ticks: {
             color: tickColor,
-            font: { family: 'DM Mono', size: 10 },
+            font: { family: 'DM Mono', size: 12 },
             callback: (v: any) => v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v,
           },
         },
@@ -172,7 +172,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
             usePointStyle: true,
             pointStyle: 'circle',
             padding: 16,
-            font: { family: 'DM Mono', size: 10 },
+            font: { family: 'DM Mono', size: 12 },
             color: isDark ? '#8bafc7' : '#64748b',
           }
         },
@@ -211,7 +211,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
           usePointStyle: true,
           pointStyle: 'circle',
           padding: 16,
-          font: { family: 'DM Mono', size: 10, weight: '500' },
+          font: { family: 'DM Mono', size: 12, weight: '500' },
           color: isDark ? '#8bafc7' : '#64748b',
         }
       },
@@ -222,7 +222,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
         grid: { display: isEnterprise, color: gridColor },
         ticks: {
           color: tickColor,
-          font: { family: 'DM Mono', size: 10 },
+          font: { family: 'DM Mono', size: 12 },
           autoSkip: true,
           maxTicksLimit: 10,
         }
@@ -232,7 +232,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
         border: { display: isEnterprise, color: 'rgba(26, 42, 58, 0.6)' },
         ticks: {
           color: tickColor,
-          font: { family: 'DM Mono', size: 10 },
+          font: { family: 'DM Mono', size: 12 },
           callback: (value: any) => value >= 1000 ? (value / 1000).toFixed(0) + 'K' : value
         }
       }
@@ -256,17 +256,17 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
           gradient.addColorStop(1, 'rgba(0,0,0,0)');
           return gradient;
         },
-        borderWidth: type === 'line' ? (isEnterprise ? 2 : 3) : 1,
+        borderWidth: type === 'line' || type === 'area' ? (isEnterprise ? 2 : 3) : 1,
         borderRadius: type === 'bar' ? 4 : 0,
         pointRadius: 0,
         pointHoverRadius: 6,
-        fill: type === 'line',
+        fill: type === 'line' || type === 'area',
         tension: 0.4,
       };
     })
   };
 
-  if (type === 'line') {
+  if (type === 'line' || type === 'area') {
     return <Line ref={chartRef} data={chartData} options={sharedOptions} />;
   }
 

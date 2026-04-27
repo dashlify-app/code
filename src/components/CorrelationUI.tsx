@@ -114,7 +114,11 @@ export default function CorrelationUI({
         >
           Aprobar {approvedIndices.length} Cruces y Crear Vista
         </button>
-        <button className="px-6 border-2 border-slate-200 text-slate-400 rounded-2xl font-black hover:bg-slate-50 transition-all">
+        <button
+          type="button"
+          onClick={() => onApprove([])}
+          className="px-6 border-2 border-slate-200 text-slate-600 rounded-2xl font-black hover:bg-slate-50 transition-all"
+        >
           Omitir
         </button>
       </div>

@@ -158,17 +158,23 @@ function CanvasInner({
       const payload = {
         title,
         templateId: theme,
-        widgets: widgets.map(w => ({
-          type: w.type,
-          title: w.title,
-          config: {
-            ...w.config,
-            // Asegurar que se guarde el sampleData
-            sampleData: w.config?.sampleData || [],
-            datasetIndex: w.config?.datasetIndex ?? 0,
-            datasetName: w.config?.datasetName,
-          },
-        })),
+        widgets: widgets.map((w) => {
+          const meta = w as { category?: string; description?: string };
+          return {
+            type: w.type,
+            title: w.title,
+            category: meta.category,
+            description: meta.description,
+            config: {
+              ...w.config,
+              category: meta.category ?? (w.config as { category?: string })?.category,
+              description: meta.description ?? (w.config as { description?: string })?.description,
+              sampleData: w.config?.sampleData || [],
+              datasetIndex: w.config?.datasetIndex ?? 0,
+              datasetName: w.config?.datasetName,
+            },
+          };
+        }),
       };
 
       const res = dashboardId

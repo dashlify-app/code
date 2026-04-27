@@ -130,10 +130,9 @@ export default function DataCopilot({
   };
 
   return (
-    <div className="flex h-[80vh] w-full bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-500">
-      
+    <div className="flex h-full min-h-0 w-full min-w-0 max-h-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-500">
       {/* LEFT: Chat Area */}
-      <div className="w-1/2 flex flex-col border-r border-slate-100 bg-slate-50/50">
+      <div className="flex min-h-0 w-1/2 min-w-0 flex-col border-r border-slate-100 bg-slate-50/50">
         <div className="p-4 border-b border-slate-100 bg-white flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
             <Sparkles size={20} />
@@ -147,7 +146,7 @@ export default function DataCopilot({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
+              <div className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center ${
                 msg.role === 'user' ? 'bg-slate-200 text-slate-600' : 'bg-indigo-600 text-white'
               }`}>
                 {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
@@ -163,7 +162,7 @@ export default function DataCopilot({
           ))}
           {isLoading && (
             <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex-shrink-0 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white shrink-0 flex items-center justify-center">
                 <Bot size={16} />
               </div>
               <div className="bg-white border border-slate-100 text-slate-500 rounded-2xl rounded-tl-none p-4 flex items-center gap-2">
@@ -203,7 +202,7 @@ export default function DataCopilot({
       </div>
 
       {/* RIGHT: Generated Widgets Tray */}
-      <div className="w-1/2 flex flex-col bg-white relative">
+      <div className="relative flex w-1/2 min-w-0 flex-col bg-white">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 flex items-center gap-2">
@@ -230,11 +229,11 @@ export default function DataCopilot({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               {widgets.map((widget, i) => (
                 <div key={i} className="border-2 border-indigo-100 bg-indigo-50/30 p-4 rounded-2xl relative group flex flex-col animate-in fade-in slide-in-from-bottom-4">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
                       {TYPE_ICONS[widget.type] || <BarChart2 size={16} />}
                     </div>
                     <div>

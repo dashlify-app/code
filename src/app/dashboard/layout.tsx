@@ -1,50 +1,59 @@
 'use client';
 
-import { useCallback, useEffect, useState, Suspense } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { Minus } from 'lucide-react';
+import UploadZone from '@/components/UploadZone';
 
 type DashboardRow = { id: string; title: string; updatedAt: string };
 
-function SidebarViews({ activePathname, activeRouter }: { activePathname: string, activeRouter: any }) {
-  const searchParams = useSearchParams();
-  const activeView = searchParams.get('view') ?? 'auto';
-
+function DeleteDashboardModal({
+  open,
+  title,
+  error,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  error: string | null;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
   return (
-    <div className="sb-block">
-      <div className="sb-label">// Tipo de vista</div>
-      {([
-        { key: 'auto',         icon: '🤖', name: 'IA Automático',   sub: 'Recomendado' },
-        { key: 'executive',    icon: '📈', name: 'Ejecutivo / KPI', sub: 'Métricas clave' },
-        { key: 'trends',       icon: '📉', name: 'Tendencias',      sub: 'Evolución temporal' },
-        { key: 'distribution', icon: '🥧', name: 'Distribución',    sub: 'Proporciones' },
-        { key: 'comparison',   icon: '📊', name: 'Comparación',     sub: 'Categorías' },
-      ] as const).map((v) => (
-        <button
-          key={v.key}
-          type="button"
-          className={`viz-btn ${activeView === v.key && activePathname === '/dashboard' ? 'active' : ''}`}
-          onClick={() => activeRouter.push(`/dashboard?view=${v.key}`)}
-        >
-          <span className="vb-icon">{v.icon}</span>
-          <div>
-            <div className="vb-name">{v.name}</div>
-            <div className="vb-sub">{v.sub}</div>
-          </div>
-        </button>
-      ))}
-      <button
-        type="button"
-        className={`viz-btn ${activePathname?.includes('settings') ? 'active' : ''}`}
-        onClick={() => activeRouter.push('/dashboard/settings')}
-      >
-        <span className="vb-icon">⚙️</span>
-        <div>
-          <div className="vb-name">Consumo SaaS</div>
-          <div className="vb-sub">Plan y límites</div>
+    <div
+      className="dash-confirm-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dash-confirm-del-title"
+      onClick={busy ? undefined : onCancel}
+    >
+      <div className="dash-confirm-card" onClick={(e) => e.stopPropagation()}>
+        <h2 id="dash-confirm-del-title" className="dash-confirm-title">
+          Eliminar dashboard
+        </h2>
+        <p className="dash-confirm-text">
+          ¿Seguro que deseas eliminar <strong>«{title}»</strong>? Esta acción no se puede deshacer.
+        </p>
+        {error ? (
+          <p className="dash-confirm-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="dash-confirm-actions">
+          <button type="button" className="btn-sm" onClick={onCancel} disabled={busy}>
+            Cancelar
+          </button>
+          <button type="button" className="btn-confirm-danger" onClick={onConfirm} disabled={busy}>
+            {busy ? 'Eliminando…' : 'Eliminar'}
+          </button>
         </div>
-      </button>
+      </div>
     </div>
   );
 }
@@ -57,6 +66,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [liveSec, setLiveSec] = useState(8);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [dashboards, setDashboards] = useState<DashboardRow[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteInFlight = useRef(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadModalWide, setUploadModalWide] = useState(false);
+  const onUploadZoneWideChange = useCallback((wide: boolean) => {
+    setUploadModalWide(wide);
+  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -87,6 +105,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [status]);
 
+  const cancelDelete = useCallback(() => {
+    if (deletingId != null) return;
+    setPendingDelete(null);
+    setDeleteError(null);
+  }, [deletingId]);
+
+  const openDelete = useCallback((e: React.MouseEvent, dashboardId: string, title: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (deleteInFlight.current) return;
+    setDeleteError(null);
+    setPendingDelete({ id: dashboardId, title });
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!pendingDelete || deleteInFlight.current) return;
+    deleteInFlight.current = true;
+    const { id: dashboardId } = pendingDelete;
+    setDeletingId(dashboardId);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/dashboards/${dashboardId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDeleteError(typeof data?.error === 'string' ? data.error : 'No se pudo eliminar');
+        return;
+      }
+      setPendingDelete(null);
+      setDashboards((prev) => prev.filter((d) => d.id !== dashboardId));
+      window.dispatchEvent(new CustomEvent('dashlify:dashboards-changed'));
+      if (pathname === `/dashboard/canvas/${dashboardId}`) {
+        router.push('/dashboard');
+      }
+    } catch {
+      setDeleteError('No se pudo eliminar. Revisa la conexión e inténtalo de nuevo.');
+    } finally {
+      deleteInFlight.current = false;
+      setDeletingId(null);
+    }
+  }, [pendingDelete, pathname, router]);
+
   useEffect(() => {
     fetchDashboards();
   }, [fetchDashboards]);
@@ -102,6 +161,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && deletingId == null) cancelDelete();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pendingDelete, deletingId, cancelDelete]);
+
+  useEffect(() => {
+    if (!uploadModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setUploadModalOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [uploadModalOpen]);
+
+  useEffect(() => {
+    if (!uploadModalOpen) setUploadModalWide(false);
+  }, [uploadModalOpen]);
+
   const toggleTheme = () => {
     setDark((d) => {
       const next = !d;
@@ -110,12 +191,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   };
 
+  /** Igual que legacy `openUpload()`: modal centrado (no solo scroll a la página). */
   const openUpload = () => {
-    if (pathname === '/dashboard') {
-      document.getElementById('upload-zone')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      router.push('/dashboard?action=upload');
-    }
+    setUploadModalOpen(true);
   };
 
   if (status === 'loading') {
@@ -240,34 +318,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   const href = `/dashboard/canvas/${d.id}`;
                   const active = pathname === href;
                   return (
-                    <Link
-                      key={d.id}
-                      href={href}
-                      className={`dash-list-item${active ? ' active' : ''}`}
-                      title={d.title}
-                    >
-                      <span className="dli-icon" aria-hidden>
-                        📐
-                      </span>
-                      <span className="dli-body">
-                        <span className="dli-name truncate">{d.title}</span>
-                        <span className="dli-sub truncate">
-                          {new Date(d.updatedAt).toLocaleDateString(undefined, {
-                            day: '2-digit',
-                            month: 'short',
-                          })}
+                    <div key={d.id} className="dash-list-row">
+                      <Link
+                        href={href}
+                        className={`dash-list-item${active ? ' active' : ''}`}
+                        title={d.title}
+                      >
+                        <span className="dli-icon" aria-hidden>
+                          📐
                         </span>
-                      </span>
-                    </Link>
+                        <span className="dli-body">
+                          <span className="dli-name truncate">{d.title}</span>
+                          <span className="dli-sub truncate">
+                            {new Date(d.updatedAt).toLocaleDateString(undefined, {
+                              day: '2-digit',
+                              month: 'short',
+                            })}
+                          </span>
+                        </span>
+                      </Link>
+                      <button
+                        type="button"
+                        className="dash-list-delete"
+                        title="Eliminar dashboard"
+                        aria-label={`Eliminar dashboard ${d.title}`}
+                        disabled={deletingId != null || pendingDelete != null}
+                        onClick={(e) => {
+                          openDelete(e, d.id, d.title);
+                        }}
+                      >
+                        <Minus className="dash-list-delete-minus" size={12} strokeWidth={3} aria-hidden />
+                      </button>
+                    </div>
                   );
                 })}
               </nav>
             )}
           </div>
-
-          <Suspense fallback={<div className="sb-block p-4 text-xs opacity-50">Cargando vistas...</div>}>
-            <SidebarViews activePathname={pathname} activeRouter={router} />
-          </Suspense>
 
           <div className="sb-block">
             <div className="sb-label">// Conectores</div>
@@ -296,6 +383,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <main className="content">{children}</main>
       </div>
+      <DeleteDashboardModal
+        open={pendingDelete != null}
+        title={pendingDelete?.title ?? ''}
+        error={deleteError}
+        busy={deletingId != null}
+        onCancel={cancelDelete}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+      />
+
+      {uploadModalOpen ? (
+        <div
+          className="dash-upload-modal-bg"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dash-upload-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setUploadModalOpen(false);
+          }}
+        >
+          <div
+            className={`dash-upload-modal${uploadModalWide ? ' dash-upload-modal--wide' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="dash-upload-modal-title" className="dash-upload-modal-title">
+              Cargar nuevo archivo
+            </h3>
+            <p className="dash-upload-modal-lead" hidden={uploadModalWide}>
+              La IA interpreta tu archivo y genera un dashboard en segundos.
+            </p>
+            <div className="dash-upload-modal-body">
+              <UploadZone onWideChange={onUploadZoneWideChange} />
+            </div>
+            <div className="dash-upload-modal-foot">
+              <button type="button" className="btn-sm" onClick={() => setUploadModalOpen(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

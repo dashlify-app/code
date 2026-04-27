@@ -319,6 +319,12 @@
   flex-direction: column;
   gap: 4px;
 }
+#dash-admin .dash-list-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
 #dash-admin .dash-list-empty {
   font-size: 11px;
   line-height: 1.55;
@@ -335,6 +341,50 @@
   text-decoration: none;
   color: var(--text2);
   transition: all 0.2s;
+  flex: 1;
+  min-width: 0;
+}
+#dash-admin .dash-list-delete {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.1s;
+  padding: 0;
+  line-height: 0;
+}
+#dash-admin .dash-list-delete:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.22);
+  border-color: rgba(220, 38, 38, 0.75);
+}
+#dash-admin .dash-list-delete:active:not(:disabled) {
+  transform: scale(0.95);
+}
+#dash-admin .dash-list-delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+#dash-admin .dash-list-delete-minus {
+  display: block;
+}
+#dash-admin.dash-dark .dash-list-delete {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+}
+#dash-admin.dash-dark .dash-list-delete:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.35);
+  border-color: rgba(252, 165, 165, 0.65);
 }
 #dash-admin .dash-list-item:hover {
   background: var(--surface2);
@@ -446,6 +496,28 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+#dash-admin .dash-view-type-buttons {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px 10px;
+  width: 100%;
+}
+#dash-admin .dash-view-type-buttons .viz-btn {
+  width: auto;
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 220px;
+  margin-bottom: 0;
+  box-sizing: border-box;
+}
+@media (max-width: 520px) {
+  #dash-admin .dash-view-type-buttons .viz-btn {
+    flex: 1 1 calc(50% - 6px);
+    max-width: none;
+  }
+}
 #dash-admin .vb-icon {
   font-size: 16px;
 }
@@ -458,6 +530,28 @@
   color: var(--text3);
   font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
   margin-top: 1px;
+}
+#dash-admin .dash-canvas-view-hint {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--text3);
+  line-height: 1.45;
+  max-width: 52rem;
+  margin: 0 0 16px 2px;
+}
+#dash-admin .canvas-view-modes {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 0;
+}
+#dash-admin .main-view-modes {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 4px 0;
+}
+#dash-admin .main-view-modes .sb-block {
+  margin-bottom: 0;
 }
 #dash-admin .conn-row {
   display: flex;
@@ -793,13 +887,13 @@
 }
 #dash-admin .chart-title {
   font-family: var(--font-syne,"Syne",system-ui,sans-serif);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
 }
 #dash-admin .chart-sub {
   font-family: var(--font-dm-mono,"DM Mono",monospace);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text3);
   margin-top: 3px;
   letter-spacing: 1px;
@@ -810,13 +904,15 @@
   gap: 4px;
 }
 #dash-admin .chart-btn {
-  width: 26px;
-  height: 26px;
+  min-width: 28px;
+  min-height: 28px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text3);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -831,6 +927,21 @@
   min-height: 292px;
   perspective: 1200px;
   position: relative;
+}
+/* KPIs del panel principal: sin min-height de 292px — el contenido no es un gráfico alto */
+#dash-admin .widget-flip-scene.kpi-metric-flip,
+#dash-admin .widget-flip-scene.kpi-metric-flip .widget-flip-inner,
+#dash-admin .widget-flip-scene.kpi-metric-flip .widget-face {
+  min-height: 0;
+}
+#dash-admin .widget-flip-scene.kpi-metric-flip {
+  min-height: 200px;
+}
+#dash-admin .widget-flip-scene.kpi-metric-flip .widget-flip-inner {
+  min-height: 200px;
+}
+#dash-admin .widget-flip-scene.kpi-metric-flip .widget-face {
+  min-height: 200px;
 }
 #dash-admin .widget-flip-inner {
   min-height: 292px;
@@ -856,9 +967,25 @@
   position: absolute;
   inset: 0;
   transform: rotateY(180deg);
+  overflow: hidden;
+}
+/* Cara trasera de cards con fila: el scroll va solo aquí (no usar .chart-wrap: altura fija 205px). */
+#dash-admin .widget-explain-body {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#dash-admin .chart-card.widget-flip-back {
+  min-height: 320px;
+  box-sizing: border-box;
+  padding: 18px 18px 56px 18px;
 }
 #dash-admin .widget-flip-scene .chart-card:hover {
+  transform: none;
+}
+#dash-admin .widget-flip-scene .kpi-card:hover {
   transform: none;
 }
 #dash-admin .widget-flip-scene .widget-face-back:hover {
@@ -904,12 +1031,12 @@
   flex-direction: column;
   gap: 14px;
   color: var(--text2);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 #dash-admin .calc-explain p {
   color: var(--text);
-  font-size: 13px;
+  font-size: 15px;
 }
 #dash-admin .calc-explain dl {
   display: grid;
@@ -925,7 +1052,7 @@
 #dash-admin .calc-explain dt,
 #dash-admin .calc-filters > span {
   font-family: var(--font-dm-mono,"DM Mono",monospace);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1.2px;
   color: var(--text3);
   text-transform: uppercase;
@@ -934,6 +1061,7 @@
 #dash-admin .calc-explain dd {
   color: var(--accent);
   font-weight: 700;
+  font-size: 15px;
 }
 #dash-admin .calc-filters {
   display: flex;
@@ -943,7 +1071,7 @@
 }
 #dash-admin .calc-filters b {
   font-family: var(--font-dm-mono,"DM Mono",monospace);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--accent);
   background: rgba(14, 165, 233, 0.08);
   border: 1px solid rgba(14, 165, 233, 0.18);
@@ -956,6 +1084,20 @@
   display: block;
   position: relative;
   overflow: hidden;
+}
+/* Vistas semánticas (Panel): gráfico + fila fija al pie — sin solapar ejes/leyenda. */
+#dash-admin .chart-wrap.semantic-panel-chart-stack {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+#dash-admin .semantic-panel-info-btn {
+  position: static;
+  right: auto;
+  bottom: auto;
+  flex-shrink: 0;
 }
 
 /* Canvas widget grid */
@@ -1069,6 +1211,198 @@
   transition: opacity 0.2s;
 }
 #dash-admin .data-table tr:hover .spark-bar { opacity: 0.8; }
+
+/* Delete / confirm dialog (replaces window.confirm) */
+#dash-admin .dash-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+}
+#dash-admin .dash-confirm-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  padding: 24px 26px 22px;
+}
+#dash-admin .dash-confirm-title {
+  font-family: var(--font-syne), "Syne", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text);
+  margin: 0 0 10px;
+}
+#dash-admin .dash-confirm-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text2);
+  margin: 0;
+}
+#dash-admin .dash-confirm-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+#dash-admin .dash-confirm-error {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #dc2626;
+  margin: 12px 0 0;
+}
+#dash-admin.dash-dark .dash-confirm-error {
+  color: #f87171;
+}
+#dash-admin .dash-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+#dash-admin .btn-confirm-danger {
+  font-family: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(220, 38, 38, 0.55);
+  background: rgba(220, 38, 38, 0.14);
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#dash-admin .btn-confirm-danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.25);
+  border-color: rgba(220, 38, 38, 0.85);
+  color: #b91c1c;
+}
+#dash-admin .btn-confirm-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#dash-admin.dash-dark .btn-confirm-danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(220, 38, 38, 0.22);
+  color: #fca5a5;
+}
+#dash-admin.dash-dark .btn-confirm-danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.38);
+  border-color: rgba(252, 165, 165, 0.75);
+  color: #fecaca;
+}
+
+/* Cargar datos — mismo patrón que legacy modal-upload (overlay + card centrada) */
+#dash-admin .dash-upload-modal-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: dashUploadBackdropIn 0.2s ease both;
+}
+@keyframes dashUploadBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+#dash-admin .dash-upload-modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  padding: 24px 26px 20px;
+  box-sizing: border-box;
+  animation: dashFadeUp 0.3s ease both;
+  transition:
+    max-width 0.35s ease,
+    width 0.35s ease,
+    max-height 0.35s ease;
+  min-height: 0;
+}
+/* Copilot, catálogo, canvas, correlación: ancho/altura acorde al layout interno (dos columnas, grillas, etc.) */
+#dash-admin .dash-upload-modal--wide {
+  width: min(1240px, 98vw);
+  max-width: min(1240px, 98vw);
+  height: min(94vh, 1000px);
+  max-height: min(94vh, 1000px);
+  padding: 16px 20px 14px;
+}
+#dash-admin .dash-upload-modal--wide .dash-upload-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  flex-shrink: 0;
+}
+#dash-admin .dash-upload-modal--wide .dash-upload-modal-body {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 0 2px;
+}
+#dash-admin .dash-upload-modal--wide .dash-upload-modal-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  flex-shrink: 0;
+}
+#dash-admin .dash-upload-modal-title {
+  font-family: var(--font-syne, "Syne", system-ui, sans-serif);
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+#dash-admin .dash-upload-modal-lead {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text2);
+  margin: 0 0 16px;
+}
+#dash-admin .dash-upload-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -4px;
+  padding: 0 4px 4px;
+}
+#dash-admin .dash-upload-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 4px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
 
 @media (max-width: 900px) {
   #dash-admin .app { grid-template-columns: 1fr; }

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardCanvas from '@/components/DashboardCanvas';
+import { DashboardViewTypeBlock } from '@/components/DashboardViewTypeBlock';
+import { hydrateDashboardWidgets } from '@/lib/hydrateDashboardWidgets';
 
 export default function DashboardCanvasPage() {
   const params = useParams();
@@ -37,17 +39,8 @@ export default function DashboardCanvasPage() {
       const dsData = await dsRes.json();
       const datasets = Array.isArray(dsData?.datasets) ? dsData.datasets : [];
 
-      // 3. Inject sampleData into every widget's config based on datasetIndex
-      const widgetsWithData = (d.widgets || []).map((w: any) => {
-        const datasetIndex = w.datasetIndex ?? 0;
-        const targetDataset = datasets[datasetIndex];
-        const sampleData = targetDataset?.rawSchema?.sampleData || [];
-
-        return {
-          ...w,
-          config: { ...w.config, sampleData },
-        };
-      });
+      // 3. Inject sampleData: el índice vive en config (guardado con el widget), no en la raíz
+      const widgetsWithData = hydrateDashboardWidgets(d.widgets || [], datasets);
 
       setPayload({
         title: d.title,
@@ -97,12 +90,24 @@ export default function DashboardCanvasPage() {
   }
 
   return (
-    <DashboardCanvas
-      dashboardId={id}
-      initialTitle={payload.title}
-      initialTemplateId={payload.templateId}
-      initialWidgets={payload.widgets}
-      onSave={() => router.refresh()}
-    />
+    <div className="canvas-view-modes w-full min-w-0">
+      <DashboardViewTypeBlock
+        activeView="business"
+        showActive={false}
+        onSelectView={(k) => router.push(`/dashboard?view=${k}`)}
+        hint="Abre el análisis en el panel (Visualizar) con el modo de vista elegido; misma sesión de datos."
+      />
+      <DashboardCanvas
+        key={`${id}-${payload.widgets.map((w) => w.id).join(',')}`}
+        dashboardId={id}
+        initialTitle={payload.title}
+        initialTemplateId={payload.templateId}
+        initialWidgets={payload.widgets}
+        onSave={async () => {
+          await load();
+          router.refresh();
+        }}
+      />
+    </div>
   );
 }

@@ -2,16 +2,25 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { DashboardViewTypeBlock } from '@/components/DashboardViewTypeBlock';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import UploadZone from '@/components/UploadZone';
+import { Info, RotateCcw } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell,
-} from 'recharts';
-import { Maximize2, Download } from 'lucide-react';
-import { downloadSvgAsImage } from '@/lib/exportUtils';
+  buildSemanticContext,
+  normalizeViewParam,
+  getViewsForDataset,
+  VIEW_KEYS,
+  type SemanticViewKey,
+} from '@/lib/semanticContext';
+import { applyAIRoles } from '@/lib/applyAIRoles';
+import type { AISchemaInterpretation, CachedSchemaInterpretation } from '@/lib/aiSchemaTypes';
+import { computeColumnStats } from '@/lib/columnStats';
+import { SemanticViewCharts } from '@/components/SemanticViewCharts';
+import { SavedDashboardWidgetsGrid } from '@/components/SavedDashboardWidgetsGrid';
+import { hydrateDashboardWidgets } from '@/lib/hydrateDashboardWidgets';
+import type { SavedWidgetVM } from '@/components/SavedDashboardWidgetsGrid';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 interface RawSchema {
@@ -19,6 +28,7 @@ interface RawSchema {
   sampleData: Record<string, any>[];
   analysis?: any;
   fileMeta?: { size: string; type: string };
+  interpretation?: CachedSchemaInterpretation;
 }
 interface Dataset {
   id: string;
@@ -26,6 +36,11 @@ interface Dataset {
   rawSchema: RawSchema;
   createdAt: string;
   updatedAt: string;
+}
+
+function buildHeadersSignature(headers: string[]) {
+  if (!headers.length) return '';
+  return [...headers].map((h) => String(h).trim()).sort().join('||');
 }
 
 // ── Utilidades de análisis de datos ─────────────────────────────────────────
@@ -95,59 +110,109 @@ function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) 
       icon: ICONS[i],
       pct: pct || 50,
       bar: BARS[i],
+      isPercent,
+      valueCount: count,
     };
   });
 }
 
-function groupByCategory(rows: Record<string, any>[], catCol: string, numCol?: string) {
-  const map: Record<string, number> = {};
-  for (const row of rows) {
-    const key = String(row[catCol] ?? 'Sin valor').slice(0, 30);
-    if (numCol) {
-      map[key] = (map[key] ?? 0) + toNum(row[numCol]);
-    } else {
-      map[key] = (map[key] ?? 0) + 1;
-    }
-  }
-  return Object.entries(map)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([name, value]) => ({ name, value: Math.round(value) }));
-}
+type KpiData = ReturnType<typeof calcKPIs>[number];
 
-function groupByDate(rows: Record<string, any>[], dateCol: string, numCol?: string) {
-  const map: Record<string, number> = {};
-  for (const row of rows) {
-    const d = new Date(row[dateCol]);
-    if (isNaN(d.getTime())) continue;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (numCol) {
-      map[key] = (map[key] ?? 0) + toNum(row[numCol]);
-    } else {
-      map[key] = (map[key] ?? 0) + 1;
-    }
-  }
-  return Object.entries(map)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([name, value]) => ({
-      name: name.replace(/^\d{4}-/, '').replace(/^0/, ''),
-      value: Math.round(value),
-    }));
+function KpiFlippableCard({
+  k,
+  rowsLength,
+  flipped,
+  onFlip,
+}: {
+  k: KpiData;
+  rowsLength: number;
+  flipped: boolean;
+  onFlip: (v: boolean) => void;
+}) {
+  const mh = 200;
+  return (
+    <div
+      className="widget-flip-scene kpi-metric-flip w-full"
+      style={{ position: 'relative' as const, minHeight: mh }}
+    >
+      <div
+        className={`widget-flip-inner h-full ${flipped ? 'is-flipped' : ''}`}
+        style={{ minHeight: mh }}
+      >
+        <div className="widget-face widget-face-front h-full">
+          <div className="kpi-card relative h-full min-h-[200px] group" style={{ paddingBottom: 20 }}>
+            <div className="kpi-icon">{k.icon}</div>
+            <div className="kpi-label">{k.label}</div>
+            <div className={`kpi-value ${k.color}`}>{k.value}</div>
+            <div className={`kpi-delta ${k.dir}`}>▲ {k.delta}</div>
+            <div className="kpi-bar-wrap">
+              <div className="kpi-bar" style={{ width: `${k.pct}%`, background: k.bar }} />
+            </div>
+            <button
+              type="button"
+              className="widget-info-btn"
+              title="Cómo se calcula"
+              onClick={e => {
+                e.stopPropagation();
+                onFlip(true);
+              }}
+            >
+              <Info size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="widget-face widget-face-back h-full">
+          <div className="kpi-card relative flex h-full min-h-[200px] flex-col">
+            <div className="chart-hd" style={{ marginBottom: 8 }}>
+              <div>
+                <div className="chart-title">{k.label}</div>
+                <div className="chart-sub" style={{ marginTop: 3 }}>Cómo se calcula</div>
+              </div>
+            </div>
+            <div
+              className="min-h-0 flex-1 overflow-y-auto"
+              style={{ position: 'relative' as const, paddingBottom: 20 }}
+            >
+              <div className="calc-explain p-2 pb-10">
+                <p className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>Cómo se calcula</p>
+                <p className="text-[14px] leading-relaxed" style={{ color: 'var(--text2)' }}>
+                  {k.isPercent ? (
+                    <>
+                      Se muestra el <strong style={{ color: 'var(--text)' }}>promedio</strong> de los valores
+                      numéricos de la columna «{k.label}» cuando los datos se interpretan como porcentaje.
+                    </>
+                  ) : (
+                    <>
+                      Se <strong style={{ color: 'var(--text)' }}>suman</strong> todos los valores numéricos
+                      de «{k.label}» en el dataset activo.
+                    </>
+                  )}{' '}
+                  <strong style={{ color: 'var(--text)' }}>{k.valueCount}</strong> celdas con valor válido en
+                  esa columna; el total de filas en el archivo es {rowsLength}.
+                </p>
+                <p className="text-[14px] leading-relaxed mt-2" style={{ color: 'var(--text2)' }}>
+                  La barra inferior es un indicador visual (anchura relativa al total y al máximo), no una segunda
+                  métrica.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="widget-info-btn"
+              title="Volver al indicador"
+              onClick={e => {
+                e.stopPropagation();
+                onFlip(false);
+              }}
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
-
-// ── Estilos compartidos para Recharts ────────────────────────────────────────
-const axisProps = {
-  axisLine: false, tickLine: false,
-  fontSize: 9,
-  tick: { fill: '#94a3b8', fontFamily: '"DM Mono",monospace' },
-};
-const gridProps = { strokeDasharray: 'none', vertical: true, stroke: '#e2e8f0' };
-const tooltipStyle = {
-  backgroundColor: '#fff', border: '1px solid #e2e8f0',
-  borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-  fontFamily: '"DM Mono",monospace', fontSize: 11,
-};
-const PALETTE = ['#0ea5e9','#10b981','#f97316','#8b5cf6','#f59e0b'];
 
 const BADGE: Record<string, string> = {};
 const badgeClass = (val: string) => {
@@ -157,275 +222,6 @@ const badgeClass = (val: string) => {
   if (['cancelado','rechazado','error','failed'].some(k => v.includes(k))) return 'badge-o';
   return 'badge-p';
 };
-
-// ── Gráficas dinámicas ───────────────────────────────────────────────────────
-function DynamicCharts({ rows, types, view }: { rows: Record<string, any>[]; types: ReturnType<typeof detectColumnTypes> & { headers?: string[] }; view: string }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
-
-  const toggleFlip = (chartId: string) => {
-    setFlipped(prev => ({ ...prev, [chartId]: !prev[chartId] }));
-  };
-
-  if (rows.length === 0) return null;
-
-  const numCol = types.numeric[0];
-  const numCol2 = types.numeric[1];
-  const catCol = types.categorical[0];
-  const dateCol = types.dates[0];
-
-  const hasDate = !!dateCol;
-  const hasCat  = !!catCol;
-  const hasNum  = !!numCol;
-
-  const timeData  = dateCol && hasNum ? groupByDate(rows, dateCol, numCol) : [];
-  const catData   = catCol  && hasNum ? groupByCategory(rows, catCol, numCol) : groupByCategory(rows, catCol ?? types.headers?.[0] ?? '', undefined);
-  const catData2  = catCol  && numCol2 ? groupByCategory(rows, catCol, numCol2) : [];
-
-  const timeLabel  = dateCol ? `${numCol ?? 'Conteo'} por fecha` : '';
-  const catLabel   = catCol  ? `${numCol ?? 'Conteo'} por ${catCol}` : '';
-
-  const showTrends = ['auto', 'trends'].includes(view);
-  const showDistribution = ['auto', 'distribution'].includes(view);
-  const showComparison = ['auto', 'comparison'].includes(view);
-
-  return (
-    <>
-      {expanded && (
-        <div className="modal-bg open" style={{ zIndex: 999 }} onClick={() => setExpanded(null)}>
-          <div className="chart-card full" style={{ width: '90vw', height: '80vh', maxWidth: 1200, padding: 32 }} onClick={e => e.stopPropagation()}>
-            <div className="chart-hd">
-              <div>
-                <div className="chart-title">Vista Extendida</div>
-                <div className="chart-sub">Presiona ESC o haz clic fuera para cerrar</div>
-              </div>
-              <div className="chart-actions">
-                <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage(`chart-exp`, 'dashlify-export')}>
-                  <Download size={13} />
-                </button>
-                <button type="button" className="chart-btn" onClick={() => setExpanded(null)}>
-                  <Maximize2 size={13} />
-                </button>
-              </div>
-            </div>
-            <div className="chart-wrap" style={{ height: 'calc(100% - 60px)' }} id="chart-exp">
-              {/* Contenido clonado más abajo */}
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="charts-grid">
-        {/* Chart 1: Temporal o Barras */}
-        {showTrends && timeData.length > 1 && (
-          <div className="chart-card">
-            <div className="chart-hd">
-              <div>
-                <div className="chart-title">{timeLabel}</div>
-                <div className="chart-sub">Evolución temporal</div>
-              </div>
-              <div className="chart-actions">
-                <button type="button" className="chart-btn" onClick={() => toggleFlip('time')} title="Información">
-                  ℹ️
-                </button>
-                <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-time', 'evolucion-temporal')}>
-                  <Download size={13} />
-                </button>
-                <button type="button" className="chart-btn" onClick={() => setExpanded('time')}>
-                  <Maximize2 size={13} />
-                </button>
-              </div>
-            </div>
-            {flipped['time'] ? (
-              <div className="chart-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
-                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
-                  <strong>📈 Evolución Temporal</strong>
-                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
-                    Este gráfico muestra cómo cambia <strong>{numCol}</strong> a lo largo del tiempo. La línea ascendente/descendente indica la tendencia general, mientras que los picos representan variaciones en fechas específicas.
-                  </p>
-                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
-                    Use este gráfico para identificar patrones temporales y detectar anomalías.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="chart-wrap" id="chart-time">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timeData} margin={{top:4,right:8,left:-15,bottom:0}}>
-                  <defs>
-                    <linearGradient id="lgT" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid {...gridProps} />
-                  <XAxis dataKey="name" {...axisProps} tickFormatter={v => String(v).slice(0, 10)} />
-                  <YAxis {...axisProps} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend verticalAlign="top" height={36} iconType="square" />
-                  <Area type="monotone" dataKey="value" name={numCol} stroke="#0ea5e9" strokeWidth={3} fill="url(#lgT)" dot={false} activeDot={{r:5, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2}} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            )}
-          </div>
-        )}
-
-        {/* Chart 2: Distribución por categoría */}
-        {(showDistribution || showComparison) && catData.length > 0 && (
-          <div className="chart-card">
-            <div className="chart-hd">
-              <div>
-                <div className="chart-title">{catLabel}</div>
-                <div className="chart-sub">Distribución por {catCol}</div>
-              </div>
-              <div className="chart-actions">
-                <button type="button" className="chart-btn" onClick={() => toggleFlip('cat')} title="Información">
-                  ℹ️
-                </button>
-                <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-cat', 'distribucion-categoria')}>
-                  <Download size={13} />
-                </button>
-                <button type="button" className="chart-btn" onClick={() => setExpanded('cat')}>
-                  <Maximize2 size={13} />
-                </button>
-              </div>
-            </div>
-            {flipped['cat'] ? (
-              <div className="chart-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
-                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
-                  <strong>📊 Distribución por Categoría</strong>
-                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
-                    Este gráfico muestra la distribución de <strong>{numCol}</strong> entre las diferentes categorías de <strong>{catCol}</strong>. Las barras más largas indican categorías con mayor valor o cantidad.
-                  </p>
-                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
-                    Use este gráfico para comparar el desempeño entre categorías e identificar cuál es la más relevante.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="chart-wrap" id="chart-cat">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={catData.slice(0,8)} layout="vertical" margin={{top:4,right:8,left:80,bottom:0}}>
-                  <CartesianGrid {...gridProps} horizontal={false} />
-                  <XAxis type="number" {...axisProps} />
-                  <YAxis dataKey="name" type="category" {...axisProps} width={80} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend verticalAlign="top" height={36} iconType="square" />
-                  <Bar dataKey="value" name={numCol} stroke="#0ea5e9" strokeWidth={1} fill="rgba(14,165,233,0.85)" radius={[0,2,2,0]} maxBarSize={32}>
-                    {catData.slice(0,8).map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} stroke={PALETTE[i % PALETTE.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            )}
-          </div>
-        )}
-
-        {/* Si no hay datos temporales o estamos en comparativa, mostrar segunda categoría o conteo */}
-        {showComparison && timeData.length <= 1 && catData2.length > 0 && (
-          <div className="chart-card">
-            <div className="chart-hd">
-              <div>
-                <div className="chart-title">{numCol2} por {catCol}</div>
-                <div className="chart-sub">Comparación de métrica secundaria</div>
-              </div>
-              <div className="chart-actions">
-                <button type="button" className="chart-btn" onClick={() => toggleFlip('comp')} title="Información">
-                  ℹ️
-                </button>
-                <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-comp', 'comparativa')}>
-                  <Download size={13} />
-                </button>
-                <button type="button" className="chart-btn" onClick={() => setExpanded('comp')}>
-                  <Maximize2 size={13} />
-                </button>
-              </div>
-            </div>
-            {flipped['comp'] ? (
-              <div className="chart-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
-                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
-                  <strong>📈 Comparación de Métrica Secundaria</strong>
-                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
-                    Este gráfico compara <strong>{numCol2}</strong> entre las diferentes categorías de <strong>{catCol}</strong>, permitiendo analizar una segunda métrica importante.
-                  </p>
-                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
-                    Use este gráfico para comparar alternativas y tomar decisiones basadas en múltiples criterios.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="chart-wrap" id="chart-comp">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={catData2.slice(0,8)} margin={{top:4,right:8,left:-15,bottom:0}}>
-                  <CartesianGrid {...gridProps} />
-                  <XAxis dataKey="name" {...axisProps} tickFormatter={v => String(v).slice(0, 10)} />
-                  <YAxis {...axisProps} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend verticalAlign="top" height={36} iconType="square" />
-                  <Bar dataKey="value" name={numCol2} stroke="#10b981" strokeWidth={1} fill="rgba(16,185,129,0.85)" radius={[2,2,0,0]} maxBarSize={42}>
-                    {catData2.slice(0,8).map((_, i) => <Cell key={i} fill={PALETTE[(i+1) % PALETTE.length]} stroke={PALETTE[(i+1) % PALETTE.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Full-width: si hay fecha Y categoría → multi-métrica (o siempre si trends es true y hay data) */}
-      {showTrends && timeData.length > 1 && catData.length > 0 && (
-        <div className="charts-grid">
-          <div className="chart-card full">
-            <div className="chart-hd">
-              <div>
-                <div className="chart-title">Análisis de Tendencia — {numCol}</div>
-                <div className="chart-sub">Vista consolidada · {rows.length} registros totales</div>
-              </div>
-              <div className="chart-actions">
-                <button type="button" className="chart-btn" onClick={() => toggleFlip('full')} title="Información">
-                  ℹ️
-                </button>
-                <button type="button" className="chart-btn" onClick={() => downloadSvgAsImage('chart-full', 'tendencia-completa')}>
-                  <Download size={13} />
-                </button>
-                <button type="button" className="chart-btn" onClick={() => setExpanded('full')}>
-                  <Maximize2 size={13} />
-                </button>
-              </div>
-            </div>
-            {flipped['full'] ? (
-              <div className="chart-wrap" style={{height:220, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--surface2)', borderRadius: 12 }}>
-                <div style={{ textAlign: 'center', color: 'var(--text)', fontSize: 14, lineHeight: 1.6 }}>
-                  <strong>📈 Análisis de Tendencia</strong>
-                  <p style={{ marginTop: 12, color: 'var(--text2)', fontSize: 13 }}>
-                    Esta es la vista consolidada que muestra la tendencia completa de <strong>{numCol}</strong> a través del tiempo. Los puntos representan variaciones significativas, mientras que la línea general muestra la dirección del cambio.
-                  </p>
-                  <p style={{ marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
-                    Excelente para visualizar patrones a largo plazo y hacer pronósticos.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="chart-wrap" style={{height:220}} id="chart-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={timeData} margin={{top:4,right:8,left:-15,bottom:0}}>
-                    <CartesianGrid {...gridProps} />
-                    <XAxis dataKey="name" {...axisProps} tickFormatter={v => String(v).slice(0, 10)} />
-                    <YAxis {...axisProps} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Legend verticalAlign="top" height={36} iconType="square" />
-                    <Line type="monotone" dataKey="value" name={numCol} stroke="#0ea5e9" strokeWidth={3} dot={{r:4, fill:'#fff', stroke:'#0ea5e9', strokeWidth:2}} activeDot={{r:6, strokeWidth:0, fill:'#0ea5e9'}} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
 
 // ── Tabla dinámica ───────────────────────────────────────────────────────────
 function DynamicTable({ rows, headers, numeric, categorical }: {
@@ -632,24 +428,115 @@ function EmptyState() {
   );
 }
 
+// ── Visualizar vacío: sin dashboard guardado (no se usa el dataset de sesión aquí) ──
+function NoSavedDashboardState({ sessionHasDatasets }: { sessionHasDatasets: boolean }) {
+  return (
+    <div
+      className="ai-bar"
+      style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 10, padding: '20px 22px' }}
+    >
+      <div className="ai-chip" aria-hidden>—</div>
+      <div>
+        <div className="chart-title" style={{ fontSize: 15, marginBottom: 6, color: 'var(--text)' }}>
+          Ningún dashboard guardado
+        </div>
+        <div className="ai-text" style={{ maxWidth: 640, lineHeight: 1.55 }}>
+          <strong>Visualizar</strong> no muestra análisis hasta que exista al menos un dashboard creado en el editor.{' '}
+          {sessionHasDatasets
+            ? 'Aún hay datos de sesión; para ver KPIs y gráficos otra vez, abre el canvas, arma el layout y guarda el dashboard.'
+            : 'Sube un archivo, edita en el canvas y pulsa «Guardar dashboard».'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Componente principal (inner, necesita Suspense) ──────────────────────────
 function DashboardContent() {
   const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
+  const [kpiFlipped, setKpiFlipped] = useState<Record<string, boolean>>({});
+  const [hasSavedDashboard, setHasSavedDashboard] = useState(false);
+  const [dashboardsListLoaded, setDashboardsListLoaded] = useState(false);
+  const [savedVisualWidgets, setSavedVisualWidgets] = useState<SavedWidgetVM[]>([]);
 
-  // Cargar datasets de la DB
+  // Cargar datasets de la DB (también al abrir el modal «Cargar datos» o tras guardar un archivo)
   useEffect(() => {
-    fetch('/api/datasets')
-      .then(r => r.json())
-      .then(data => {
-        const ds: Dataset[] = Array.isArray(data.datasets) ? data.datasets : [];
-        setDatasets(ds);
-        if (ds.length > 0) setActiveDatasetId(ds[0].id);
-      })
-      .catch(() => {});
+    const loadDatasets = () => {
+      fetch('/api/datasets')
+        .then((r) => r.json())
+        .then((data) => {
+          const ds: Dataset[] = Array.isArray(data.datasets) ? data.datasets : [];
+          setDatasets(ds);
+          setActiveDatasetId((prev) => {
+            if (prev && ds.some((d) => d.id === prev)) return prev;
+            return ds[0]?.id ?? null;
+          });
+        })
+        .catch(() => {});
+    };
+    loadDatasets();
+    window.addEventListener('dashlify:datasets-changed', loadDatasets);
+    return () => window.removeEventListener('dashlify:datasets-changed', loadDatasets);
   }, []);
+
+  useEffect(() => {
+    const load = () => {
+      fetch('/api/dashboards')
+        .then((r) => r.json())
+        .then((data) => {
+          setHasSavedDashboard(Array.isArray(data?.dashboards) && data.dashboards.length > 0);
+        })
+        .catch(() => {
+          setHasSavedDashboard(false);
+        })
+        .finally(() => {
+          setDashboardsListLoaded(true);
+        });
+    };
+    load();
+    window.addEventListener('dashlify:dashboards-changed', load);
+    return () => window.removeEventListener('dashlify:dashboards-changed', load);
+  }, []);
+
+  // Último dashboard guardado → mismas vistas que en el canvas (rehidratadas con `datasets` del panel)
+  useEffect(() => {
+    if (!hasSavedDashboard) {
+      setSavedVisualWidgets([]);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const listRes = await fetch('/api/dashboards');
+        const list = await listRes.json();
+        const dashId = list.dashboards?.[0]?.id;
+        if (!dashId) {
+          if (!cancelled) setSavedVisualWidgets([]);
+          return;
+        }
+        const dRes = await fetch(`/api/dashboards/${dashId}`);
+        const dJson = await dRes.json();
+        if (cancelled || !dJson.dashboard?.widgets) return;
+        setSavedVisualWidgets(hydrateDashboardWidgets(dJson.dashboard.widgets, datasets));
+      } catch {
+        if (!cancelled) setSavedVisualWidgets([]);
+      }
+    };
+    void run();
+    const onChange = () => void run();
+    window.addEventListener('dashlify:dashboards-changed', onChange);
+    window.addEventListener('dashlify:datasets-changed', onChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('dashlify:dashboards-changed', onChange);
+      window.removeEventListener('dashlify:datasets-changed', onChange);
+    };
+  }, [hasSavedDashboard, datasets]);
 
   // Redirigir al último dashboard si existe y no estamos en modo upload explícito ni en una vista específica
   useEffect(() => {
@@ -679,7 +566,7 @@ function DashboardContent() {
   }, [params]);
 
   // Dataset activo
-  const viewParam = params.get('view') || 'auto';
+  const viewParam = normalizeViewParam(params.get('view'));
   const activeDataset = datasets.find(d => d.id === activeDatasetId) ?? datasets[0];
   const rows    = (activeDataset?.rawSchema?.sampleData ?? []) as Record<string, any>[];
   const headers = activeDataset?.rawSchema?.headers ?? [];
@@ -687,6 +574,153 @@ function DashboardContent() {
   const kpis    = rows.length > 0 && types.numeric.length > 0
     ? calcKPIs(rows, types.numeric, activeDataset?.name ?? '')
     : [];
+
+  const hasData = rows.length > 0 && headers.length > 0;
+  /** Con datos cargados, la subida solo se muestra con ?action=upload (clic en «Cargar datos» en el header). */
+  const showUploadZone = !hasData || params.get('action') === 'upload';
+  const [aiLayer, setAiLayer] = useState<AISchemaInterpretation | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const headerSig = useMemo(() => buildHeadersSignature(headers), [headers]);
+
+  const baseSemantic = useMemo(
+    () => (hasData ? buildSemanticContext(headers, rows, types.dates) : null),
+    [hasData, headers, rows, types.dates]
+  );
+
+  const semantic = useMemo(() => {
+    if (!baseSemantic) return null;
+    if (!aiLayer?.columnRoles || Object.keys(aiLayer.columnRoles).length === 0) return baseSemantic;
+    return applyAIRoles(baseSemantic, aiLayer.columnRoles, headers);
+  }, [baseSemantic, aiLayer, headers]);
+
+  const availableViews = useMemo((): SemanticViewKey[] => {
+    if (!semantic) return ['business'];
+    return getViewsForDataset(semantic);
+  }, [semantic]);
+
+  useEffect(() => {
+    if (!hasSavedDashboard || !hasData || !semantic) return;
+    if (!availableViews.includes(viewParam)) {
+      router.replace('/dashboard?view=business');
+    }
+  }, [hasSavedDashboard, hasData, semantic, availableViews, viewParam, router]);
+
+  useEffect(() => {
+    if (!hasSavedDashboard || !hasData || !activeDatasetId) {
+      setAiLayer(null);
+      setAiLoading(false);
+      return;
+    }
+    const ds = datasets.find((d) => d.id === activeDatasetId);
+    if (!ds) return;
+
+    const ac = new AbortController();
+    const sig = headerSig;
+    if (!sig) {
+      setAiLayer(null);
+      setAiLoading(false);
+      return;
+    }
+
+    const cached = ds.rawSchema?.interpretation;
+    if (
+      cached &&
+      cached.headersSignature === sig &&
+      (Boolean(cached.narrative) || (cached.columnRoles && Object.keys(cached.columnRoles).length > 0))
+    ) {
+      const { headersSignature: _hs, savedAt: _sa, ...rest } = cached;
+      setAiLayer(rest);
+      setAiLoading(false);
+      return;
+    }
+
+    const uploadAn = ds.rawSchema?.analysis as
+      | {
+          narrative?: string;
+          analysis?: { domain?: string; main_kpis?: string[] };
+        }
+      | undefined;
+    if (uploadAn) {
+      setAiLayer({
+        domain: String(uploadAn.analysis?.domain ?? '—'),
+        narrative: String(uploadAn.narrative ?? ''),
+        priorityInsights: Array.isArray(uploadAn.analysis?.main_kpis) ? uploadAn.analysis.main_kpis : [],
+        columnRoles: {},
+      });
+    } else {
+      setAiLayer(null);
+    }
+
+    (async () => {
+      setAiLoading(true);
+      try {
+        const columnStats = computeColumnStats(rows, headers);
+        const res = await fetch('/api/interpret-schema', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: ds.name ?? 'dataset',
+            headers,
+            sampleData: rows.slice(0, 20),
+            columnStats,
+          }),
+          signal: ac.signal,
+        });
+        if (ac.signal.aborted) return;
+
+        if (res.status === 503) {
+          return;
+        }
+        if (!res.ok) {
+          if (!uploadAn) setAiLayer(null);
+          return;
+        }
+        const data = (await res.json()) as AISchemaInterpretation;
+        setAiLayer(data);
+
+        const toSave: CachedSchemaInterpretation = {
+          ...data,
+          headersSignature: sig,
+          savedAt: new Date().toISOString(),
+        };
+        const patch = await fetch(`/api/datasets/${activeDatasetId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interpretation: toSave }),
+        });
+        if (patch.ok) {
+          const p = (await patch.json().catch(() => ({}))) as { dataset?: Dataset };
+          if (p?.dataset) {
+            setDatasets((prev) => prev.map((d) => (d.id === p.dataset!.id ? (p.dataset as Dataset) : d)));
+          } else {
+            setDatasets((prev) =>
+              prev.map((d) =>
+                d.id === activeDatasetId
+                  ? { ...d, rawSchema: { ...d.rawSchema, interpretation: toSave } as RawSchema }
+                  : d
+              )
+            );
+          }
+        }
+      } catch {
+        if (!ac.signal.aborted && !uploadAn) setAiLayer(null);
+      } finally {
+        if (!ac.signal.aborted) setAiLoading(false);
+      }
+    })();
+
+    return () => ac.abort();
+  }, [
+    hasSavedDashboard,
+    hasData,
+    activeDatasetId,
+    activeDataset?.updatedAt,
+    headerSig,
+    datasets,
+    rows,
+    headers,
+  ]);
 
   if (loading) {
     return (
@@ -697,7 +731,31 @@ function DashboardContent() {
     );
   }
 
-  const hasData = rows.length > 0 && headers.length > 0;
+  if (!dashboardsListLoaded) {
+    return (
+      <div className="flex items-center justify-center h-64" style={{ color: 'var(--text3)' }}>
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent mr-3" />
+        Cargando panel…
+      </div>
+    );
+  }
+
+  if (!hasSavedDashboard) {
+    return (
+      <>
+        <NoSavedDashboardState sessionHasDatasets={datasets.length > 0} />
+        <div className="sec-hd">
+          <div className="sec-hd-l">
+            <h2>Visualizar</h2>
+            <p>REQUIERE UN DASHBOARD GUARDADO · SUBE Y GUARDA DESDE EL CANVAS</p>
+          </div>
+        </div>
+        <div id="upload-zone" style={{ marginTop: 8 }}>
+          <UploadZone />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -709,6 +767,7 @@ function DashboardContent() {
             <>
               <strong>Dataset activo: {activeDataset?.name}</strong>
               {' · '}{rows.length} registros · {headers.length} columnas
+              {aiLoading && <> · <span style={{ color: 'var(--accent3)' }}>IA interpretando columnas…</span></>}
               {types.numeric.length > 0 && <> · Columnas numéricas: <strong>{types.numeric.join(', ')}</strong></>}
               {types.dates.length > 0 && <> · Fechas detectadas: <strong>{types.dates.join(', ')}</strong></>}
             </>
@@ -731,6 +790,41 @@ function DashboardContent() {
         )}
       </div>
 
+      {hasSavedDashboard && hasData && (
+        <DashboardViewTypeBlock
+          className="main-view-modes"
+          activeView={viewParam}
+          showActive={pathname === '/dashboard'}
+          onSelectView={(k) => router.push(`/dashboard?view=${k}`)}
+          enabledViewKeys={semantic ? availableViews : null}
+          hint={
+            semantic && availableViews.length < VIEW_KEYS.length
+              ? 'Las vistas mostradas dependen de las columnas del archivo activo. Visión general siempre incluye el resumen completo.'
+              : undefined
+          }
+        />
+      )}
+
+      {hasData && aiLayer?.narrative && (
+        <div
+          className="chart-card"
+          style={{
+            marginTop: 4,
+            marginBottom: 8,
+            padding: '16px 20px',
+            borderLeft: '3px solid var(--accent)',
+            background: 'var(--surface2)',
+          }}
+        >
+          {aiLayer.domain && (
+            <div className="sb-label" style={{ marginBottom: 8 }}>
+              // {aiLayer.domain} · mapeo con IA
+            </div>
+          )}
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text2)' }}>{aiLayer.narrative}</p>
+        </div>
+      )}
+
       {/* SECTION HEADER */}
       <div className="sec-hd">
         <div className="sec-hd-l">
@@ -747,25 +841,45 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* KPI GRID — dinámico */}
-      {hasData && kpis.length > 0 && (
+      {/* Vistas guardadas del canvas — Visión general: todas, agrupadas por categoría IA */}
+      {hasData && viewParam === 'business' && savedVisualWidgets.length > 0 && (
+        <div className="sb-block" style={{ marginBottom: 18 }}>
+          <div className="sb-label">// Dashboard guardado</div>
+          <p className="ai-text" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>
+            {savedVisualWidgets.length} vista{savedVisualWidgets.length !== 1 ? 's' : ''} del último
+            dashboard guardado, organizadas como en el constructor.
+          </p>
+        </div>
+      )}
+      {hasData && viewParam === 'business' && savedVisualWidgets.length > 0 && (
+        <SavedDashboardWidgetsGrid widgets={savedVisualWidgets} />
+      )}
+
+      {/* KPI GRID — resumen en vista "Visión general" */}
+      {hasData && viewParam === 'business' && kpis.length > 0 && (
         <div className="kpi-grid">
           {kpis.map(k => (
-            <div key={k.label} className="kpi-card">
-              <div className="kpi-icon">{k.icon}</div>
-              <div className="kpi-label">{k.label}</div>
-              <div className={`kpi-value ${k.color}`}>{k.value}</div>
-              <div className={`kpi-delta ${k.dir}`}>▲ {k.delta}</div>
-              <div className="kpi-bar-wrap">
-                <div className="kpi-bar" style={{width:`${k.pct}%`, background:k.bar}} />
-              </div>
-            </div>
+            <KpiFlippableCard
+              key={k.label}
+              k={k}
+              rowsLength={rows.length}
+              flipped={!!kpiFlipped[k.label]}
+              onFlip={v => setKpiFlipped(prev => ({ ...prev, [k.label]: v }))}
+            />
           ))}
         </div>
       )}
 
-      {/* CHARTS — dinámicos */}
-      {hasData && viewParam !== 'executive' && <DynamicCharts rows={rows} types={{...types, headers}} view={viewParam} />}
+      {/* Exploración automática por columnas: solo si no hay vistas guardadas en Visión general, o en otras pestañas */}
+      {hasData && semantic && (viewParam !== 'business' || savedVisualWidgets.length === 0) && (
+        <SemanticViewCharts
+          view={viewParam}
+          rows={rows}
+          sem={semantic}
+          headers={headers}
+          priorityInsightsFromAI={aiLayer?.priorityInsights}
+        />
+      )}
 
       {/* TABLE — dinámica */}
       {hasData && (
@@ -780,10 +894,11 @@ function DashboardContent() {
       {/* Estado vacío */}
       {!hasData && !loading && <EmptyState />}
 
-      {/* UPLOAD ZONE */}
-      <div id="upload-zone" style={{marginTop: hasData ? 24 : 0}}>
-        <UploadZone />
-      </div>
+      {showUploadZone && (
+        <div id="upload-zone" style={{ marginTop: hasData ? 24 : 0 }}>
+          <UploadZone />
+        </div>
+      )}
     </>
   );
 }

@@ -78,17 +78,43 @@ export async function POST(req: Request) {
 
     // Create Widgets
     if (widgets && widgets.length > 0) {
-      const widgetsToInsert = widgets.map((w: any) => ({
-        id: crypto.randomUUID(),
-        dashboardId: dashboard.id,
-        type: w.type,
-        dataSourceConfig: { ...(w.config || {}), title: w.title || w.type },
-        stylingOptions: w.styling || {},
-        datasetIndex: w.datasetIndex ?? 0,
-        datasetName: w.datasetName || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }));
+      const now = new Date().toISOString();
+      const widgetsToInsert = widgets.map((w: any) => {
+        const c = w.config && typeof w.config === 'object' ? w.config : {};
+        const datasetIndex = typeof c.datasetIndex === 'number' ? c.datasetIndex : w.datasetIndex ?? 0;
+        const datasetName =
+          typeof c.datasetName === 'string' && c.datasetName
+            ? c.datasetName
+            : (w.datasetName || null);
+        const category =
+          typeof w.category === 'string' && w.category
+            ? w.category
+            : typeof c.category === 'string'
+              ? c.category
+              : undefined;
+        const description =
+          typeof w.description === 'string' && w.description
+            ? w.description
+            : typeof c.description === 'string'
+              ? c.description
+              : undefined;
+        return {
+          id: crypto.randomUUID(),
+          dashboardId: dashboard.id,
+          type: w.type,
+          dataSourceConfig: {
+            ...c,
+            title: w.title || w.type,
+            ...(category ? { category } : {}),
+            ...(description ? { description } : {}),
+          },
+          stylingOptions: w.styling || {},
+          datasetIndex,
+          datasetName,
+          createdAt: now,
+          updatedAt: now,
+        };
+      });
 
       const { error: widgetsError } = await supabaseAdmin
         .from('Widget')

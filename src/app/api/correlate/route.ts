@@ -35,21 +35,22 @@ export async function POST(req: Request) {
       
       ${datasets.map((d: any, i: number) => `Dataset ${i+1} (${d.name}):
       Encabezados: ${d.headers.join(', ')}
-      Descripción IA: ${d.analysis?.description || 'N/A'}`).join('\n\n')}
+      Resumen IA: ${d.analysis?.narrative || d.analysis?.analysis?.domain || 'N/A'}
+      KPIs sugeridos: ${Array.isArray(d.analysis?.analysis?.main_kpis) ? d.analysis.analysis.main_kpis.join('; ') : 'N/A'}`).join('\n\n')}
 
       Tu tarea es encontrar posibles relaciones (JOINS) entre estos datasets para compararlos o cruzarlos.
       Considera normalizaciones (ej: Empresa A usa 'Empleado' y Empresa B usa 'Colaborador').
 
       Devuelve un JSON con:
-      1. Una lista de "possibleRelationships", cada una con:
-         - sourceDataset: nombre del dataset 1
-         - targetDataset: nombre del dataset 2
+      1. "possibleRelationships": lista, cada elemento con:
+         - sourceDataset: nombre del archivo dataset 1
+         - targetDataset: nombre del archivo dataset 2
          - sourceColumn: columna en dataset 1
          - targetColumn: columna en dataset 2
-         - reason: por qué deberían cruzarse (ej: "Identificador común de cliente")
+         - reason: por qué deberían cruzarse
          - matchType: "Exact" o "Similar"
-         - normalizationNeeded: boolean (si los términos son diferentes pero significan lo mismo)
-      2. Una recomendación sobre qué "Etiqueta Predominante" usar para campos similares.
+         - normalizationNeeded: boolean
+      2. "recommendedLabel": string — etiqueta unificada sugerida para campos equivalentes entre archivos.
     `;
 
     const response = await openai.chat.completions.create({

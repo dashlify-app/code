@@ -22,7 +22,9 @@ interface DatasetPreview {
   analysis?: any;
 }
 
-export default function UploadZone() {
+type UploadZoneProps = { onWideChange?: (wide: boolean) => void };
+
+export default function UploadZone({ onWideChange }: UploadZoneProps) {
   const { data: session, status: sessionStatus } = useSession();
   const [files, setFiles] = useState<DatasetPreview[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -35,6 +37,24 @@ export default function UploadZone() {
   const [showCanvas, setShowCanvas] = useState(false);
 
   const hasLoadedFromDb = useRef(false);
+
+  useEffect(() => {
+    const wide =
+      showCopilot ||
+      (showCatalog && Boolean(suggestions)) ||
+      (showCorrelation && Boolean(correlation)) ||
+      (showCanvas && selectedWidgets.length > 0);
+    onWideChange?.(wide);
+  }, [
+    showCopilot,
+    showCatalog,
+    showCorrelation,
+    showCanvas,
+    suggestions,
+    correlation,
+    selectedWidgets.length,
+    onWideChange,
+  ]);
 
   useEffect(() => {
     if (sessionStatus !== 'authenticated') {
@@ -123,7 +143,9 @@ export default function UploadZone() {
     setFiles((prev) => {
       const target = prev[index];
       if (target?.id) {
-        fetch(`/api/datasets/${target.id}`, { method: 'DELETE' }).catch(() => {});
+        fetch(`/api/datasets/${target.id}`, { method: 'DELETE' })
+          .then(() => window.dispatchEvent(new CustomEvent('dashlify:datasets-changed')))
+          .catch(() => {});
       }
       return prev.filter((_, i) => i !== index);
     });
@@ -188,6 +210,7 @@ export default function UploadZone() {
         })
       );
       setFiles(results);
+      window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
       setShowCopilot(true);
     } catch (err) {
       console.error('Error al analizar:', err);
@@ -231,8 +254,26 @@ export default function UploadZone() {
       const res = await fetch('/api/suggest-charts', {
         method: 'POST',
         body: JSON.stringify({ 
-          combinedSchema: files.map(f => ({ name: f.name, columns: f.headers })),
-          approvedRelationships: approvedRels 
+          combinedSchema: files.map((f) => {
+            const a = f.analysis as Record<string, any> | undefined;
+            const inner = a?.analysis;
+            const proposed = Array.isArray(a?.proposedWidgets) ? a.proposedWidgets : [];
+            return {
+              name: f.name,
+              columns: f.headers,
+              domain: inner?.domain,
+              mainKpis: inner?.main_kpis,
+              narrative: a?.narrative,
+              perFileWidgetIdeas: proposed.map((w: any) => ({
+                title: w.title,
+                type: w.type,
+                xAxis: w.config?.xAxis,
+                yAxis: w.config?.yAxis,
+                aggregate: w.config?.aggregate,
+              })),
+            };
+          }),
+          approvedRelationships: approvedRels,
         }),
         headers: { 'Content-Type': 'application/json' }
       });
@@ -284,6 +325,9 @@ export default function UploadZone() {
       suggestions={suggestions}
       availableHeaders={allHeaders}
       sampleData={allSampleData}
+      sampleDataByFile={Object.fromEntries(
+        files.map((f) => [f.name, f.sampleData ?? []] as const)
+      )}
       onSave={(selected) => {
         setSelectedWidgets(selected);
         setShowCanvas(true);
