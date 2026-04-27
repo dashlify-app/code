@@ -160,22 +160,16 @@ function KpiFlippableCard({
   rowsLength,
   flipped,
   onFlip,
-  width = 'full',
-  onWidthChange,
 }: {
   k: KpiData;
   rowsLength: number;
   flipped: boolean;
   onFlip: (v: boolean) => void;
-  width?: 'third' | 'twoThirds' | 'full';
-  onWidthChange?: (width: 'third' | 'twoThirds' | 'full') => void;
 }) {
   const mh = 200;
-  const widthClass = width === 'third' ? 'w-1/3' : width === 'twoThirds' ? 'w-2/3' : 'w-full';
-
   return (
     <div
-      className={`widget-flip-scene kpi-metric-flip ${widthClass}`}
+      className="widget-flip-scene kpi-metric-flip w-full"
       style={{ position: 'relative' as const, minHeight: mh }}
     >
       <div
@@ -184,81 +178,18 @@ function KpiFlippableCard({
       >
         <div className="widget-face widget-face-front h-full">
           <div className="kpi-card relative h-full min-h-[200px] group" style={{ paddingBottom: 20 }}>
-            <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,0.05)', padding: '4px', borderRadius: '4px' }}>
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onWidthChange?.('third');
-                  }}
-                  style={{
-                    padding: '3px 6px',
-                    fontSize: '9px',
-                    border: width === 'third' ? '1px solid var(--accent)' : '1px solid transparent',
-                    background: width === 'third' ? 'var(--accent)' : 'transparent',
-                    color: width === 'third' ? 'white' : 'var(--text2)',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontWeight: width === 'third' ? '600' : '500',
-                  }}
-                  title="Ancho 1/3"
-                >
-                  1/3
-                </button>
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onWidthChange?.('twoThirds');
-                  }}
-                  style={{
-                    padding: '3px 6px',
-                    fontSize: '9px',
-                    border: width === 'twoThirds' ? '1px solid var(--accent)' : '1px solid transparent',
-                    background: width === 'twoThirds' ? 'var(--accent)' : 'transparent',
-                    color: width === 'twoThirds' ? 'white' : 'var(--text2)',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontWeight: width === 'twoThirds' ? '600' : '500',
-                  }}
-                  title="Ancho 2/3"
-                >
-                  2/3
-                </button>
-                <button
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onWidthChange?.('full');
-                  }}
-                  style={{
-                    padding: '3px 6px',
-                    fontSize: '9px',
-                    border: width === 'full' ? '1px solid var(--accent)' : '1px solid transparent',
-                    background: width === 'full' ? 'var(--accent)' : 'transparent',
-                    color: width === 'full' ? 'white' : 'var(--text2)',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontWeight: width === 'full' ? '600' : '500',
-                  }}
-                  title="Ancho completo"
-                >
-                  Full
-                </button>
-              </div>
-              <button
-                type="button"
-                className="widget-info-btn"
-                title="Cómo se calcula"
-                onClick={e => {
-                  e.stopPropagation();
-                  onFlip(true);
-                }}
-              >
-                <Info size={16} />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="widget-info-btn"
+              style={{ position: 'absolute', top: 12, right: 12 }}
+              title="Cómo se calcula"
+              onClick={e => {
+                e.stopPropagation();
+                onFlip(true);
+              }}
+            >
+              <Info size={16} />
+            </button>
             <div className="kpi-icon">{k.icon}</div>
             <div className="kpi-label">{k.label}</div>
             <div className={`kpi-value ${k.color}`}>{k.value}</div>
@@ -748,7 +679,6 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
   const [kpiFlipped, setKpiFlipped] = useState<Record<string, boolean>>({});
-  const [kpiWidths, setKpiWidths] = useState<Record<string, 'third' | 'twoThirds' | 'full'>>({});
   const [hasSavedDashboard, setHasSavedDashboard] = useState(false);
   const [dashboardsListLoaded, setDashboardsListLoaded] = useState(false);
   const [savedVisualWidgets, setSavedVisualWidgets] = useState<SavedWidgetVM[]>([]);
@@ -1154,8 +1084,6 @@ function DashboardContent() {
               rowsLength={rows.length}
               flipped={!!kpiFlipped[k.label]}
               onFlip={v => setKpiFlipped(prev => ({ ...prev, [k.label]: v }))}
-              width={kpiWidths[k.label] ?? 'full'}
-              onWidthChange={w => setKpiWidths(prev => ({ ...prev, [k.label]: w }))}
             />
           ))}
         </div>

@@ -203,25 +203,92 @@ function Panel({
   children,
   back,
   id,
+  width = 'full',
+  onWidthChange,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   back?: ReactNode;
   id?: string;
+  width?: 'third' | 'twoThirds' | 'full';
+  onWidthChange?: (w: 'third' | 'twoThirds' | 'full') => void;
 }) {
   const [flip, setFlip] = useState(false);
   const panelId = useMemo(() => id || `panel-${title.replace(/\s+/g, '-').toLowerCase().slice(0, 30)}-${Math.random().toString(36).slice(2, 9)}`, [id, title]);
+  const widthClass = width === 'third' ? 'w-1/3' : width === 'twoThirds' ? 'w-2/3' : 'w-full';
 
   if (!back) {
     return (
-      <div className="chart-card group" style={{ minHeight: 120 }} id={`${panelId}-wrap`}>
+      <div className={`chart-card group ${widthClass}`} style={{ minHeight: 120 }} id={`${panelId}-wrap`}>
         <div className="chart-hd">
           <div>
             <div className="chart-title">{title}</div>
             {subtitle && <div className="chart-sub" style={{ marginTop: 3 }}>{subtitle}</div>}
           </div>
-          <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
+          <div className="chart-actions flex gap-2 items-center">
+            <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,0.05)', padding: '3px', borderRadius: '4px' }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWidthChange?.('third');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  border: width === 'third' ? '2px solid var(--accent)' : '1px solid #d1d5db',
+                  background: width === 'third' ? 'var(--accent)' : 'white',
+                  color: width === 'third' ? 'white' : '#374151',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                }}
+                title="Ancho 1/3"
+              >
+                1/3
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWidthChange?.('twoThirds');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  border: width === 'twoThirds' ? '2px solid var(--accent)' : '1px solid #d1d5db',
+                  background: width === 'twoThirds' ? 'var(--accent)' : 'white',
+                  color: width === 'twoThirds' ? 'white' : '#374151',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                }}
+                title="Ancho 2/3"
+              >
+                2/3
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWidthChange?.('full');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  border: width === 'full' ? '2px solid var(--accent)' : '1px solid #d1d5db',
+                  background: width === 'full' ? 'var(--accent)' : 'white',
+                  color: width === 'full' ? 'white' : '#374151',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                }}
+                title="Ancho completo"
+              >
+                Full
+              </button>
+            </div>
             <button
               className="chart-btn"
               title="Descargar"
@@ -247,7 +314,7 @@ function Panel({
 
   return (
     <div
-      className="widget-flip-scene w-full"
+      className={`widget-flip-scene ${widthClass}`}
       style={{ position: 'relative' as const, minHeight: PANEL_FLIP_MIN }}
       id={`${panelId}-flip`}
     >
@@ -265,7 +332,69 @@ function Panel({
                 <div className="chart-title">{title}</div>
                 {subtitle && <div className="chart-sub" style={{ marginTop: 3 }}>{subtitle}</div>}
               </div>
-              <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
+              <div className="chart-actions flex gap-2 items-center">
+                <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,0.05)', padding: '3px', borderRadius: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onWidthChange?.('third');
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      border: width === 'third' ? '2px solid var(--accent)' : '1px solid #d1d5db',
+                      background: width === 'third' ? 'var(--accent)' : 'white',
+                      color: width === 'third' ? 'white' : '#374151',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                    }}
+                    title="Ancho 1/3"
+                  >
+                    1/3
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onWidthChange?.('twoThirds');
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      border: width === 'twoThirds' ? '2px solid var(--accent)' : '1px solid #d1d5db',
+                      background: width === 'twoThirds' ? 'var(--accent)' : 'white',
+                      color: width === 'twoThirds' ? 'white' : '#374151',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                    }}
+                    title="Ancho 2/3"
+                  >
+                    2/3
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onWidthChange?.('full');
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      border: width === 'full' ? '2px solid var(--accent)' : '1px solid #d1d5db',
+                      background: width === 'full' ? 'var(--accent)' : 'white',
+                      color: width === 'full' ? 'white' : '#374151',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                    }}
+                    title="Ancho completo"
+                  >
+                    Full
+                  </button>
+                </div>
                 <button
                   className="chart-btn"
                   title="Descargar"
@@ -411,6 +540,15 @@ type Props = {
 };
 
 export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsightsFromAI }: Props) {
+  const [chartWidths, setChartWidths] = useState<Record<string, 'third' | 'twoThirds' | 'full'>>({});
+
+  const handleWidthChange = (panelId: string, newWidth: 'third' | 'twoThirds' | 'full') => {
+    setChartWidths((prev) => ({
+      ...prev,
+      [panelId]: newWidth,
+    }));
+  };
+
   const insights = useMemo(() => {
     const fromAI: Insight[] = (priorityInsightsFromAI ?? [])
       .filter((t) => t && String(t).trim())
@@ -608,6 +746,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     de surtido o actividad por esa dimensión.
                   </p>
                 }
+                width={chartWidths['bar-category'] ?? 'full'}
+                onWidthChange={(w) => handleWidthChange('bar-category', w)}
               >
                 <ChartBox>
                   <BarChart data={groupCount(rows, effectiveBarCol)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
@@ -627,6 +767,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 back={
                   <p>Participación de cada valor en el total de filas. Ideal para ver concentración de surtido.</p>
                 }
+                width={chartWidths['pie-family'] ?? 'full'}
+                onWidthChange={(w) => handleWidthChange('pie-family', w)}
               >
                 <ChartBox>
                   <PieChart>
@@ -660,6 +802,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     {totalLikeCol}».
                   </p>
                 }
+                width={chartWidths['revenue-monthly'] ?? 'full'}
+                onWidthChange={(w) => handleWidthChange('revenue-monthly', w)}
               >
                 <ChartBox>
                   <LineChart data={revenueByMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
@@ -694,6 +838,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 title="Top marcas por volumen"
                 subtitle="Productos por marca"
                 back={<p>Conteo de filas por columna de marca. Identifica liderazgo de surtido.</p>}
+                width={chartWidths['brands-volume'] ?? 'full'}
+                onWidthChange={(w) => handleWidthChange('brands-volume', w)}
               >
                 <ChartBox>
                   <BarChart layout="vertical" data={groupCount(rows, sem.brand, 10)} margin={{ top: 8, right: 8, left: 60, bottom: 0 }}>
@@ -730,6 +876,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   back={
                     <p>La recta y=x sería costo= precio. Puntos abajo de la diagonal suelen implicar buen margen; por encima, margen ajustado o datos raros.</p>
                   }
+                  width={chartWidths['price-cost'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('price-cost', w)}
                 >
                   {priceCostPts.length === 0 ? (
                     <ChartEmpty message="No hay filas con precio y costo numéricos. Revisa formato de moneda o columnas detectadas." />
@@ -749,6 +897,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   title="Margen % aprox. por fila (ordenado)"
                   subtitle="(Precio − costo) / precio"
                   back={<p>Margen bruto aproximado. Valida nombres de columnas y moneda en origen.</p>}
+                  width={chartWidths['margin-ordered'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('margin-ordered', w)}
                 >
                   {marginRows.length === 0 ? (
                     <ChartEmpty message="Ninguna fila con precio &gt; 0 para calcular margen." />
@@ -768,6 +918,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   title="Top filas por rentabilidad aproximada"
                   subtitle="(Precio − costo) × factor stock si existe"
                   back={<p>Ordena por mayor contribución aproximada. Revisa unidades (stock) en tu archivo.</p>}
+                  width={chartWidths['profitability-top'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('profitability-top', w)}
                 >
                   {marginRows.length === 0 ? (
                     <ChartEmpty message="Sin filas con precio y costo válidos para rentabilidad." />
@@ -790,6 +942,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   title="Dispersión de márgenes"
                   subtitle="Histograma de % margen"
                   back={<p>Agrupación de filas en rangos de margen. Detecta colas y outliers.</p>}
+                  width={chartWidths['margin-dispersion'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('margin-dispersion', w)}
                 >
                   {marginRows.length === 0 ? (
                     <ChartEmpty message="Sin márgenes calculables (se necesita precio &gt; 0 y costo)." />
@@ -844,6 +998,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 title="Stock vs mínimo (muestra)"
                 subtitle="Comparación por fila / SKU"
                 back={<p>Barras agrupadas: existencia frente a umbral. Amplía mínimos en el archivo para mayor precisión.</p>}
+                width={chartWidths['stock-min'] ?? 'full'}
+                onWidthChange={(w) => handleWidthChange('stock-min', w)}
               >
                 <ChartBox>
                   <BarChart data={pairData} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
@@ -863,6 +1019,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 title="Stock por ubicación / almacén"
                 subtitle={`Suma de «${sem.stock}»`}
                 back={<p>Distribución de inventario físico o lógico.</p>}
+                width={chartWidths['stock-warehouse'] ?? 'full'}
+                onWidthChange={(w) => handleWidthChange('stock-warehouse', w)}
               >
                 <ChartBox>
                   <BarChart layout="vertical" data={groupSum(rows, sem.warehouse, sem.stock)} margin={{ top: 8, right: 8, left: 70, bottom: 0 }}>
@@ -880,6 +1038,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 title="Tiempo de entrega por proveedor (si existe en datos)"
                 subtitle="Días promedio"
                 back={<p>Requiere columnas de proveedor y días de entrega con valores numéricos.</p>}
+                width={chartWidths['leadtime-supplier'] ?? 'full'}
+                onWidthChange={(w) => handleWidthChange('leadtime-supplier', w)}
               >
                 <ChartBox>
                   <BarChart
@@ -914,6 +1074,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   title="Volumen por proveedor"
                   subtitle="Nº de filas / productos"
                   back={<p>Conteo de filas asociadas a cada proveedor en el catálogo.</p>}
+                  width={chartWidths['supplier-volume'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('supplier-volume', w)}
                 >
                   <ChartBox>
                     <BarChart data={groupCount(rows, sem.supplier)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
@@ -930,6 +1092,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     title="Lead time promedio por proveedor"
                     subtitle="Días (media simple)"
                     back={<p>Compara proveedores según días; útil negociar plazos.</p>}
+                    width={chartWidths['leadtime-avg'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('leadtime-avg', w)}
                   >
                     <ChartBox>
                       <LineChart data={leadBySup} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
@@ -947,6 +1111,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     title="Origen por país / región"
                     subtitle={sem.country}
                     back={<p>Concentración geográfica del surtido (riesgo, compliance, lead times).</p>}
+                    width={chartWidths['country-origin'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('country-origin', w)}
                   >
                     <ChartBox>
                       <PieChart>
@@ -989,6 +1155,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     back={
                       <p>El eje Y es rating; eje X reseñas o índice. Puntos a la izquierda y arriba suelen ser activos a proteger en marca.</p>
                     }
+                    width={chartWidths['rating-volume'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('rating-volume', w)}
                   >
                     <ChartBox>
                       <ScatterChart margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -1005,6 +1173,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   title="Top calificados (muestra)"
                   subtitle="Mayor rating"
                   back={<p>Orden por rating descendente. Si hay muchos empates, cruzar con reseñas o stock.</p>}
+                  width={chartWidths['top-rated'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('top-rated', w)}
                 >
                   <ChartBox>
                     <BarChart
@@ -1028,6 +1198,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     title="Riesgo: rating bajo y stock relevante (heurística)"
                     subtitle="Filas con rating bajo y stock alto"
                     back={<p>Combinación de columnas; úsalo para campañas o liquidación con cuidado de marca.</p>}
+                    width={chartWidths['risk-rating'] ?? 'full'}
+                    onWidthChange={(w) => handleWidthChange('risk-rating', w)}
                   >
                     <p className="p-3 text-sm" style={{ color: 'var(--text2)' }}>
                       {rows.filter((r) => toNum(r[sem.rating!]) < 3 && toNum(r[sem.stock!]) > 50).length} fila(s) coinciden
@@ -1055,6 +1227,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   title="Altas o movimientos por mes"
                   subtitle="Frecuencia de filas por periodo (fecha detectada)"
                   back={<p>Se agrupa la columna de fecha al mes. Úsalo para ver ritmo de carga al catálogo.</p>}
+                  width={chartWidths['monthly-activity'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('monthly-activity', w)}
                 >
                   {byMonth.length === 0 ? (
                     <ChartEmpty message="No se pudieron leer fechas en las columnas detectadas. Prueba fechas en formato ISO, dd/mm/aaaa, o numérico Excel." />
@@ -1080,6 +1254,8 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   title="Tendencia (línea) de incorporación"
                   subtitle="Mismo agregado mensual"
                   back={<p>Tendencia simple del número de filas con fecha en cada mes.</p>}
+                  width={chartWidths['trend-line'] ?? 'full'}
+                  onWidthChange={(w) => handleWidthChange('trend-line', w)}
                 >
                   {byMonth.length === 0 ? (
                     <ChartEmpty message="Sin fechas parseables: revisa el archivo o ajusta la columna de fecha en ajustes." />
