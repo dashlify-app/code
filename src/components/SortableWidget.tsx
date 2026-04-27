@@ -259,10 +259,10 @@ function WidgetCalcExplain({
   }
 
   return (
-    <div className="calc-explain p-3 overflow-hidden flex flex-col">
-      <p className="text-[var(--text)] text-[13px] font-bold leading-tight mb-1">Cómo se calcula</p>
-      <p className="text-[var(--text2)] text-[12px] leading-tight mb-2">
-        Se usan <strong className="text-[var(--text)]">{rows.length}</strong> fila{rows.length !== 1 ? 's' : ''}{rawTotal > rows.length ? <> (de {rawTotal} antes de filtrar)</> : null}.
+    <div className="calc-explain p-2 overflow-hidden flex flex-col max-h-full">
+      <p className="text-[var(--text)] text-[12px] font-bold leading-tight">Cómo se calcula</p>
+      <p className="text-[var(--text2)] text-[11px] leading-tight mb-1">
+        <strong className="text-[var(--text)]">{rows.length}</strong> fila{rows.length !== 1 ? 's' : ''}{rawTotal > rows.length ? <> (de {rawTotal})</> : null}
       </p>
 
       <dl className="grid gap-2" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
@@ -296,13 +296,13 @@ function WidgetCalcExplain({
       )}
 
       {resolvedType !== 'scatter' && widgetType !== 'stat' && (
-        <p className="text-[var(--text2)] text-[14px] leading-relaxed">
+        <p className="text-[var(--text2)] text-[11px] leading-tight mt-1">
           Las filas se agrupan por «{xKey}». {aggregate === 'mom' || aggregate === 'cumulative' ? (
-            <>Las categorías se ordenan en <strong className="text-[var(--text)]">orden cronológico</strong> si las fechas se reconocen; se muestran hasta 15 categorías.</>
+            <>Se ordenan <strong className="text-[var(--text)]">cronológicamente</strong> (máx 15).</>
           ) : aggregate === 'count' ? (
-            <>Se ordenan por <strong className="text-[var(--text)]">número de filas</strong> (descendente) y se toman las 15 primeras.</>
+            <>Se ordenan por <strong className="text-[var(--text)]">cantidad</strong> (máx 15).</>
           ) : (
-            <>Se ordenan por <strong className="text-[var(--text)]">suma de {yKeys[0] || 'Y'}</strong> (descendente) y se toman las 15 primeras.</>
+            <>Se ordenan por <strong className="text-[var(--text)]">suma</strong> (máx 15).</>
           )}
         </p>
       )}
