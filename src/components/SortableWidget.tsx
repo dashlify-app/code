@@ -350,6 +350,7 @@ export function SortableWidget({
 
   const [expanded, setExpanded] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const persistedColSpan = normalizeColSpan(widget.config?.colSpan);
   const [localColSpan, setLocalColSpan] = useState<1 | 2 | 3>(persistedColSpan);
   useEffect(() => {
@@ -620,9 +621,7 @@ export function SortableWidget({
                     aria-label="Eliminar widget"
                     onClick={e => {
                       e.stopPropagation();
-                      if (window.confirm('¿Eliminar este widget?')) {
-                        onDelete();
-                      }
+                      setConfirmDelete(true);
                     }}
                   >
                     <Trash2 size={16} />
@@ -645,6 +644,40 @@ export function SortableWidget({
           </div>
         </div>
       </div>
+
+      {confirmDelete && onDelete && (
+        <div
+          className="dash-confirm-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`widget-confirm-del-${id}`}
+          onClick={() => setConfirmDelete(false)}
+        >
+          <div className="dash-confirm-card" onClick={(e) => e.stopPropagation()}>
+            <h2 id={`widget-confirm-del-${id}`} className="dash-confirm-title">
+              Eliminar widget
+            </h2>
+            <p className="dash-confirm-text">
+              ¿Seguro que deseas eliminar <strong>«{widget.title}»</strong>? Esta acción no se puede deshacer hasta guardar el dashboard.
+            </p>
+            <div className="dash-confirm-actions">
+              <button type="button" className="btn-sm" onClick={() => setConfirmDelete(false)}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-confirm-danger"
+                onClick={() => {
+                  setConfirmDelete(false);
+                  onDelete();
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
