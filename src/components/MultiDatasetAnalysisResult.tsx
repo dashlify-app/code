@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Check, X } from 'lucide-react';
+import { ArrowRight, Check, X, ChevronDown } from 'lucide-react';
 import { MultiDatasetAnalysis, ProposedWidget } from '@/lib/types/multiDataset';
 import RelationshipDiagram from './RelationshipDiagram';
 
@@ -10,6 +10,10 @@ interface Props {
   files: Array<{ name: string; headers: string[]; sampleData: any[] }>;
   onCreateWidgets: (widgets: ProposedWidget[]) => void;
   onBack: () => void;
+}
+
+interface ExpandedWidget {
+  [key: number]: boolean;
 }
 
 export default function MultiDatasetAnalysisResult({
@@ -21,6 +25,7 @@ export default function MultiDatasetAnalysisResult({
   const [selectedWidgets, setSelectedWidgets] = useState<Set<number>>(
     new Set(analysis.proposedWidgets.map((_, i) => i))
   );
+  const [expandedDetails, setExpandedDetails] = useState<ExpandedWidget>({});
 
   const toggleWidget = (idx: number) => {
     const next = new Set(selectedWidgets);
@@ -31,6 +36,23 @@ export default function MultiDatasetAnalysisResult({
     }
     setSelectedWidgets(next);
   };
+
+  const toggleDetails = (idx: number) => {
+    setExpandedDetails(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
+  };
+
+  // Agrupar gráficos por categoría
+  const groupedWidgets = analysis.proposedWidgets.reduce((acc, widget, idx) => {
+    const category = widget.category || '💡 General';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push({ widget, idx });
+    return acc;
+  }, {} as Record<string, Array<{ widget: ProposedWidget; idx: number }>>);
 
   const handleCreate = () => {
     const selected = Array.from(selectedWidgets)
@@ -101,88 +123,132 @@ export default function MultiDatasetAnalysisResult({
         />
       )}
 
-      {/* Gráficos Propuestos */}
-      <div className="space-y-3">
+      {/* Gráficos Propuestos - Agrupados por Categoría */}
+      <div className="space-y-4">
         <div className="text-xs font-mono opacity-70">📈 GRÁFICOS PROPUESTOS ({analysis.proposedWidgets.length})</div>
 
-        <div className="grid grid-cols-1 gap-3">
-          {analysis.proposedWidgets.map((widget, idx) => {
-            const isSelected = selectedWidgets.has(idx);
-            return (
-              <div
-                key={idx}
-                onClick={() => toggleWidget(idx)}
-                className="p-4 rounded-lg border-2 cursor-pointer transition-all"
-                style={{
-                  borderColor: isSelected ? 'var(--accent)' : 'var(--border)',
-                  background: isSelected ? 'var(--surface3)' : 'var(--surface2)',
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Checkbox */}
-                  <div
-                    className="mt-1 h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0"
+        {Object.entries(groupedWidgets).map(([category, items]) => (
+          <div key={category} className="space-y-2">
+            <div className="text-sm font-semibold px-1" style={{ color: 'var(--accent)' }}>
+              {category}
+            </div>
+            <div className="space-y-2">
+              {items.map(({ widget, idx }) => {
+                const isSelected = selectedWidgets.has(idx);
+                const isExpanded = expandedDetails[idx] || false;
+
+                return (
+                  <div key={idx} className="rounded-lg border overflow-hidden transition-all"
                     style={{
                       borderColor: isSelected ? 'var(--accent)' : 'var(--border)',
-                      background: isSelected ? 'var(--accent)' : 'transparent',
-                    }}
-                  >
-                    {isSelected && <Check size={16} style={{ color: 'var(--bg)' }} />}
-                  </div>
+                      background: isSelected ? 'var(--surface3)' : 'var(--surface2)',
+                    }}>
 
-                  {/* Contenido */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold" style={{ color: 'var(--text)' }}>
-                      {widget.title}
+                    {/* Header clickeable */}
+                    <div
+                      onClick={() => toggleWidget(idx)}
+                      className="p-4 cursor-pointer hover:opacity-80 transition-opacity flex items-start gap-3"
+                    >
+                      {/* Checkbox */}
+                      <div
+                        className="mt-1 h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0"
+                        style={{
+                          borderColor: isSelected ? 'var(--accent)' : 'var(--border)',
+                          background: isSelected ? 'var(--accent)' : 'transparent',
+                        }}
+                      >
+                        {isSelected && <Check size={16} style={{ color: 'var(--bg)' }} />}
+                      </div>
+
+                      {/* Contenido Principal */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                          {widget.title}
+                          <span className="text-xs opacity-60 font-mono">({widget.type})</span>
+                        </div>
+                        {widget.description && (
+                          <p className="text-xs opacity-70 mt-1">{widget.description}</p>
+                        )}
+                      </div>
+
+                      {/* Badge de prioridad */}
+                      <div className="flex-shrink-0 flex items-center gap-3">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"
+                          style={{
+                            background: widget.priority >= 8 ? '#dc2626' : widget.priority >= 5 ? '#f59e0b' : '#6b7280',
+                            color: 'white',
+                          }}
+                        >
+                          {widget.priority}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleDetails(idx);
+                          }}
+                          className="p-1 hover:opacity-70"
+                        >
+                          <ChevronDown
+                            size={16}
+                            style={{
+                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.2s',
+                            }}
+                          />
+                        </button>
+                      </div>
                     </div>
-                    {widget.description && (
-                      <p className="text-xs opacity-70 mt-1">{widget.description}</p>
-                    )}
 
-                    {/* Config */}
-                    <div className="mt-2 space-y-1 text-xs opacity-60 font-mono">
-                      <div>Tipo: {widget.type}</div>
-                      {widget.datasetConfig.primary && (
-                        <div>
-                          Datos: <span className="opacity-90">{widget.datasetConfig.primary}</span>
-                          {widget.datasetConfig.joins && widget.datasetConfig.joins.length > 0 && (
-                            <>
-                              {' '}
-                              {widget.datasetConfig.joins.map((j, jidx) => (
-                                <span key={jidx}>
-                                  {' '}
-                                  + <span className="opacity-90">{j.dataset}</span>
-                                </span>
+                    {/* Detalles Técnicos - Acordeón */}
+                    {isExpanded && (
+                      <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                        <div className="space-y-2 text-xs font-mono opacity-70">
+                          <div className="space-y-1">
+                            <div className="font-semibold opacity-100" style={{ color: 'var(--accent)' }}>Fuente de Datos</div>
+                            <div>Dataset principal: <span className="opacity-100">{widget.datasetConfig.primary}</span></div>
+                            {widget.datasetConfig.joins && widget.datasetConfig.joins.length > 0 && (
+                              <div>
+                                <div>Joins ({widget.datasetConfig.joins.length}):</div>
+                                <div className="ml-2 space-y-1">
+                                  {widget.datasetConfig.joins.map((j, jidx) => (
+                                    <div key={jidx}>
+                                      → {j.dataset} ({j.type || 'left'} join)
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                            <div className="font-semibold opacity-100" style={{ color: 'var(--accent)' }}>Configuración</div>
+                            {widget.config.xAxis && <div>Eje X: {widget.config.xAxis}</div>}
+                            {widget.config.yAxis && (
+                              <div>Eje Y: {Array.isArray(widget.config.yAxis) ? widget.config.yAxis.join(', ') : widget.config.yAxis}</div>
+                            )}
+                            {widget.config.aggregate && <div>Agregación: {widget.config.aggregate}</div>}
+                          </div>
+
+                          {widget.datasetConfig.calculations && widget.datasetConfig.calculations.length > 0 && (
+                            <div className="space-y-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                              <div className="font-semibold opacity-100" style={{ color: 'var(--accent)' }}>Cálculos</div>
+                              {widget.datasetConfig.calculations.map((calc, cidx) => (
+                                <div key={cidx}>
+                                  {calc.name}: {calc.aggregate}({calc.column})
+                                </div>
                               ))}
-                            </>
+                            </div>
                           )}
                         </div>
-                      )}
-                      {widget.config.xAxis && <div>X-Axis: {widget.config.xAxis}</div>}
-                      {widget.config.yAxis && (
-                        <div>Y-Axis: {Array.isArray(widget.config.yAxis) ? widget.config.yAxis.join(', ') : widget.config.yAxis}</div>
-                      )}
-                      {widget.config.aggregate && <div>Agregación: {widget.config.aggregate}</div>}
-                    </div>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Badge de prioridad */}
-                  <div className="flex-shrink-0 text-xs text-center">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"
-                      style={{
-                        background: widget.priority >= 8 ? '#dc2626' : widget.priority >= 5 ? '#f59e0b' : '#6b7280',
-                        color: 'white',
-                      }}
-                    >
-                      {widget.priority}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Botones de acción */}
