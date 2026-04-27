@@ -18,8 +18,10 @@
 -- ============================================================================
 
 -- Step 1: Add column (nullable to support gradual migration)
+-- NOTE: TEXT type matches Dataset.id (which is stored as TEXT, not native UUID).
+-- IDs are generated client-side via crypto.randomUUID() and stored as strings.
 ALTER TABLE "Widget"
-  ADD COLUMN IF NOT EXISTS "datasetId" UUID;
+  ADD COLUMN IF NOT EXISTS "datasetId" TEXT;
 
 -- Step 2: Backfill existing widgets
 -- Match by datasetName within the same organization (via Dashboard)
