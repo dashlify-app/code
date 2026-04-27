@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, Check, X } from 'lucide-react';
 import { MultiDatasetAnalysis, ProposedWidget } from '@/lib/types/multiDataset';
+import RelationshipDiagram from './RelationshipDiagram';
 
 interface Props {
   analysis: MultiDatasetAnalysis;
@@ -92,31 +93,12 @@ export default function MultiDatasetAnalysisResult({
         </div>
       </div>
 
-      {/* Relaciones Detectadas */}
+      {/* Relaciones Detectadas - Diagrama Visual */}
       {analysis.relationships.length > 0 && (
-        <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
-          <div className="text-xs font-mono mb-3 opacity-70">🔗 RELACIONES DETECTADAS</div>
-          <div className="space-y-2">
-            {analysis.relationships.map((rel, i) => {
-              const keys = Object.entries(rel.keys)
-                .map(([from, to]) => `${from.split('.')[1] || from} = ${to}`)
-                .join(', ');
-              return (
-                <div key={i} className="text-xs flex items-center gap-3 pb-2 border-b border-border opacity-80 last:border-0 last:pb-0">
-                  <div>
-                    <div className="font-semibold">{rel.from}</div>
-                    <div className="text-[11px] opacity-60">{rel.relationship}</div>
-                  </div>
-                  <ArrowRight size={16} className="opacity-50" />
-                  <div>
-                    <div className="font-semibold">{rel.to}</div>
-                    <div className="text-[11px] opacity-60">Confianza: {(rel.confidence * 100).toFixed(0)}%</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <RelationshipDiagram
+          datasets={analysis.datasets}
+          relationships={analysis.relationships}
+        />
       )}
 
       {/* Gráficos Propuestos */}
