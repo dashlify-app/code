@@ -273,18 +273,18 @@ function WidgetCalcExplain({
         .
       </p>
 
-      <dl>
-        <div>
-          <dt>Grupos (eje X)</dt>
-          <dd>{xKey || '—'}</dd>
+      <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
+        <div className="p-3 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
+          <dt className="text-xs font-mono text-[var(--text2)] uppercase mb-1">Grupos (eje X)</dt>
+          <dd className="text-sm font-medium text-blue-500">{xKey || '—'}</dd>
         </div>
-        <div>
-          <dt>Valores (eje Y)</dt>
-          <dd>{yKeys.filter(Boolean).join(', ') || '—'}</dd>
+        <div className="p-3 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
+          <dt className="text-xs font-mono text-[var(--text2)] uppercase mb-1">Valores (eje Y)</dt>
+          <dd className="text-sm font-medium text-blue-500">{yKeys.filter(Boolean).join(', ') || '—'}</dd>
         </div>
-        <div>
-          <dt>Agregación</dt>
-          <dd>{AGGREGATE_LABEL[aggregate] ?? aggregate}</dd>
+        <div className="p-3 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
+          <dt className="text-xs font-mono text-[var(--text2)] uppercase mb-1">Agregación</dt>
+          <dd className="text-sm font-medium text-blue-500">{AGGREGATE_LABEL[aggregate] ?? aggregate}</dd>
         </div>
       </dl>
 
