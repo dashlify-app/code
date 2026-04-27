@@ -1,0 +1,8 @@
+# Ignore large directories for AI indexing
+.next/
+node_modules/
+.git/
+.claude/
+*.tsbuildinfo
+package-lock.json
+public/
