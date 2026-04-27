@@ -189,6 +189,7 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
           const columnStats = computeColumnStats(file.sampleData, file.headers);
           const res = await fetch('/api/analyze', {
             method: 'POST',
+            credentials: 'include',
             body: JSON.stringify({
               headers: file.headers,
               sampleData: file.sampleData.slice(0, 5),
@@ -231,6 +232,7 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     try {
       const res = await fetch('/api/correlate', {
         method: 'POST',
+        credentials: 'include',
         body: JSON.stringify({
           datasets: files.map(f => ({ ...f, sampleData: f.sampleData.slice(0, 5) }))
         }),
@@ -276,6 +278,7 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
 
       const res = await fetch('/api/analyze-multi', {
         method: 'POST',
+        credentials: 'include',
         body: JSON.stringify({ datasets: datasetsForAnalysis }),
         headers: { 'Content-Type': 'application/json' }
       });
