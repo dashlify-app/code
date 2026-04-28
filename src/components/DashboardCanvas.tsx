@@ -348,6 +348,12 @@ function CanvasInner({
           dashboardTitle={title}
           open={shareOpen}
           onClose={() => setShareOpen(false)}
+          snapshotData={{
+            id: dashboardId,
+            title: title,
+            updatedAt: new Date().toISOString(),
+            widgets: widgets,
+          }}
         />
       )}
     </div>

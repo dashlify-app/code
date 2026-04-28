@@ -18,9 +18,15 @@ interface Props {
   dashboardTitle: string;
   open: boolean;
   onClose: () => void;
+  snapshotData?: {
+    id: string;
+    title: string;
+    updatedAt: string;
+    widgets: any[];
+  };
 }
 
-export default function ShareDashboardModal({ dashboardId, dashboardTitle, open, onClose }: Props) {
+export default function ShareDashboardModal({ dashboardId, dashboardTitle, open, onClose, snapshotData }: Props) {
   const [tokens, setTokens] = useState<EmbedTokenRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -53,14 +59,26 @@ export default function ShareDashboardModal({ dashboardId, dashboardTitle, open,
     setGenerating(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (label.trim()) params.set('label', label.trim());
-      if (expires !== 'never') params.set('expiresInDays', expires);
-      const res = await fetch(`/api/dashboards/${dashboardId}/download?${params}`);
+      if (!snapshotData) {
+        throw new Error('Los datos del dashboard no están disponibles. Recarga la página.');
+      }
+
+      // Enviar los datos actuales del dashboard al servidor
+      const res = await fetch(`/api/dashboards/${dashboardId}/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: label.trim() || undefined,
+          expiresInDays: expires !== 'never' ? parseInt(expires) : undefined,
+          snapshotData: snapshotData,
+        }),
+      });
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'No se pudo generar el archivo');
       }
+
       // Trigger download
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
