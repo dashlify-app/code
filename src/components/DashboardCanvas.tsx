@@ -20,6 +20,7 @@ import { Sparkles, Save, Palette, Share2, CheckCircle2, AlertCircle, X } from 'l
 import { SortableWidget } from './SortableWidget';
 import { FilterProvider, useFilters } from './FilterContext';
 import { cleanWidgetForSave, estimatePayloadSize } from '@/lib/cleanWidgetForSave';
+import ShareDashboardModal from './ShareDashboardModal';
 
 const THEME_CONFIG: Record<ThemeId, { canvas: string; header: string; grid: string; select: string; saveBtn: string; titleInput: string; subtitle: string }> = {
   modern: {
@@ -131,6 +132,7 @@ function CanvasInner({
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(initialTitle?.trim() || 'Nuevo Dashboard');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -266,11 +268,21 @@ function CanvasInner({
             <option value="enterprise">Tema Enterprise</option>
             <option value="dark">Tema Oscuro (Noir)</option>
           </select>
-          <button className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all ${
-            theme === 'enterprise' ? 'rounded-lg text-slate-500 hover:bg-slate-100 hover:text-sky-600' :
-            theme === 'dark' ? 'rounded-xl text-slate-300 hover:bg-slate-800' :
-            'rounded-xl text-slate-600 hover:bg-slate-50'
-          }`}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!dashboardId) {
+                showToast('Guarda primero el dashboard para poder compartirlo', 'error');
+                return;
+              }
+              setShareOpen(true);
+            }}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all ${
+              theme === 'enterprise' ? 'rounded-lg text-slate-500 hover:bg-slate-100 hover:text-sky-600' :
+              theme === 'dark' ? 'rounded-xl text-slate-300 hover:bg-slate-800' :
+              'rounded-xl text-slate-600 hover:bg-slate-50'
+            }`}
+          >
             <Share2 size={18} /> Compartir
           </button>
           <button
@@ -327,6 +339,16 @@ function CanvasInner({
             : <AlertCircle size={20} className="text-white" />}
           {toast.message}
         </div>
+      )}
+
+      {/* Share modal */}
+      {dashboardId && (
+        <ShareDashboardModal
+          dashboardId={dashboardId}
+          dashboardTitle={title}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+        />
       )}
     </div>
   );

@@ -1062,6 +1062,195 @@
   color: #ffffff;
   background: #ef4444;
 }
+
+/* ── Share Dashboard Modal ─────────────────────────────────────────── */
+.dlf-share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  animation: dlf-fadein 0.2s ease;
+}
+@keyframes dlf-fadein { from { opacity: 0; } to { opacity: 1; } }
+.dlf-share-card {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+  padding: 28px 30px 26px;
+}
+.dlf-share-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.dlf-share-close:hover { background: #f1f5f9; color: #0f172a; }
+.dlf-share-header {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.dlf-share-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dlf-share-title { font-size: 18px; font-weight: 800; letter-spacing: -0.4px; color: #0f172a; }
+.dlf-share-sub { font-size: 13px; color: #64748b; margin-top: 2px; }
+.dlf-share-body { display: flex; flex-direction: column; gap: 22px; }
+.dlf-share-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.dlf-share-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+.dlf-share-section-text { font-size: 12.5px; color: #64748b; line-height: 1.5; margin-bottom: 12px; }
+.dlf-share-form { display: flex; flex-direction: column; gap: 10px; }
+.dlf-share-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #475569;
+}
+.dlf-share-input {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.dlf-share-input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12); }
+.dlf-share-input:disabled { background: #f1f5f9; cursor: not-allowed; }
+.dlf-share-btn-primary {
+  margin-top: 4px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #0f172a;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+.dlf-share-btn-primary:hover:not(:disabled) { background: #0284c7; }
+.dlf-share-btn-primary:disabled { opacity: 0.6; cursor: wait; }
+.dlf-spin { animation: dlf-spin 1s linear infinite; }
+@keyframes dlf-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.dlf-share-error {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.dlf-share-empty {
+  padding: 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12.5px;
+}
+.dlf-share-tokens { display: flex; flex-direction: column; gap: 8px; }
+.dlf-share-token {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+.dlf-share-token.is-revoked { opacity: 0.55; }
+.dlf-share-token-main { flex: 1; min-width: 0; }
+.dlf-share-token-label { font-size: 13px; font-weight: 700; color: #0f172a; }
+.dlf-share-token-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin-top: 3px;
+  font-family: ui-monospace, monospace;
+}
+.dlf-share-token-meta span { display: inline-flex; align-items: center; gap: 3px; }
+.dlf-share-token-revoked {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.dlf-share-token-revoke {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid #fecaca;
+  background: white;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.dlf-share-token-revoke:hover { background: #ef4444; color: white; }
 #dash-admin .calc-explain {
   display: flex;
   flex-direction: column;
