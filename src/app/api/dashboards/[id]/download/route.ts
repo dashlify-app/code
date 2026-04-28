@@ -70,11 +70,15 @@ export async function GET(
   }
 
   // Determine API URL (the same origin where this request landed)
+  // Use the Host header which contains the actual request host (IP or domain)
   const host = req.headers.get('host') || 'localhost:3000';
   let origin = req.headers.get('origin');
 
   if (!origin) {
-    // Fallback: detect if localhost (development) or production
+    // Use the host header directly - this will be:
+    // - 192.168.x.x:3000 if accessed via IP (works across network)
+    // - localhost:3000 if accessed via localhost (works locally)
+    // - dashlify.app if in production
     const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
     const protocol = isLocalhost ? 'http' : 'https';
     origin = `${protocol}://${host}`;
