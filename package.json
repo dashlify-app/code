@@ -17,6 +17,7 @@
     "bcryptjs": "^3.0.3",
     "chart.js": "^4.5.1",
     "html2canvas": "^1.4.1",
+    "javascript-obfuscator": "^5.4.2",
     "lucide-react": "^1.8.0",
     "next": "16.2.4",
     "next-auth": "^4.24.14",
