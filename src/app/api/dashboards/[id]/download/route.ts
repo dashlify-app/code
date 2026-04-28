@@ -70,7 +70,8 @@ export async function GET(
   }
 
   // Determine API URL (the same origin where this request landed)
-  const origin = req.headers.get('origin') || `https://${req.headers.get('host')}`;
+  const host = req.headers.get('host') || 'localhost:3000';
+  const origin = req.headers.get('origin') || `https://${host}`;
 
   // Build template + raw JS
   const { html: shell, js: rawJs } = buildEmbedHtml({

@@ -49,13 +49,14 @@ export async function GET(
   const tokenHash = hashToken(token);
 
   // Look up token by hash
-  const { data: tokenRow } = await supabaseAdmin
+  const { data: tokenRow, error: tokenErr } = await supabaseAdmin
     .from('EmbedToken')
     .select('id, dashboardId, revokedAt, expiresAt')
     .eq('tokenHash', tokenHash)
     .single();
 
-  if (!tokenRow) {
+  if (tokenErr || !tokenRow) {
+    console.error('[embed] Token lookup failed:', { tokenErr, tokenHash: tokenHash.slice(0, 8) + '...' });
     return NextResponse.json({ error: 'Token inválido' }, { status: 401, headers: cors });
   }
 

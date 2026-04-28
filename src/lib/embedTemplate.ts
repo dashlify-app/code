@@ -250,10 +250,18 @@ function buildEmbedJs({
   }
 
   function load() {
-    fetch(_C.api + '/api/embed/' + _C.dash + '?t=' + _C.tok)
-      .then(function (r) { return r.json(); })
+    var url = _C.api + '/api/embed/' + _C.dash + '?t=' + _C.tok;
+    console.log('Fetching from:', url);
+    fetch(url)
+      .then(function (r) {
+        if (!r.ok) {
+          throw new Error('HTTP ' + r.status + ': ' + r.statusText);
+        }
+        return r.json();
+      })
       .then(function (j) {
-        if (!j.dashboard) throw new Error(j.error || 'Sin datos');
+        console.log('Response:', j);
+        if (!j.dashboard) throw new Error(j.error || 'Sin datos en respuesta');
         var d = j.dashboard;
         document.getElementById('dlf-title').textContent = d.title;
         document.getElementById('dlf-updated').textContent = new Date(d.updatedAt || Date.now()).toLocaleString();
@@ -269,8 +277,10 @@ function buildEmbedJs({
         });
       })
       .catch(function (err) {
+        console.error('Load error:', err);
         var grid = document.getElementById('dlf-grid');
-        grid.innerHTML = '<div class="dlf-error">No se pudo cargar el dashboard.<br><small>' + (err && err.message ? err.message : 'Error') + '</small></div>';
+        var msg = err && err.message ? err.message : 'Error desconocido';
+        grid.innerHTML = '<div class="dlf-error">No se pudo cargar el dashboard.<br><small>' + msg + '</small><br><small style="color:#999;font-size:10px">Abre la consola (F12) para más detalles</small></div>';
       });
   }
 

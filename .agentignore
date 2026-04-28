@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.*
+.yarn/
+coverage/
+
+# build/output
+.next/
+out/
+build/
+dist/
+.vercel/
+src/generated/prisma/
+
+# env / system
+.env
+.env.*
+.DS_Store
+*.pem
+*.log
+*.tsbuildinfo
+next-env.d.ts
+
+# heavy / agent-noise
+.claude/
+Claude.pdf
+*.pdf
+scratch/
+legacy/
+
+# optional: large or noisy generated files
+package-lock.json
