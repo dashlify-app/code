@@ -4,6 +4,38 @@ import { hashToken, isWellFormed } from '@/lib/embedToken';
 import { hydrateDashboardWidgets } from '@/lib/hydrateDashboardWidgets';
 
 /**
+ * Maps a widget from the database format to canvas format.
+ * This is the same logic used in /api/dashboards/[id] GET endpoint.
+ */
+function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unknown; datasetIndex?: number; datasetName?: string | null; datasetId?: string | null }) {
+  const cfg = (w.dataSourceConfig && typeof w.dataSourceConfig === 'object'
+    ? (w.dataSourceConfig as Record<string, unknown>)
+    : {}) as Record<string, unknown>;
+  const { title: storedTitle, ...config } = cfg;
+  const title =
+    typeof storedTitle === 'string' && storedTitle.trim() ? storedTitle : w.type;
+  const fromConfig =
+    typeof config.datasetIndex === 'number' ? config.datasetIndex : undefined;
+  const di = w.datasetIndex != null && w.datasetIndex !== undefined ? w.datasetIndex : (fromConfig ?? 0);
+  const dn = w.datasetName != null && w.datasetName !== undefined && w.datasetName !== ''
+    ? w.datasetName
+    : (typeof config.datasetName === 'string' ? config.datasetName : null);
+  const dId = w.datasetId != null && w.datasetId !== undefined && w.datasetId !== ''
+    ? w.datasetId
+    : (typeof config.datasetId === 'string' ? config.datasetId : null);
+  const category = typeof config.category === 'string' ? config.category : undefined;
+  const description = typeof config.description === 'string' ? config.description : undefined;
+  return {
+    id: w.id,
+    title,
+    type: w.type,
+    category,
+    description,
+    config: { ...config, datasetIndex: di, datasetName: dn, datasetId: dId },
+  };
+}
+
+/**
  * GET /api/embed/{dashboardId}?t={plaintextToken}
  *
  * PUBLIC endpoint consumed by downloaded HTML files.
@@ -121,25 +153,10 @@ export async function GET(
     (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  // Map to canvas shape (same logic as /api/dashboards/[id])
-  const mapped = sortedWidgets.map((w: any) => {
-    const cfg = w.dataSourceConfig || {};
-    const { title: storedTitle, ...config } = cfg;
-    return {
-      id: w.id,
-      type: w.type,
-      title: typeof storedTitle === 'string' && storedTitle.trim() ? storedTitle : w.type,
-      category: typeof config.category === 'string' ? config.category : undefined,
-      description: typeof config.description === 'string' ? config.description : undefined,
-      config: {
-        ...config,
-        datasetIndex: w.datasetIndex ?? config.datasetIndex ?? 0,
-        datasetName: w.datasetName ?? config.datasetName ?? null,
-        datasetId: w.datasetId ?? config.datasetId ?? null,
-      },
-    };
-  });
+  // Map to canvas shape using the same function as GET /api/dashboards/[id]
+  const mapped = sortedWidgets.map(mapWidgetForCanvas);
 
+  // Hydrate with dataset sampleData
   const hydrated = hydrateDashboardWidgets(mapped, datasets || []);
 
   // Bump usage stats (fire-and-forget; don't block response)
