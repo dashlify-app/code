@@ -71,7 +71,14 @@ export async function GET(
 
   // Determine API URL (the same origin where this request landed)
   const host = req.headers.get('host') || 'localhost:3000';
-  const origin = req.headers.get('origin') || `https://${host}`;
+  let origin = req.headers.get('origin');
+
+  if (!origin) {
+    // Fallback: detect if localhost (development) or production
+    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1');
+    const protocol = isLocalhost ? 'http' : 'https';
+    origin = `${protocol}://${host}`;
+  }
 
   // Build template + raw JS
   const { html: shell, js: rawJs } = buildEmbedHtml({
