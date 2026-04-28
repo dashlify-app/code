@@ -54,6 +54,17 @@ export async function GET(
     .select('*')
     .eq('dashboardId', dashboardId);
 
+  console.log('[download] Loaded widgets:', widgets?.length || 0);
+  widgets?.forEach((w, i) => {
+    console.log(`[download] Raw widget ${i} fields:`, {
+      id: w.id,
+      type: w.type,
+      datasetIndex: w.datasetIndex,
+      datasetName: w.datasetName,
+      datasetId: w.datasetId,
+    });
+  });
+
   // Load datasets
   let datasetQuery = supabaseAdmin
     .from('Dataset')
@@ -65,7 +76,37 @@ export async function GET(
     datasetQuery = datasetQuery.is('organizationId', null);
   }
 
-  const { data: datasets } = await datasetQuery;
+  const { data: datasets, error: datasetErr } = await datasetQuery;
+  if (datasetErr) {
+    console.error('[download] Dataset query error:', datasetErr);
+    return NextResponse.json({
+      error: 'Error loading datasets for snapshot: ' + (datasetErr?.message || 'Unknown error')
+    }, { status: 500 });
+  }
+
+  if (!datasets || datasets.length === 0) {
+    console.warn('[download] WARNING: No datasets found for organization', dash.organizationId);
+  }
+
+  // Debug: log dataset info - CRITICAL FOR UNDERSTANDING DATA ISSUE
+  console.log('[download] === DATASET DIAGNOSTIC ===');
+  console.log('[download] Datasets loaded:', datasets?.length || 0);
+  datasets?.forEach((ds: any) => {
+    const hasRawSchema = !!ds.rawSchema;
+    const hasSampleData = Array.isArray(ds.rawSchema?.sampleData);
+    const sampleDataLength = ds.rawSchema?.sampleData?.length || 0;
+    const sampleDataSize = JSON.stringify(ds.rawSchema?.sampleData).length;
+    console.log(`[download] Dataset: "${ds.name}" (ID: ${ds.id})`);
+    console.log(`[download]   - hasRawSchema: ${hasRawSchema}`);
+    console.log(`[download]   - hasSampleData: ${hasSampleData}`);
+    console.log(`[download]   - sampleDataLength: ${sampleDataLength} rows`);
+    console.log(`[download]   - sampleDataSize: ~${Math.round(sampleDataSize / 1024)} KB`);
+    if (!hasSampleData) {
+      console.log(`[download]   ⚠️  WARNING: No sampleData found in rawSchema!`);
+      console.log(`[download]   rawSchema keys:`, Object.keys(ds.rawSchema || {}));
+    }
+  });
+  console.log('[download] === END DATASET DIAGNOSTIC ===');
 
   // Map widgets to canvas shape
   const mapWidgetForCanvas = (w: any) => {
@@ -79,6 +120,7 @@ export async function GET(
     const dId = w.datasetId != null && w.datasetId !== '' ? w.datasetId : null;
     const category = typeof config.category === 'string' ? config.category : undefined;
     const description = typeof config.description === 'string' ? config.description : undefined;
+    console.log(`[download] Mapping widget ${w.id}: datasetId=${dId}, datasetName=${dn}, datasetIndex=${di}`);
     return {
       id: w.id,
       title,
@@ -94,13 +136,46 @@ export async function GET(
     .map(mapWidgetForCanvas);
 
   // Hydrate with snapshot data
-  const hydrated = hydrateDashboardWidgets(mapped, datasets || []);
+  console.log('[download] Before hydration - mapped widgets:');
+  mapped.forEach((w, i) => {
+    console.log(`[download] Mapped widget ${i}:`, {
+      id: w.id,
+      type: w.type,
+      datasetId: w.config?.datasetId,
+      datasetName: w.config?.datasetName,
+      datasetIndex: w.config?.datasetIndex,
+    });
+  });
+
+  // Ensure datasets have properly structured rawSchema with sampleData
+  const datasetsWithData = (datasets || []).map((ds: any) => {
+    if (!ds.rawSchema) {
+      console.warn(`[download] Dataset ${ds.id} has null rawSchema`);
+      return { ...ds, rawSchema: { sampleData: [] } };
+    }
+    if (!ds.rawSchema.sampleData) {
+      console.warn(`[download] Dataset "${ds.name}" (${ds.id}) has rawSchema but no sampleData field`);
+      return { ...ds, rawSchema: { ...ds.rawSchema, sampleData: [] } };
+    }
+    return ds;
+  });
+
+  const hydrated = hydrateDashboardWidgets(mapped, datasetsWithData);
   const snapshotData = {
     id: dash.id,
     title: dash.title,
     updatedAt: dash.updatedAt,
     widgets: hydrated,
   };
+
+  // Debug logging
+  console.log('[download] Snapshot data:');
+  console.log('[download] Datasets loaded:', datasets?.length || 0);
+  console.log('[download] Widgets in snapshot:', hydrated.length);
+  hydrated.forEach((w, i) => {
+    const sampleDataSize = Array.isArray(w.config?.sampleData) ? w.config.sampleData.length : 0;
+    console.log(`[download] Widget ${i} (${w.type}): sampleData rows: ${sampleDataSize}, datasetId: ${w.config?.datasetId}, datasetName: ${w.config?.datasetName}`);
+  });
 
   // Generate token, persist hash
   const { plaintext, hash } = generateToken();
@@ -173,9 +248,22 @@ export async function GET(
     unicodeEscapeSequence: false,
   }).getObfuscatedCode();
 
-  // Inyect snapshot data into the obfuscated JS
+  // Inject snapshot data into the obfuscated JS
+  // The snapshot data must be assigned BEFORE dlf_init() is called in the obfuscated code
   const snapshotJson = JSON.stringify(snapshotData);
-  const withSnapshot = obfuscated + `\n_DLF.snapshotData = ${snapshotJson};\ndlf_render(_DLF.snapshotData);`;
+  console.log('[download] Snapshot JSON size:', snapshotJson.length, 'bytes');
+  console.log('[download] Snapshot JSON (first 500 chars):', snapshotJson.substring(0, 500));
+
+  // Check if dlf_init() exists in obfuscated code
+  const hasInit = obfuscated.includes('dlf_init();');
+  console.log('[download] obfuscated code contains dlf_init();?', hasInit);
+
+  const withSnapshot = obfuscated.replace(
+    'dlf_init();',
+    `_DLF.snapshotData = ${snapshotJson};\ndlf_init();`
+  );
+
+  console.log('[download] After replacement, injection succeeded?', withSnapshot !== obfuscated);
 
   const finalHtml = assembleHtml(shell, withSnapshot);
 

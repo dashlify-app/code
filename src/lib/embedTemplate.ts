@@ -372,7 +372,15 @@ function dlf_disconnect() {
   if (_DLF.snapshotData) dlf_render(_DLF.snapshotData);
 }
 
-dlf_load();
+function dlf_init() {
+  if (_DLF.snapshotData) {
+    dlf_render(_DLF.snapshotData);
+  } else {
+    dlf_load();
+  }
+}
+
+dlf_init();
 `;
 }
 
