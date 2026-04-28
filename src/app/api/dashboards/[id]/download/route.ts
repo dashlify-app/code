@@ -82,27 +82,28 @@ export async function GET(
   });
 
   // Obfuscate the JS portion only
+  // Note: Simplified obfuscation for better performance. Full obfuscation can take 20+ seconds.
   const obfuscated = JavaScriptObfuscator.obfuscate(rawJs, {
     compact: true,
-    controlFlowFlattening: true,
-    controlFlowFlatteningThreshold: 0.7,
-    deadCodeInjection: true,
-    deadCodeInjectionThreshold: 0.3,
-    debugProtection: false, // avoid breaking in user's devtools — protection is via token, not anti-debug
+    // Disable slow obfuscation techniques
+    controlFlowFlattening: false,
+    deadCodeInjection: false,
+    debugProtection: false,
     disableConsoleOutput: false,
     identifierNamesGenerator: 'hexadecimal',
     log: false,
-    numbersToExpressions: true,
+    numbersToExpressions: false,
     renameGlobals: false,
-    selfDefending: true,
-    simplify: true,
+    selfDefending: false,
+    simplify: false,
+    // Keep basic string obfuscation for readability
     splitStrings: true,
-    splitStringsChunkLength: 6,
+    splitStringsChunkLength: 10,
     stringArray: true,
     stringArrayEncoding: ['base64'],
     stringArrayShuffle: true,
-    stringArrayThreshold: 0.85,
-    transformObjectKeys: true,
+    stringArrayThreshold: 0.75,
+    transformObjectKeys: false,
     unicodeEscapeSequence: false,
   }).getObfuscatedCode();
 
