@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
+import { hydrateDashboardWidgets } from '@/lib/hydrateDashboardWidgets';
 
 function mapWidgetForCanvas(w: { id: string; type: string; dataSourceConfig: unknown; datasetIndex?: number; datasetName?: string | null; datasetId?: string | null }) {
   const cfg = (w.dataSourceConfig && typeof w.dataSourceConfig === 'object'
@@ -38,19 +39,45 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   const { id } = await ctx.params;
 
-  const { data: dashboard, error } = await supabaseAdmin
+  // Load dashboard
+  const { data: dashboard, error: dashErr } = await supabaseAdmin
     .from('Dashboard')
-    .select('*, widgets:Widget(*)')
+    .select('id, title, templateId, layoutConfig, organizationId, updatedAt')
     .eq('id', id)
     .eq('userId', userId)
     .single();
 
-  if (error || !dashboard) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  if (dashErr || !dashboard) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
 
-  // Ordenar widgets manualmente ya que Supabase no soporta order en include directo fácilmente
-  const sortedWidgets = (dashboard.widgets || []).sort((a: any, b: any) => 
+  // Load widgets separately (more reliable)
+  const { data: widgets, error: widgetErr } = await supabaseAdmin
+    .from('Widget')
+    .select('*')
+    .eq('dashboardId', id);
+
+  if (widgetErr) return NextResponse.json({ error: 'Error al cargar widgets' }, { status: 500 });
+
+  // Load datasets in same scope
+  let datasetQuery = supabaseAdmin
+    .from('Dataset')
+    .select('id, name, rawSchema');
+
+  if (dashboard.organizationId) {
+    datasetQuery = datasetQuery.or(`organizationId.eq.${dashboard.organizationId},organizationId.is.null`);
+  } else {
+    datasetQuery = datasetQuery.is('organizationId', null);
+  }
+
+  const { data: datasets } = await datasetQuery;
+
+  // Sort widgets by createdAt
+  const sortedWidgets = (widgets || []).sort((a: any, b: any) =>
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
+
+  // Map and hydrate widgets with dataset data
+  const mapped = sortedWidgets.map(mapWidgetForCanvas);
+  const hydrated = hydrateDashboardWidgets(mapped, datasets || []);
 
   return NextResponse.json({
     dashboard: {
@@ -58,7 +85,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       title: dashboard.title,
       templateId: dashboard.templateId,
       layoutConfig: dashboard.layoutConfig,
-      widgets: sortedWidgets.map(mapWidgetForCanvas),
+      widgets: hydrated,
     },
   });
 }
