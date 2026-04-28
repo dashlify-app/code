@@ -75,29 +75,49 @@ export async function GET(
     return NextResponse.json({ error: 'Token expirado' }, { status: 401, headers: cors });
   }
 
-  // Load dashboard + widgets
+  // Load dashboard
   const { data: dashboard, error: dashErr } = await supabaseAdmin
     .from('Dashboard')
-    .select('id, title, templateId, organizationId, updatedAt, widgets:Widget(*)')
+    .select('id, title, templateId, organizationId, updatedAt')
     .eq('id', dashboardId)
     .single();
 
   if (dashErr || !dashboard) {
+    console.error('[embed] Dashboard query failed:', dashErr);
     return NextResponse.json({ error: 'Dashboard no encontrado' }, { status: 404, headers: cors });
   }
 
+  // Load widgets separately (more reliable than nested select)
+  const { data: widgets, error: widgetErr } = await supabaseAdmin
+    .from('Widget')
+    .select('*')
+    .eq('dashboardId', dashboardId);
+
+  if (widgetErr) {
+    console.error('[embed] Widget query failed:', widgetErr);
+    return NextResponse.json({ error: 'No se pudieron cargar los widgets' }, { status: 500, headers: cors });
+  }
+
+  const dashboardWithWidgets = { ...dashboard, widgets: widgets || [] };
+
   // Load datasets in same scope (organization or null)
-  const { data: datasets } = await supabaseAdmin
+  let datasetQuery = supabaseAdmin
     .from('Dataset')
-    .select('id, name, rawSchema')
-    .or(
-      dashboard.organizationId
-        ? `organizationId.eq.${dashboard.organizationId},organizationId.is.null`
-        : 'organizationId.is.null'
-    );
+    .select('id, name, rawSchema');
+
+  if (dashboard.organizationId) {
+    datasetQuery = datasetQuery.or(`organizationId.eq.${dashboard.organizationId},organizationId.is.null`);
+  } else {
+    datasetQuery = datasetQuery.is('organizationId', null);
+  }
+
+  const { data: datasets, error: datasetErr } = await datasetQuery;
+  if (datasetErr) {
+    console.error('[embed] Dataset query failed:', datasetErr);
+  }
 
   // Sort widgets by createdAt to keep stable ordering
-  const sortedWidgets = (dashboard.widgets || []).sort(
+  const sortedWidgets = (dashboardWithWidgets.widgets || []).sort(
     (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
