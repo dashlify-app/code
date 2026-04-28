@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 import { generateToken } from '@/lib/embedToken';
 import { buildEmbedHtml, assembleHtml } from '@/lib/embedTemplate';
+import { hydrateDashboardWidgets } from '@/lib/hydrateDashboardWidgets';
 
 /**
  * GET /api/dashboards/{id}/download?label=Foo&expiresInDays=30
@@ -36,16 +37,70 @@ export async function GET(
       ? Math.min(Math.max(parseInt(expiresInDaysParam), 1), 365)
       : null;
 
-  // Verify ownership and get dashboard title
+  // Verify ownership and load full dashboard with widgets + datasets
   const { data: dash, error: dashErr } = await supabaseAdmin
     .from('Dashboard')
-    .select('id, title')
+    .select('id, title, organizationId, updatedAt')
     .eq('id', dashboardId)
     .eq('userId', userId)
     .single();
   if (dashErr || !dash) {
     return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
   }
+
+  // Load widgets separately
+  const { data: widgets } = await supabaseAdmin
+    .from('Widget')
+    .select('*')
+    .eq('dashboardId', dashboardId);
+
+  // Load datasets
+  let datasetQuery = supabaseAdmin
+    .from('Dataset')
+    .select('id, name, rawSchema');
+
+  if (dash.organizationId) {
+    datasetQuery = datasetQuery.or(`organizationId.eq.${dash.organizationId},organizationId.is.null`);
+  } else {
+    datasetQuery = datasetQuery.is('organizationId', null);
+  }
+
+  const { data: datasets } = await datasetQuery;
+
+  // Map widgets to canvas shape
+  const mapWidgetForCanvas = (w: any) => {
+    const cfg = (w.dataSourceConfig && typeof w.dataSourceConfig === 'object'
+      ? (w.dataSourceConfig as Record<string, unknown>)
+      : {}) as Record<string, unknown>;
+    const { title: storedTitle, ...config } = cfg;
+    const title = typeof storedTitle === 'string' && storedTitle.trim() ? storedTitle : w.type;
+    const di = w.datasetIndex != null ? w.datasetIndex : 0;
+    const dn = w.datasetName != null && w.datasetName !== '' ? w.datasetName : null;
+    const dId = w.datasetId != null && w.datasetId !== '' ? w.datasetId : null;
+    const category = typeof config.category === 'string' ? config.category : undefined;
+    const description = typeof config.description === 'string' ? config.description : undefined;
+    return {
+      id: w.id,
+      title,
+      type: w.type,
+      category,
+      description,
+      config: { ...config, datasetIndex: di, datasetName: dn, datasetId: dId },
+    };
+  };
+
+  const mapped = (widgets || [])
+    .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .map(mapWidgetForCanvas);
+
+  // Hydrate with snapshot data
+  const hydrated = hydrateDashboardWidgets(mapped, datasets || []);
+  const snapshotData = {
+    id: dash.id,
+    title: dash.title,
+    updatedAt: dash.updatedAt,
+    widgets: hydrated,
+  };
 
   // Generate token, persist hash
   const { plaintext, hash } = generateToken();
@@ -118,7 +173,11 @@ export async function GET(
     unicodeEscapeSequence: false,
   }).getObfuscatedCode();
 
-  const finalHtml = assembleHtml(shell, obfuscated);
+  // Inyect snapshot data into the obfuscated JS
+  const snapshotJson = JSON.stringify(snapshotData);
+  const withSnapshot = obfuscated + `\n_DLF.snapshotData = ${snapshotJson};\ndlf_render(_DLF.snapshotData);`;
+
+  const finalHtml = assembleHtml(shell, withSnapshot);
 
   // Slugify dashboard title for filename
   const slug = (dash.title || 'dashboard')
