@@ -159,6 +159,11 @@ INSTRUCCIONES ESPECÍFICAS:
 
    ASEGÚRATE DE GENERAR AL MENOS 5. Si tienes duda, GENERA MÁS.
 
+   IMPORTANTE: Prioriza gráficos SIMPLES sobre complejos con joins:
+   - ✅ FÁCILES: Gráficos de un dataset (no requieren joins)
+   - ⚠️ DIFÍCILES: Gráficos con joins complejos entre múltiples datasets
+   Si no estás 100% seguro que el join funcionará, omite ese widget y propón otro más simple.
+
 4. **Para cada gráfico propuesto**:
    - xAxis y yAxis DEBEN tener valores reales (nunca nulos/vacíos)
    - Si necesitas un join, especifica exactamente qué columnas conectan
@@ -332,7 +337,7 @@ async function analyzeWithAI(prompt: string): Promise<{
 
 /**
  * Valida que todos los widgets tengan xAxis y yAxis válidos (no vacíos)
- * Filtra widgets con campos críticos en blanco
+ * Filtra widgets con campos críticos en blanco o configuración inválida
  */
 function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAnalysis {
   const validatedWidgets = analysis.proposedWidgets.filter(widget => {
@@ -351,13 +356,31 @@ function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAn
       }
     }
 
+    // Verificar que aggregate sea válido si está presente
+    if (widget.config.aggregate) {
+      const validAggregates = ['sum', 'avg', 'count', 'median', 'min', 'max', 'count_distinct', 'cumulative', 'mom', 'outliers'];
+      if (!validAggregates.includes(widget.config.aggregate)) {
+        console.warn(`Widget "${widget.title}" tiene aggregate inválido "${widget.config.aggregate}" - será filtrado`);
+        return false;
+      }
+    }
+
+    // Verificar que datasetConfig esté bien formado para widgets multi-dataset
+    if (widget.datasetConfig && widget.datasetConfig.joins && widget.datasetConfig.joins.length > 0) {
+      // Si tiene joins, debe tener primary dataset definido
+      if (!widget.datasetConfig.primary) {
+        console.warn(`Widget "${widget.title}" tiene joins pero no primary dataset - será filtrado`);
+        return false;
+      }
+    }
+
     return true;
   });
 
   // Si filtramos widgets, avisar
   if (validatedWidgets.length < analysis.proposedWidgets.length) {
     console.warn(
-      `Se filtraron ${analysis.proposedWidgets.length - validatedWidgets.length} widgets con campos vacíos`
+      `Se filtraron ${analysis.proposedWidgets.length - validatedWidgets.length} widgets con configuración inválida`
     );
   }
 
