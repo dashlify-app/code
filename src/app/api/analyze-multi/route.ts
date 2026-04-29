@@ -91,6 +91,7 @@ export async function POST(request: Request) {
 
 /**
  * Construye el prompt para que IA analice relaciones cruzadas
+ * VERSIÓN MEJORADA: Más agresiva en detección de relaciones, fuzzy matching avanzado
  */
 function buildAnalysisPrompt(datasets: DatasetForAnalysis[]): string {
   const datasetDescriptions = datasets
@@ -107,33 +108,74 @@ ${ds.columnStats.map(col => `- ${col.name}: tipo=${col.type}, únicos=${col.uniq
     )
     .join('\n---\n');
 
-  return `Eres un analista de datos experto. He cargado ${datasets.length} datasets relacionados.
-Tu tarea es:
+  return `Eres un analista de datos EXPERTO en detectar relaciones entre datasets, incluso cuando los nombres no coinciden exactamente.
 
-1. **Detectar relaciones**: Identifica claves comunes (ID, CustomerID, ProductID, etc.) entre datasets
-2. **Roles de tabla**: Clasifica cada dataset como "transactions" (hechos), "dimension" (dimensiones), u "other"
-3. **Proponer métricas**: Sugiere métricas derivadas que combinen datos:
-   - Sumas cruzadas (Ej: Ingresos por Cliente)
-   - Promedios (Ej: Promedio de compra por segmento)
-   - Conteos (Ej: Clientes por región)
-   - Tendencias (Ej: Crecimiento mes a mes)
+Tu objetivo: ENCONTRAR TODAS LAS RELACIONES POSIBLES y crear gráficos accionables. No dejes campos en blanco.
 
-4. **Gráficos**: Para cada métrica, propón un gráfico (bar, line, pie, scatter, stat)
-   - Máximo 6 gráficos propuestos
-   - Prioriza por impacto: 1=crítico, 10=nice-to-have
+REGLAS CRÍTICAS PARA FUZZY MATCHING:
+1. **Variaciones de ID**: Busca patrones: id, _id, ID, Id, numero, code, codigo, clave
+   Ejemplo: "id_empleado" (Dataset1) conecta con "empleado_id" (Dataset2)
+   Ejemplo: "customer_id" conecta con "customerID", "cust_id", "ClientID"
 
-IMPORTANTE para los gráficos:
-- Solo proporciona la CONFIGURACIÓN (qué campos usar, qué agregación)
-- NO hagas el procesamiento/cálculo - eso lo hace el motor local
-- config.xAxis y config.yAxis son nombres de COLUMNAS (después del join)
-- aggregate es cómo procesarlas: sum, avg, count, median
+2. **Campos de dimensión**: person, customer, product, employee, store, region, category
+   Ejemplo: "person_name" conecta con "name" en tabla de personas
+   Ejemplo: "product_code" conecta con "sku" o "product_id"
+
+3. **Patrones de valor**: Si los valores son similares (mismo rango, mismo formato), probablemente conectan
+   Ejemplo: si Dataset1.customer_num tiene valores 1001-2500 y Dataset2.cust tiene 1001-2500, conectan
+
+4. **Contexto de negocio**:
+   - Busca campos con nombres de tablas en ellos (customer_*, product_*, order_*)
+   - Si un dataset es "transacciones", busca campos de referencia
+   - Si un dataset es "maestro" (clientes, productos, empleados), sus IDs conectan
+
+5. **CUANDO HAYA AMBIGÜEDAD**:
+   - Si no estás 100% seguro, AÚN INCLÚYELO pero con confidence < 0.8
+   - Agrega un "clarificationNeeded" indicando qué campo es ambiguo
+   - Ejemplo: {"from": "ventas.id_empleado", "to": "empleados.empleado_id", "confidence": 0.75, "clarificationNeeded": "¿Confirma que id_empleado de ventas conecta con empleado_id de empleados?"}
 
 Datasets proporcionados:
 ${datasetDescriptions}
 
+INSTRUCCIONES ESPECÍFICAS:
+1. **Detecta TODAS las relaciones posibles** - no solo las obvias
+   - Busca activamente campos que puedan ser claves (IDs, códigos)
+   - Compara tipos de datos y cardinalidad
+   - Busca campos con patrones similares aunque los nombres difieran
+
+2. **Roles de tabla**: Clasifica como:
+   - "transactions": tablas de hechos, eventos, transacciones (muchas filas)
+   - "dimension": tablas maestro, catálogos (menos filas, más uniques)
+   - "fact": similar a transactions
+   - "other": si no está claro
+
+3. **Propone MÍNIMO 5, MÁXIMO 8 gráficos accionables** (SÍ, mínimo 5):
+   - Sumas cruzadas: Total/Subtotal por dimensión (2-3 gráficos)
+   - Promedios: Métrica promedio por categoría (1-2 gráficos)
+   - Conteos: Volumen de transacciones por grupo (1-2 gráficos)
+   - Top-N: Top 10 productos, clientes, empleados (1-2 gráficos)
+   - Distribuciones: Histogramas, scatter plots si hay correlaciones (1-2 gráficos)
+   - Tendencias: Evolución temporal si hay fechas (1-2 gráficos)
+
+   ASEGÚRATE DE GENERAR AL MENOS 5. Si tienes duda, GENERA MÁS.
+
+4. **Para cada gráfico propuesto**:
+   - xAxis y yAxis DEBEN tener valores reales (nunca nulos/vacíos)
+   - Si necesitas un join, especifica exactamente qué columnas conectan
+   - groupBy debe ser una columna que existe en los datos
+   - Usa aggregate: sum, avg, count, median, min, max, count_distinct
+
+5. **Validación de campos** (CRÍTICO):
+   - ANTES de incluir un campo en xAxis/yAxis, VERIFICA que existe en los datos
+   - Incluye el nombre exacto de la columna tal como aparece en los datos (case-sensitive)
+   - NUNCA dejes xAxis o yAxis en blanco - si no encontraste campo, propón otro gráfico
+   - Si necesitas un cálculo (ej: suma), usa field existente con aggregate
+   - Ejemplo CORRECTO: {"xAxis": "category", "yAxis": "sales", "aggregate": "sum"}
+   - Ejemplo INCORRECTO: {"xAxis": "", "yAxis": "total_sales"} ← ESTO SERÁ FILTRADO
+
 Responde SIEMPRE con este JSON válido (sin markdown, sin comentarios):
 {
-  "domain": "Retail|Finanzas|RRHH|etc",
+  "domain": "Retail|Finanzas|RRHH|Logística|etc",
   "narrative": "Resumen ejecutivo en 2-3 oraciones",
   "datasets": [
     {
@@ -151,7 +193,8 @@ Responde SIEMPRE con este JSON válido (sin markdown, sin comentarios):
         "dataset1.column_id": "dataset2.id"
       },
       "relationship": "many-to-one|one-to-many|one-to-one|many-to-many",
-      "confidence": 0.95
+      "confidence": 0.95,
+      "clarificationNeeded": "opcional - si hay ambigüedad, pregunta al usuario aquí"
     }
   ],
   "mainKPIs": ["KPI1", "KPI2", "KPI3"],
@@ -160,7 +203,7 @@ Responde SIEMPRE con este JSON válido (sin markdown, sin comentarios):
       "title": "Título descriptivo y accionable",
       "description": "Qué insight proporciona",
       "type": "bar|line|pie|scatter|stat|area|donut",
-      "category": "📊 Análisis Ejecutivo|🔍 Detalles|etc",
+      "category": "📊 Análisis Ejecutivo|🔍 Detalles|💡 Insights|etc",
       "priority": 1,
       "datasetConfig": {
         "primary": "archivo_principal.csv",
@@ -185,15 +228,33 @@ Responde SIEMPRE con este JSON válido (sin markdown, sin comentarios):
       },
       "config": {
         "xAxis": "columna_para_eje_x",
-        "yAxis": ["columna_para_eje_y"],
+        "yAxis": "columna_para_eje_y",
         "aggregate": "sum|avg|count"
-      }
+      },
+      "clarificationNeeded": "opcional - si necesitas confirmación del usuario sobre los campos usados, pregunta aquí"
+    }
+  ],
+  "clarificationQuestions": [
+    {
+      "relationship": "ventas.id_empleado → empleados.empleado_id",
+      "question": "¿Confirma que id_empleado de ventas conecta con empleado_id de empleados?",
+      "suggestedAnswer": "sí"
     }
   ],
   "followUpQuestion": "¿Profundizo en [tema específico]?"
 }
 
-Sé creativo pero práctico. Enfócate en gráficos que el usuario realmente necesita.`;
+CHECKLIST FINAL (MUY IMPORTANTE):
+✅ Propusiste MÍNIMO 5 gráficos (preferentemente 6-8)?
+✅ Cada gráfico tiene xAxis con valor real (no vacío)?
+✅ Cada gráfico tiene yAxis con valor real (no vacío) EXCEPTO si type='stat'?
+✅ Todos los nombres de columnas existen exactamente como aparecen en los datos?
+✅ Las relaciones detectadas tienen confidence > 0.7 o clarificationNeeded?
+✅ Los gráficos son ACCIONABLES para negocio (no random)?
+
+Si respondiste NO a cualquiera: REVISA Y CORRIGE antes de responder.
+
+El objetivo es dar al usuario gráficos LISTOS PARA USAR (5-8), no un blanco en su dashboard.`;
 }
 
 /**
@@ -218,8 +279,8 @@ async function analyzeWithAI(prompt: string): Promise<{
           content: prompt,
         },
       ],
-      temperature: 0.7,
-      max_tokens: 4000,
+      temperature: 0.8,
+      max_tokens: 6000,
     }),
   });
 
@@ -245,7 +306,11 @@ async function analyzeWithAI(prompt: string): Promise<{
       .replace(/```\n?/g, '')
       .trim();
 
-    const parsed = JSON.parse(jsonStr) as MultiDatasetAnalysis;
+    let parsed = JSON.parse(jsonStr) as MultiDatasetAnalysis;
+
+    // Validar y limpiar widgets: asegurar que no tengan campos en blanco
+    parsed = validateAndCleanWidgets(parsed);
+
     return {
       analysis: parsed,
       usage: usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
@@ -254,4 +319,41 @@ async function analyzeWithAI(prompt: string): Promise<{
     console.error('Error parsing OpenAI response:', content);
     throw new Error('Invalid JSON response from OpenAI');
   }
+}
+
+/**
+ * Valida que todos los widgets tengan xAxis y yAxis válidos (no vacíos)
+ * Filtra widgets con campos críticos en blanco
+ */
+function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAnalysis {
+  const validatedWidgets = analysis.proposedWidgets.filter(widget => {
+    // Verificar que xAxis no esté vacío
+    if (!widget.config.xAxis || widget.config.xAxis.trim() === '') {
+      console.warn(`Widget "${widget.title}" tiene xAxis vacío - será filtrado`);
+      return false;
+    }
+
+    // Para widgets que no sean tipo 'stat', verificar yAxis
+    if (widget.type !== 'stat') {
+      const yAxis = widget.config.yAxis;
+      if (!yAxis || (typeof yAxis === 'string' && yAxis.trim() === '')) {
+        console.warn(`Widget "${widget.title}" tiene yAxis vacío - será filtrado`);
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Si filtramos widgets, avisar
+  if (validatedWidgets.length < analysis.proposedWidgets.length) {
+    console.warn(
+      `Se filtraron ${analysis.proposedWidgets.length - validatedWidgets.length} widgets con campos vacíos`
+    );
+  }
+
+  return {
+    ...analysis,
+    proposedWidgets: validatedWidgets.length > 0 ? validatedWidgets : analysis.proposedWidgets,
+  };
 }
