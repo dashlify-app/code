@@ -1066,8 +1066,7 @@ function DashboardContent() {
           </p>
         </div>
         <div className="sec-hd-r">
-          <button type="button" className="btn-sm">📅 Rango</button>
-          <button type="button" className="btn-sm">⚙ Filtros</button>
+          {/* Botones RANGO y FILTROS removidos - no se utilizaban */}
         </div>
       </div>
 
