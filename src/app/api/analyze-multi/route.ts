@@ -173,6 +173,13 @@ INSTRUCCIONES ESPECÍFICAS:
    - Ejemplo CORRECTO: {"xAxis": "category", "yAxis": "sales", "aggregate": "sum"}
    - Ejemplo INCORRECTO: {"xAxis": "", "yAxis": "total_sales"} ← ESTO SERÁ FILTRADO
 
+6. **Gráficos de Línea (line)** - Regla Especial:
+   - SOLO propón type:"line" si tienes una columna de FECHA/DATETIME/AÑO-MES
+   - Busca columnas con: fecha, date, mes, month, año, year, timestamp, datetime, period
+   - Si la columna de fecha NO existe directamente, NO uses "line" - usa "bar" en su lugar
+   - Ejemplo CORRECTO: xAxis="fecha_venta", type="line", aggregate="count"
+   - Ejemplo INCORRECTO: xAxis="mes_no_existe", type="line" ← Esto quedará vacío
+
 Responde SIEMPRE con este JSON válido (sin markdown, sin comentarios):
 {
   "domain": "Retail|Finanzas|RRHH|Logística|etc",
@@ -249,6 +256,8 @@ CHECKLIST FINAL (MUY IMPORTANTE):
 ✅ Cada gráfico tiene xAxis con valor real (no vacío)?
 ✅ Cada gráfico tiene yAxis con valor real (no vacío) EXCEPTO si type='stat'?
 ✅ Todos los nombres de columnas existen exactamente como aparecen en los datos?
+✅ Si usaste type:'line', verificaste que existe una columna de FECHA en los datos?
+✅ Ningún gráfico quedará vacío (todos tienen campos válidos y datos)?
 ✅ Las relaciones detectadas tienen confidence > 0.7 o clarificationNeeded?
 ✅ Los gráficos son ACCIONABLES para negocio (no random)?
 
