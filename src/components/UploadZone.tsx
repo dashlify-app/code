@@ -60,38 +60,15 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     onWideChange,
   ]);
 
+  // NO cargar automáticamente archivos de la BD
+  // Los archivos solo se cargan cuando el usuario los sube en esta sesión
+  // Esto mantiene UploadZone limpio después de cada dashboard
   useEffect(() => {
     if (sessionStatus !== 'authenticated') {
       hasLoadedFromDb.current = false;
       setFiles([]);
       return;
     }
-    if (hasLoadedFromDb.current) return;
-    hasLoadedFromDb.current = true;
-
-    (async () => {
-      try {
-        const res = await fetch('/api/datasets', { method: 'GET' });
-        const data = await res.json();
-        if (!res.ok) return;
-        const rows = Array.isArray(data?.datasets) ? data.datasets : [];
-        const restored: DatasetPreview[] = rows.map((d: any) => {
-          const raw = d.rawSchema || {};
-          return {
-            id: d.id,
-            name: d.name,
-            size: raw?.fileMeta?.size || '',
-            type: raw?.fileMeta?.type || '',
-            headers: raw?.headers || [],
-            sampleData: raw?.sampleData || [],
-            analysis: raw?.analysis,
-          };
-        });
-        setFiles(restored);
-      } catch {
-        // ignore
-      }
-    })();
   }, [sessionStatus, session?.user]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
