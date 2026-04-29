@@ -697,17 +697,12 @@ function DashboardContent() {
   // Cargar datasets de la DB (también al abrir el modal «Cargar datos» o tras guardar un archivo)
   useEffect(() => {
     const loadDatasets = () => {
-      fetch('/api/datasets')
-        .then((r) => r.json())
-        .then((data) => {
-          const ds: Dataset[] = Array.isArray(data.datasets) ? data.datasets : [];
-          setDatasets(ds);
-          setActiveDatasetId((prev) => {
-            if (prev && ds.some((d) => d.id === prev)) return prev;
-            return ds[0]?.id ?? null;
-          });
-        })
-        .catch(() => {});
+      // NO cargar automáticamente todos los datasets históricos
+      // Solo actualizar cuando el usuario carga nuevos archivos (evento 'dashlify:datasets-changed')
+      // Esto previene un selector enorme con archivos antiguos
+
+      // Si necesitas acceder a un dataset específico, úsalo desde localStorage o desde dashboards guardados
+      setDatasets([]);
     };
     loadDatasets();
     window.addEventListener('dashlify:datasets-changed', loadDatasets);
