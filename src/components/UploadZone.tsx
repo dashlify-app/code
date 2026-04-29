@@ -155,6 +155,23 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     });
   };
 
+  const clearAllFiles = () => {
+    // Limpiar archivos cuando el usuario sale de las vistas finales (canvas, multi-analysis)
+    // NO limpiar desde vistas intermedias (copilot, catalog, correlation)
+    setFiles([]);
+    setSelectedWidgets([]);
+  };
+
+  const clearViewsOnly = () => {
+    // Limpiar solo las vistas sin tocar los archivos
+    setShowCanvas(false);
+    setShowMultiAnalysis(false);
+    setShowCopilot(false);
+    setShowCatalog(false);
+    setShowCorrelation(false);
+    setSelectedWidgets([]);
+  };
+
   const saveDatasetToDb = async (file: DatasetPreview) => {
     const res = await fetch('/api/datasets', {
       method: 'POST',
@@ -216,7 +233,11 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
       );
       setFiles(results);
       window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
-      setShowCopilot(true);
+      // ✨ NO llamar a setShowCopilot automáticamente
+      // Dejar que el usuario elija qué hacer con los archivos analizados:
+      // - Click en "Generar dashboard" → Análisis single-file
+      // - Click en "Análisis Cruzado" → Análisis multi-dataset
+      // - Click en "Vincular" → Correlations
     } catch (err) {
       console.error('Error al analizar:', err);
       const msg = err instanceof Error ? err.message : 'Error al analizar con IA';
@@ -375,6 +396,7 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
       initialWidgets={selectedWidgets}
       onSave={(final) => {
         console.log('Dashboard final guardado:', final);
+        clearAllFiles();
       }}
     />;
   }
@@ -387,18 +409,22 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
       onBack={() => {
         setShowMultiAnalysis(false);
         setMultiDatasetAnalysis(null);
+        clearViewsOnly();
       }}
     />;
   }
 
   if (showCopilot) {
-    return <DataCopilot 
-      files={files} 
+    return <DataCopilot
+      files={files}
       onProceed={(widgets) => {
         setSelectedWidgets(widgets);
         setShowCanvas(true);
         setShowCopilot(false);
-      }} 
+      }}
+      onBack={() => {
+        setShowCopilot(false);
+      }}
     />;
   }
 
@@ -422,13 +448,23 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
         setShowCanvas(true);
         setShowCatalog(false);
       }}
+      onBack={() => {
+        setShowCatalog(false);
+        setSuggestions(null);
+        clearViewsOnly();
+      }}
     />;
   }
 
   if (showCorrelation && correlation) {
-    return <CorrelationUI 
-      correlation={correlation} 
-      onApprove={getWidgetSuggestions} 
+    return <CorrelationUI
+      correlation={correlation}
+      onApprove={getWidgetSuggestions}
+      onBack={() => {
+        setShowCorrelation(false);
+        setCorrelation(null);
+        clearViewsOnly();
+      }}
     />;
   }
 
@@ -466,25 +502,27 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
           // Archivos cargados DENTRO del dropzone
           <div className="space-y-4">
             <div className="sb-label">// Archivos cargados ({files.length})</div>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {files.map((file, i) => (
-                <div key={i} className="file-row-dash">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: 'var(--surface3)', color: 'var(--accent)' }}>
-                      <File size={20} />
+                <div key={i} className="file-row-dash p-3 rounded-lg border transition-all hover:border-accent" style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
+                  <div className="flex items-start gap-2 h-full justify-between">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex h-8 w-8 items-center justify-center rounded flex-shrink-0" style={{ background: 'var(--surface3)', color: 'var(--accent)' }}>
+                        <File size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>
+                          {file.name}
+                        </p>
+                        <p className="text-[10px] font-[family-name:var(--font-dm-mono),monospace] truncate" style={{ color: 'var(--text3)' }}>
+                          {file.size} · {file.headers.length}col
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                        {file.name}
-                      </p>
-                      <p className="text-[11px] font-[family-name:var(--font-dm-mono),monospace]" style={{ color: 'var(--text3)' }}>
-                        {file.size} · {file.headers.length} columnas
-                      </p>
-                    </div>
+                    <button type="button" className="btn-sm flex-shrink-0" onClick={() => removeFile(i)} aria-label="Quitar archivo">
+                      <X size={16} />
+                    </button>
                   </div>
-                  <button type="button" className="btn-sm" onClick={() => removeFile(i)} aria-label="Quitar archivo">
-                    <X size={18} />
-                  </button>
                 </div>
               ))}
             </div>
@@ -499,59 +537,84 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
       {files.length > 0 && (
         <div className="space-y-3">
           {(() => {
-            const allAnalyzed = files.every(f => f.analysis);
             const hasUnanalyzed = files.some(f => !f.analysis);
+            const analyzedCount = files.filter(f => f.analysis).length;
+            const allAnalyzed = analyzedCount === files.length && files.length > 0;
 
             return (
-              <button
-                type="button"
-                disabled={analyzing}
-                onClick={() => {
-                  if (hasUnanalyzed) return analyzeFiles();
-                  // Con 1+ archivos analizados → ir directo a sugerir widgets
-                  return getWidgetSuggestions([]);
-                }}
-                className="btn-analyze-dash flex items-center justify-center gap-2"
-              >
-                {analyzing ? (
-                  <>
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
-                    Procesando con IA…
-                  </>
-                ) : (
-                  <>
-                    {hasUnanalyzed ? 'Analizar datos' : 'Generar dashboard con IA'}
-                    {' '}<ChevronRight size={18} />
-                  </>
+              <>
+                {/* Indicador cuando todos están analizados */}
+                {allAnalyzed && (
+                  <div className="p-2 rounded-lg text-xs text-center transition-all" style={{ background: 'var(--surface3)', color: 'var(--accent)' }}>
+                    ✅ Archivos analizados. Elige una opción de análisis abajo.
+                  </div>
                 )}
-              </button>
+
+                {/* Botón Principal */}
+                <button
+                  type="button"
+                  disabled={analyzing}
+                  onClick={() => {
+                    if (hasUnanalyzed) return analyzeFiles();
+                    return getWidgetSuggestions([]);
+                  }}
+                  className="btn-analyze-dash flex items-center justify-center gap-2 w-full"
+                >
+                  {analyzing ? (
+                    <>
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                      Procesando con IA…
+                    </>
+                  ) : (
+                    <>
+                      {hasUnanalyzed ? 'Analizar datos' : 'Generar dashboard con IA'}
+                      {' '}<ChevronRight size={18} />
+                    </>
+                  )}
+                </button>
+
+                {/* Botones secundarios - Siempre visibles cuando hay 2+ archivos */}
+                {files.length >= 2 && (
+                  <div className={`grid grid-cols-2 gap-2 transition-all ${analyzedCount >= 2 ? 'opacity-100' : 'opacity-75'}`}>
+                    <button
+                      type="button"
+                      disabled={analyzing || analyzedCount < 2}
+                      onClick={analyzeMultiDataset}
+                      className="btn-analyze-dash flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
+                      style={{
+                        background: analyzedCount >= 2 ? 'var(--accent)' : 'transparent',
+                        border: analyzedCount >= 2 ? '1px solid var(--accent)' : '1px solid var(--border2)',
+                        color: analyzedCount >= 2 ? 'var(--bg)' : 'var(--text3)',
+                        transform: analyzedCount >= 2 ? 'scale(1.02)' : 'scale(1)',
+                      }}
+                      title={analyzedCount < 2 ? 'Requiere 2+ archivos analizados' : 'Analiza relaciones cruzadas entre datasets'}
+                    >
+                      <span>📊</span>
+                      <span className="hidden sm:inline">Análisis Cruzado</span>
+                      <span className="sm:hidden text-xs">Cruzado</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={analyzing || analyzedCount < 2}
+                      onClick={findCorrelations}
+                      className="btn-analyze-dash flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
+                      style={{
+                        background: analyzedCount >= 2 ? 'var(--accent)' : 'transparent',
+                        border: analyzedCount >= 2 ? '1px solid var(--accent)' : '1px solid var(--border2)',
+                        color: analyzedCount >= 2 ? 'var(--bg)' : 'var(--text3)',
+                        transform: analyzedCount >= 2 ? 'scale(1.02)' : 'scale(1)',
+                      }}
+                      title={analyzedCount < 2 ? 'Requiere 2+ archivos analizados' : 'Vincular datasets automáticamente'}
+                    >
+                      <span>🔗</span>
+                      <span className="hidden sm:inline">Vincular</span>
+                      <span className="sm:hidden text-xs">Vincular</span>
+                    </button>
+                  </div>
+                )}
+              </>
             );
           })()}
-
-          {/* Botones opcionales si hay 2+ archivos analizados */}
-          {files.filter(f => f.analysis).length >= 2 && (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={analyzing}
-                onClick={analyzeMultiDataset}
-                className="flex-1 btn-analyze-dash flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
-                style={{ background: 'transparent', border: '1px solid var(--accent)', color: 'var(--accent)' }}
-                title="Analiza relaciones cruzadas entre datasets"
-              >
-                🔀 Análisis Cruzado
-              </button>
-              <button
-                type="button"
-                disabled={analyzing}
-                onClick={findCorrelations}
-                className="flex-1 btn-analyze-dash flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
-                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)' }}
-              >
-                🔗 Vincular datasets
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
