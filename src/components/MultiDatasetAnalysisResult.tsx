@@ -26,6 +26,7 @@ export default function MultiDatasetAnalysisResult({
     new Set(analysis.proposedWidgets.map((_, i) => i))
   );
   const [expandedDetails, setExpandedDetails] = useState<ExpandedWidget>({});
+  const [clarificationAnswers, setClarificationAnswers] = useState<Record<number, boolean>>({});
 
   const toggleWidget = (idx: number) => {
     const next = new Set(selectedWidgets);
@@ -41,6 +42,13 @@ export default function MultiDatasetAnalysisResult({
     setExpandedDetails(prev => ({
       ...prev,
       [idx]: !prev[idx]
+    }));
+  };
+
+  const handleClarificationAnswer = (idx: number, answer: boolean) => {
+    setClarificationAnswers(prev => ({
+      ...prev,
+      [idx]: answer
     }));
   };
 
@@ -123,6 +131,63 @@ export default function MultiDatasetAnalysisResult({
         />
       )}
 
+      {/* Preguntas de Clarificación */}
+      {analysis.clarificationQuestions && analysis.clarificationQuestions.length > 0 && (
+        <div className="space-y-3 p-4 rounded-lg border-2" style={{ borderColor: 'var(--accent)', background: 'var(--surface3)' }}>
+          <div className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--accent)' }}>
+            <span>❓</span>
+            <span>Confirmación de Relaciones</span>
+          </div>
+          <div className="space-y-3 text-sm">
+            {analysis.clarificationQuestions.map((q, idx) => {
+              const answered = idx in clarificationAnswers;
+              const answer = clarificationAnswers[idx];
+              return (
+                <div key={idx} className={`p-3 rounded transition-all ${answered ? (answer ? 'bg-green-500/10 border-l-4 border-green-500' : 'bg-red-500/10 border-l-4 border-red-500') : 'bg-black/20'}`}>
+                  <div className="font-semibold text-sm mb-2">{q.question}</div>
+                  {q.relationship && (
+                    <div className="text-xs opacity-70 font-mono mb-2">
+                      Relación: <span style={{ color: 'var(--accent)' }}>{q.relationship}</span>
+                    </div>
+                  )}
+                  {q.suggestedAnswer && (
+                    <div className="text-xs mb-3">
+                      <span className="opacity-60">Sugerencia: </span>
+                      <span className="font-mono" style={{ color: 'var(--accent)' }}>{q.suggestedAnswer}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleClarificationAnswer(idx, true)}
+                      className={`flex-1 px-3 py-1.5 rounded text-xs font-bold transition-all ${
+                        answered && answer
+                          ? 'bg-green-500 text-white'
+                          : 'bg-slate-200 text-slate-700 hover:bg-green-300'
+                      }`}
+                    >
+                      ✓ Sí
+                    </button>
+                    <button
+                      onClick={() => handleClarificationAnswer(idx, false)}
+                      className={`flex-1 px-3 py-1.5 rounded text-xs font-bold transition-all ${
+                        answered && !answer
+                          ? 'bg-red-500 text-white'
+                          : 'bg-slate-200 text-slate-700 hover:bg-red-300'
+                      }`}
+                    >
+                      ✗ No
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-xs opacity-70 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+            ℹ️ Confirma estas relaciones para que todos los gráficos propuestos funcionen correctamente.
+          </div>
+        </div>
+      )}
+
       {/* Gráficos Propuestos - Agrupados por Categoría */}
       <div className="space-y-4">
         <div className="text-xs font-mono opacity-70">📈 GRÁFICOS PROPUESTOS ({analysis.proposedWidgets.length})</div>
@@ -174,13 +239,17 @@ export default function MultiDatasetAnalysisResult({
                       {/* Badge de prioridad */}
                       <div className="flex-shrink-0 flex items-center gap-3">
                         <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs"
+                          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs group relative cursor-help"
                           style={{
                             background: widget.priority >= 8 ? '#dc2626' : widget.priority >= 5 ? '#f59e0b' : '#6b7280',
                             color: 'white',
                           }}
+                          title={`Prioridad: ${widget.priority}/10 ${widget.priority >= 8 ? '(Alto)' : widget.priority >= 5 ? '(Medio)' : '(Bajo)'}`}
                         >
                           {widget.priority}
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded text-xs bg-slate-900 text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            {widget.priority >= 8 ? 'Prioridad Alta' : widget.priority >= 5 ? 'Prioridad Media' : 'Prioridad Baja'}
+                          </span>
                         </div>
                         <button
                           onClick={(e) => {
