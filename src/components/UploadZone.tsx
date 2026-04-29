@@ -398,6 +398,11 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
         console.log('Dashboard final guardado:', final);
         clearAllFiles();
       }}
+      onBack={() => {
+        // Si el usuario hace "Volver" sin guardar, limpiar archivos
+        setShowCanvas(false);
+        clearAllFiles();
+      }}
     />;
   }
 

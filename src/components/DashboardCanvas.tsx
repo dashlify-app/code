@@ -112,12 +112,14 @@ function FilterBar({ theme }: { theme: ThemeId }) {
 function CanvasInner({
   initialWidgets,
   onSave,
+  onBack,
   dashboardId,
   initialTitle,
   initialTemplateId,
 }: {
   initialWidgets: any[];
   onSave: (widgets: any[]) => void;
+  onBack?: () => void;
   dashboardId?: string;
   initialTitle?: string;
   initialTemplateId?: string;
@@ -259,6 +261,19 @@ function CanvasInner({
           </div>
         </div>
         <div className="flex gap-2">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className={`px-3 py-2 text-xs font-mono font-semibold transition-all ${
+                theme === 'enterprise' ? 'text-slate-400 hover:text-sky-600' :
+                theme === 'dark' ? 'text-slate-400 hover:text-cyan-400' :
+                'text-slate-500 hover:text-slate-700'
+              }`}
+              title="Volver a la sección de carga"
+            >
+              ← Volver
+            </button>
+          )}
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value as ThemeId)}
@@ -364,6 +379,7 @@ function CanvasInner({
 export default function DashboardCanvas(props: {
   initialWidgets: any[];
   onSave: (widgets: any[]) => void;
+  onBack?: () => void;
   dashboardId?: string;
   initialTitle?: string;
   initialTemplateId?: string;
