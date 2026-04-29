@@ -214,7 +214,7 @@ Responde SIEMPRE con este JSON válido (sin markdown, sin comentarios):
     {
       "title": "Título descriptivo y accionable",
       "description": "Qué insight proporciona",
-      "type": "bar|line|pie|scatter|stat|area|donut",
+      "type": "bar|line|pie|scatter|stat|area|donut (NUNCA: table, tabla, datos, csv)",
       "category": "📊 Análisis Ejecutivo|🔍 Detalles|💡 Insights|etc",
       "priority": 1,
       "datasetConfig": {
