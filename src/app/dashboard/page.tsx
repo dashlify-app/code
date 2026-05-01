@@ -1154,7 +1154,16 @@ function DashboardContent() {
         </div>
       )}
       {hasData && viewParam === 'business' && savedVisualWidgets.length > 0 && (
-        <SavedDashboardWidgetsGrid widgets={savedVisualWidgets} />
+        <SavedDashboardWidgetsGrid
+          widgets={savedVisualWidgets}
+          rows={rows}
+          headers={headers}
+          datasetName={activeDataset?.name || ''}
+          onWidgetAdd={(newWidget) => {
+            // Add new widget to state for immediate display in canvas or here
+            setSavedVisualWidgets(prev => [...prev, newWidget]);
+          }}
+        />
       )}
 
       {/* KPI GRID — dinámicos según la vista activa */}

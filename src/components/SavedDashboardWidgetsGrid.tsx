@@ -13,6 +13,8 @@ import {
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
 import { FilterProvider } from './FilterContext';
 import { SortableWidget } from './SortableWidget';
+import { AddChartCard } from './AddChartCard';
+import { CustomChartModal, type PendingChart } from './CustomChartModal';
 
 export type SavedWidgetVM = {
   id: string;
@@ -78,8 +80,21 @@ function CategorySection({
  * Panel Visualizar: mismos gráficos que el canvas guardado, agrupados por categoría de IA (emoji + nombre).
  * Arrastrar desde el título para reordenar dentro de cada categoría.
  */
-export function SavedDashboardWidgetsGrid({ widgets }: { widgets: SavedWidgetVM[] }) {
+export function SavedDashboardWidgetsGrid({
+  widgets,
+  rows = [],
+  headers = [],
+  datasetName = '',
+  onWidgetAdd,
+}: {
+  widgets: SavedWidgetVM[];
+  rows?: Record<string, any>[];
+  headers?: string[];
+  datasetName?: string;
+  onWidgetAdd?: (widget: SavedWidgetVM) => void;
+}) {
   const [groupedState, setGroupedState] = useState<Record<string, SavedWidgetVM[]>>(() => regroupFromWidgets(widgets));
+  const [modalOpen, setModalOpen] = useState(false);
 
   const idsSignature = useMemo(() => [...widgets].map((w) => w.id).sort().join(','), [widgets]);
 
@@ -112,6 +127,36 @@ export function SavedDashboardWidgetsGrid({ widgets }: { widgets: SavedWidgetVM[
     setGroupedState((s) => ({ ...s, [category]: next }));
   }, []);
 
+  const handleAddChart = useCallback((pending: PendingChart) => {
+    const newWidget: SavedWidgetVM = {
+      id: `custom-${Date.now()}`,
+      title: pending.title,
+      type: pending.type,
+      description: pending.description,
+      category: '💡 Personalizado',
+      config: {
+        ...pending.config,
+        sampleData: rows,
+        headers: headers,
+        datasetName: datasetName,
+      },
+    };
+
+    // Update local state
+    setGroupedState((prev) => {
+      const category = '💡 Personalizado';
+      return {
+        ...prev,
+        [category]: [...(prev[category] || []), newWidget],
+      };
+    });
+
+    // Notify parent
+    if (onWidgetAdd) {
+      onWidgetAdd(newWidget);
+    }
+  }, [rows, headers, datasetName, onWidgetAdd]);
+
   if (!widgets.length) return null;
 
   const entries = Object.entries(groupedState).sort(([a], [b]) => a.localeCompare(b, 'es'));
@@ -122,7 +167,23 @@ export function SavedDashboardWidgetsGrid({ widgets }: { widgets: SavedWidgetVM[
         {entries.map(([category, items]) => (
           <CategorySection key={category} category={category} items={items} onReorder={onReorder} />
         ))}
+
+        {/* Add Chart Card */}
+        {rows.length > 0 && headers.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 lg:grid-cols-3 lg:gap-6">
+            <AddChartCard onClick={() => setModalOpen(true)} />
+          </div>
+        )}
       </div>
+
+      {/* Custom Chart Modal */}
+      <CustomChartModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={handleAddChart}
+        availableFields={headers}
+        datasetName={datasetName}
+      />
     </FilterProvider>
   );
 }
