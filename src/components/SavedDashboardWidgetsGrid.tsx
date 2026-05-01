@@ -128,6 +128,8 @@ export function SavedDashboardWidgetsGrid({
   }, []);
 
   const handleAddChart = useCallback((pending: PendingChart) => {
+    console.log('[SavedDashboardWidgetsGrid] handleAddChart called with:', pending);
+
     const newWidget: SavedWidgetVM = {
       id: `custom-${Date.now()}`,
       title: pending.title,
@@ -142,17 +144,22 @@ export function SavedDashboardWidgetsGrid({
       },
     };
 
+    console.log('[SavedDashboardWidgetsGrid] Created newWidget:', newWidget);
+
     // Update local state
     setGroupedState((prev) => {
       const category = '💡 Personalizado';
-      return {
+      const updated = {
         ...prev,
         [category]: [...(prev[category] || []), newWidget],
       };
+      console.log('[SavedDashboardWidgetsGrid] Updated groupedState:', updated);
+      return updated;
     });
 
     // Notify parent
     if (onWidgetAdd) {
+      console.log('[SavedDashboardWidgetsGrid] Calling onWidgetAdd');
       onWidgetAdd(newWidget);
     }
   }, [rows, headers, datasetName, onWidgetAdd]);

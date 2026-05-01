@@ -34,16 +34,20 @@ Eje X (dimensión): ${xField}
 Eje Y (métrica): ${yField}
 Intención del usuario: "${userDescription}"
 
-Valida si esta solicitud tiene sentido y sugiere:
-1. ¿Es una solicitud válida? (approved: true/false)
-2. ¿Qué tipo de gráfica es mejor? (bar, line, pie, stat, area)
-3. ¿Qué agregación usar? (sum, avg, count, median, cumulative, mom)
-4. Sugiere un título para la gráfica
-5. Mensaje de confirmación breve en español
+IMPORTANTE: Tu objetivo es AYUDAR al usuario a crear una gráfica viable, no rechazar su solicitud.
+Si la solicitud original no es posible exactamente como se describe, SUGIERE la gráfica más cercana que tenga sentido.
+Siempre aprueba (approved: true) si puedes crear algo útil.
+
+Responde con:
+1. approved: SIEMPRE true si hay una gráfica viable que podamos crear
+2. chartType: el tipo de gráfica que mejor se ajusta (bar, line, pie, stat, area)
+3. aggregate: la agregación apropiada (sum, avg, count, median, cumulative, mom)
+4. title: un título descriptivo para la gráfica
+5. suggestion: explicación en español de qué gráfica se creará
 
 Responde SOLO con JSON válido (sin markdown):
 {
-  "approved": boolean,
+  "approved": true,
   "chartType": "bar|line|pie|stat|area",
   "aggregate": "sum|avg|count|median|cumulative|mom",
   "title": "string",
