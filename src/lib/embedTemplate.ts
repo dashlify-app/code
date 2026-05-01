@@ -71,31 +71,144 @@ function buildEmbedShell({ title }: { title: string }): string {
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
   .dlf-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 18px;
+    auto-flow: dense;
+  }
+  @media (max-width: 1200px) {
+    .dlf-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .dlf-grid { grid-template-columns: 1fr; }
   }
   .dlf-card {
     background: white;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     padding: 18px;
-    min-height: 280px;
+    min-height: 350px;
     display: flex;
     flex-direction: column;
+    position: relative;
+    cursor: grab;
+    user-select: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .dlf-card-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .dlf-card:active { cursor: grabbing; }
+  .dlf-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .dlf-card.dragging { opacity: 0.5; z-index: 1000; }
+
+  /* Grid span support */
+  .dlf-card.span-2 { grid-column: span 2; }
+  .dlf-card.span-3 { grid-column: span 3; }
+
+  /* Flip card */
+  .dlf-card-flip-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .dlf-card-front, .dlf-card-back {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: opacity 0.4s ease;
+  }
+  .dlf-card-front {
+    opacity: 1;
+    z-index: 2;
+  }
+  .dlf-card-back {
+    opacity: 0;
+    z-index: 1;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 12px;
+    overflow-y: auto;
+    pointer-events: none;
+  }
+  .dlf-card-flip-container.flipped .dlf-card-front {
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .dlf-card-flip-container.flipped .dlf-card-back {
+    opacity: 1;
+    z-index: 2;
+    pointer-events: auto;
+  }
+
+  .dlf-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .dlf-card-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; flex: 1; }
   .dlf-card-sub { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-  .dlf-card-body { flex: 1; position: relative; min-height: 200px; }
+  .dlf-card-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .dlf-card-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .dlf-card-btn:hover { background: #f1f5f9; }
+
+  .dlf-card-body { flex: 1; position: relative; min-height: 180px; overflow: auto; }
+  .dlf-card-body canvas { max-height: 100%; max-width: 100%; }
+  .dlf-card-body > div { width: 100%; height: 100%; }
+
+  /* Back side info styling */
+  .dlf-back-info { padding: 12px 0; }
+  .dlf-back-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; color: #0f172a; }
+  .dlf-back-subtitle { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .dlf-back-text { font-size: 13px; color: #475569; margin-bottom: 12px; line-height: 1.5; }
+  .dlf-back-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .dlf-back-field { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
+  .dlf-back-field-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .dlf-back-field-value { font-size: 12px; font-weight: 600; color: #0ea5e9; }
+  .dlf-back-description { font-size: 12px; color: #64748b; line-height: 1.5; font-style: italic; }
   .dlf-stat-value { font-size: 38px; font-weight: 900; color: #0ea5e9; text-align: center; padding: 30px 0; }
   .dlf-stat-label { font-size: 11px; color: #94a3b8; text-align: center; text-transform: uppercase; letter-spacing: 1.5px; }
   .dlf-loader { display: flex; align-items: center; justify-content: center; min-height: 200px; color: #94a3b8; font-size: 12px; }
   .dlf-error { padding: 24px; text-align: center; color: #ef4444; font-size: 13px; border: 1px dashed #fca5a5; border-radius: 12px; }
+
+  /* Size selector */
+  .dlf-size-selector {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .dlf-size-btn {
+    padding: 4px 8px;
+    font-size: 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .dlf-size-btn:hover { background: #f1f5f9; }
+  .dlf-size-btn.active { background: #0ea5e9; color: white; border-color: #0ea5e9; }
+
   .dlf-footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #cbd5e1; }
   .dlf-footer a { color: #94a3b8; text-decoration: none; }
   .dlf-modal {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center;
-    z-index: 1000;
+    z-index: 10000;
   }
   .dlf-modal.open { display: flex; }
   .dlf-modal-content {
@@ -110,6 +223,13 @@ function buildEmbedShell({ title }: { title: string }): string {
   .dlf-modal-buttons { display: flex; gap: 8px; }
   .dlf-modal-btn { flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-weight: 600; }
   .dlf-modal-btn.primary { background: #0ea5e9; color: white; border-color: #0ea5e9; }
+
+  .calc-explain {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+  }
+  .calc-explain strong { color: #0f172a; }
 </style>
 </head>
 <body>
@@ -232,7 +352,7 @@ function dlf_renderChart(card, w) {
 
   var agg = dlf_aggregate(rows, xKey, yKey || xKey, type === 'pie' || type === 'donut' ? 'count' : mode);
   var body = card.querySelector('.dlf-card-body');
-  body.innerHTML = '<canvas></canvas>';
+  body.innerHTML = '<div style="position:relative; width:100%; height:100%; min-height:200px;"><canvas></canvas></div>';
   var canvas = body.querySelector('canvas');
 
   var palette = ['#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316'];
@@ -271,12 +391,67 @@ function dlf_renderChart(card, w) {
 function dlf_renderWidget(w) {
   var card = document.createElement('div');
   card.className = 'dlf-card';
+  card.id = 'widget-' + w.id;
+
+  // Apply colSpan class
+  var colSpan = w.config?.colSpan || 1;
+  if (colSpan === 2) card.classList.add('span-2');
+  if (colSpan === 3) card.classList.add('span-3');
+
   var subtype = (w.type || '').toUpperCase();
+  var flipContainerId = 'flip-' + w.id;
+
   card.innerHTML =
-    '<div class="dlf-card-title">' + (w.title || 'Widget') + '</div>' +
-    '<div class="dlf-card-sub">' + subtype + '</div>' +
-    '<div class="dlf-card-body"></div>';
+    '<div class="dlf-card-flip-container" id="' + flipContainerId + '">' +
+    '  <div class="dlf-card-front">' +
+    '    <div class="dlf-card-header">' +
+    '      <div>' +
+    '        <div class="dlf-card-title">' + (w.title || 'Widget') + '</div>' +
+    '        <div class="dlf-card-sub">' + subtype + '</div>' +
+    '      </div>' +
+    '      <div class="dlf-card-actions">' +
+    '        <button class="dlf-card-btn dlf-flip-btn" data-flip-id="' + flipContainerId + '">ℹ️</button>' +
+    '      </div>' +
+    '    </div>' +
+    '    <div class="dlf-size-selector">' +
+    '      <button class="dlf-size-btn ' + (colSpan === 1 ? 'active' : '') + '" data-widget-id="' + w.id + '" data-size="1">1/3</button>' +
+    '      <button class="dlf-size-btn ' + (colSpan === 2 ? 'active' : '') + '" data-widget-id="' + w.id + '" data-size="2">2/3</button>' +
+    '      <button class="dlf-size-btn ' + (colSpan === 3 ? 'active' : '') + '" data-widget-id="' + w.id + '" data-size="3">Full</button>' +
+    '    </div>' +
+    '    <div class="dlf-card-body"></div>' +
+    '  </div>' +
+    '  <div class="dlf-card-back">' +
+    '    <button class="dlf-card-btn dlf-flip-btn" data-flip-id="' + flipContainerId + '" style="align-self: flex-end;">✕</button>' +
+    '    <div id="explain-' + w.id + '" style="font-size: 11px; color: #64748b; flex: 1; overflow-y: auto;"></div>' +
+    '  </div>' +
+    '</div>';
   return card;
+}
+
+function dlf_toggleFlip(flipContainerId) {
+  var container = document.getElementById(flipContainerId);
+  if (container) {
+    container.classList.toggle('flipped');
+  }
+}
+
+function dlf_setSize(widgetId, newColSpan) {
+  var card = document.getElementById('widget-' + widgetId);
+  if (!card) return;
+
+  // Update classes
+  card.classList.remove('span-2', 'span-3');
+  if (newColSpan === 2) card.classList.add('span-2');
+  if (newColSpan === 3) card.classList.add('span-3');
+
+  // Update button states
+  var buttons = card.querySelectorAll('.dlf-size-btn');
+  buttons.forEach(function(btn, idx) {
+    btn.classList.remove('active');
+    if ((idx === 0 && newColSpan === 1) || (idx === 1 && newColSpan === 2) || (idx === 2 && newColSpan === 3)) {
+      btn.classList.add('active');
+    }
+  });
 }
 
 function dlf_destroyCharts() {
@@ -294,9 +469,36 @@ function dlf_render(dashboard) {
   (dashboard.widgets || []).forEach(function (w) {
     var card = dlf_renderWidget(w);
     grid.appendChild(card);
+
+    // Populate explanation on back
+    var explainDiv = document.getElementById('explain-' + w.id);
+    if (explainDiv) {
+      var cfg = w.config || {};
+      var rows = cfg.sampleData || [];
+      var xAxis = cfg.xAxis || cfg.dimension || cfg.x || '—';
+      var yAxis = cfg.yAxis || cfg.metric || cfg.y || '—';
+      var aggType = cfg.aggregation || 'sum';
+      var aggLabel = aggType === 'count' ? 'Número de filas' : aggType === 'avg' ? 'Promedio' : aggType === 'sum' ? 'Suma total' : aggType === 'min' ? 'Mínimo' : aggType === 'max' ? 'Máximo' : aggType;
+
+      var expl = '<div class="dlf-back-info">';
+      expl += '<div class="dlf-back-title">' + w.title + '</div>';
+      expl += '<div class="dlf-back-subtitle">Cómo se calcula</div>';
+      expl += '<div class="dlf-back-text">Se usan <strong>' + rows.length + ' filas</strong>.</div>';
+      expl += '<div class="dlf-back-fields">';
+      expl += '<div class="dlf-back-field"><div class="dlf-back-field-label">Grupos (Eje X)</div><div class="dlf-back-field-value">' + xAxis + '</div></div>';
+      expl += '<div class="dlf-back-field"><div class="dlf-back-field-label">Valores (Eje Y)</div><div class="dlf-back-field-value">' + yAxis + '</div></div>';
+      expl += '<div class="dlf-back-field"><div class="dlf-back-field-label">Agregación</div><div class="dlf-back-field-value">' + aggLabel + '</div></div>';
+      expl += '</div>';
+      expl += '<div class="dlf-back-description">Se agrupan por «' + xAxis + '». Se ordenan por ' + aggLabel.toLowerCase() + ' (máx 15).</div>';
+      expl += '</div>';
+      explainDiv.innerHTML = expl;
+    }
+
     if (w.type === 'stat') dlf_renderStat(card, w);
-    else dlf_renderChart(card, w);
+    else if (typeof Chart !== 'undefined') dlf_renderChart(card, w);
+    else card.querySelector('.dlf-card-body').innerHTML = '<div class="dlf-loader">Chart.js no cargado</div>';
   });
+  console.log('[dlf_render] Rendered ' + (dashboard.widgets || []).length + ' widgets');
 }
 
 function dlf_load() {
@@ -372,12 +574,85 @@ function dlf_disconnect() {
   if (_DLF.snapshotData) dlf_render(_DLF.snapshotData);
 }
 
+function dlf_enableDrag() {
+  var grid = document.getElementById('dlf-grid');
+  if (!grid) return;
+
+  var cards = grid.querySelectorAll('.dlf-card');
+  var draggedCard = null;
+  var ghostCard = null;
+
+  cards.forEach(function(card) {
+    card.addEventListener('dragstart', function(e) {
+      draggedCard = card;
+      ghostCard = card.cloneNode(true);
+      ghostCard.style.opacity = '0.5';
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setDragImage(ghostCard, 0, 0);
+      card.classList.add('dragging');
+    });
+
+    card.addEventListener('dragend', function(e) {
+      card.classList.remove('dragging');
+      draggedCard = null;
+      ghostCard = null;
+    });
+
+    card.addEventListener('dragover', function(e) {
+      if (!draggedCard || draggedCard === card) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      card.style.opacity = '0.6';
+    });
+
+    card.addEventListener('dragleave', function(e) {
+      card.style.opacity = '1';
+    });
+
+    card.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!draggedCard || draggedCard === card) return;
+
+      var parent = card.parentNode;
+      if (draggedCard.nextSibling === card) {
+        card.parentNode.insertBefore(draggedCard, card.nextSibling);
+      } else {
+        card.parentNode.insertBefore(draggedCard, card);
+      }
+      card.style.opacity = '1';
+    });
+  });
+}
+
 function dlf_init() {
   if (_DLF.snapshotData) {
     dlf_render(_DLF.snapshotData);
+    dlf_enableDrag();
   } else {
     dlf_load();
   }
+  dlf_attachEventListeners();
+}
+
+function dlf_attachEventListeners() {
+  // Flip button listeners
+  document.querySelectorAll('.dlf-flip-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var flipId = this.getAttribute('data-flip-id');
+      dlf_toggleFlip(flipId);
+    });
+  });
+
+  // Size button listeners
+  document.querySelectorAll('.dlf-size-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var widgetId = this.getAttribute('data-widget-id');
+      var size = parseInt(this.getAttribute('data-size'));
+      dlf_setSize(widgetId, size);
+    });
+  });
 }
 
 dlf_init();

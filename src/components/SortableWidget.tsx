@@ -196,10 +196,25 @@ function processData(
   return { labels: limitedLabels, datasets };
 }
 
-/** Formatea números de forma compacta ($1.2M, 45K, etc) */
-function formatValue(val: number): string {
-  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `$${(val / 1_000).toFixed(1)}K`;
+/** Detecta si una columna es de dinero */
+function isMoneyField(fieldName: string): boolean {
+  const f = (fieldName || '').toLowerCase();
+  return /precio|costo|cost|price|tarifa|rate|monto|amount|total|ingreso|revenue|venta|sales|salario|salary|pago|payment|fee|valor|value/.test(f);
+}
+
+/** Formatea números de forma compacta ($1.2M, 45K, etc) - solo con $ si es dinero */
+function formatValue(val: number, fieldName?: string): string {
+  const isMoney = fieldName ? isMoneyField(fieldName) : false;
+
+  if (isMoney) {
+    if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
+    if (val >= 1_000) return `$${(val / 1_000).toFixed(1)}K`;
+    return `$${val.toLocaleString()}`;
+  }
+
+  // Sin dinero: solo número
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
   return val.toLocaleString();
 }
 
@@ -410,13 +425,14 @@ export function SortableWidget({
     if (widget.type === 'stat') {
       const allVals = datasets[0]?.data as number[] || [];
       const total = allVals.reduce((a, b) => a + (b as number), 0);
+      const fieldName = cfg?.y || cfg?.yAxis || '';
       return (
         <div className="flex flex-col justify-center items-center h-full">
           <div className="text-sky-500 dark:text-cyan-400 font-black" style={{ fontSize: 46 }}>
-            {formatValue(total)}
+            {formatValue(total, fieldName)}
           </div>
           <div className="text-sm font-mono opacity-50 mt-1">
-            {cfg?.y || cfg?.yAxis || 'Métrica Total'}
+            {fieldName}
           </div>
           <div className="flex items-end gap-1 mt-4 h-8">
             {allVals.slice(-10).map((val, i) => {

@@ -137,6 +137,8 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     // NO limpiar desde vistas intermedias (copilot, catalog, correlation)
     setFiles([]);
     setSelectedWidgets([]);
+    // Limpiar localStorage de archivos recientes cuando se vuelve a la zona de carga
+    localStorage.removeItem('dashlify_recent_files');
   };
 
   const clearViewsOnly = () => {
@@ -209,6 +211,15 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
         })
       );
       setFiles(results);
+
+      // Guardar IDs de archivos cargados en localStorage para filtrar en el dashboard
+      const uploadedIds = results
+        .filter(r => r.id)
+        .map(r => r.id);
+      if (uploadedIds.length > 0) {
+        localStorage.setItem('dashlify_recent_files', JSON.stringify(uploadedIds));
+      }
+
       window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
       // ✨ NO llamar a setShowCopilot automáticamente
       // Dejar que el usuario elija qué hacer con los archivos analizados:

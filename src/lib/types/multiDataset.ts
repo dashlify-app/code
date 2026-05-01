@@ -30,6 +30,7 @@ export interface RelationshipDetected {
   keys: { [fromKey: string]: string }; // { ventas.customer_id: clientes.id }
   relationship: 'one-to-one' | 'one-to-many' | 'many-to-one' | 'many-to-many';
   confidence: number; // 0-1
+  clarificationNeeded?: string; // pregunta al usuario si hay ambigüedad
 }
 
 export interface ProposedWidget {
@@ -54,6 +55,16 @@ export interface ProposedWidget {
     colorColumn?: string;
     sizeColumn?: string;
   };
+
+  // Pregunta al usuario si hay ambigüedad en los campos
+  clarificationNeeded?: string;
+}
+
+export interface ClarificationQuestion {
+  relationship?: string; // "ventas.id_empleado → empleados.empleado_id"
+  question: string; // pregunta al usuario
+  suggestedAnswer?: string; // respuesta sugerida
+  widgetIndex?: number; // índice del widget si es específico para uno
 }
 
 export interface MultiDatasetAnalysis {
@@ -68,6 +79,7 @@ export interface MultiDatasetAnalysis {
   relationships: RelationshipDetected[];
   mainKPIs: string[];
   proposedWidgets: ProposedWidget[];
+  clarificationQuestions?: ClarificationQuestion[]; // preguntas para el usuario
   followUpQuestion?: string;
 }
 

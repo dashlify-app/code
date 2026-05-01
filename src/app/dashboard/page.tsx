@@ -75,23 +75,70 @@ function detectColumnTypes(headers: string[], rows: Record<string, any>[]) {
   return { numeric, dates, categorical };
 }
 
-function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) {
-  const kpiCols = numeric.slice(0, 4);
+// Detectar tipo de columna por nombre
+const isIdColumn = (col: string) => /\bid\b|identifier|código|id_/i.test(col);
+const isMoneyColumn = (col: string) => /precio|costo|cost|price|tarifa|rate|monto|amount|total|ingreso|revenue|venta|sales|salario|salary/i.test(col);
+const isQuantityColumn = (col: string) => /cantidad|cant|stock|units?|unidades|qty|estudiantes|employees|count/i.test(col);
+const isPercentColumn = (col: string) => /porcentaje|percent|%|margen|margin|tasa|rate(?!icio)|calificacion|rating/i.test(col);
+const isDateColumn = (col: string) => /fecha|date|año|year|mes|month|periodo|period/i.test(col);
+const isCategoryColumn = (col: string) => /nombre|name|categoria|category|tipo|type|departamento|department|curso|course|instructor|empleado|employee|producto|product/i.test(col);
+
+function generateDynamicKPIs(
+  rows: Record<string, any>[],
+  numeric: string[],
+  categorical: string[],
+  view: string,
+  domain: string | undefined
+) {
   const COLORS = ['blue', 'green', 'purple', 'orange'];
   const BARS   = ['#0ea5e9','#10b981','#8b5cf6','#f97316'];
   const ICONS  = ['📊','💰','📈','⚙️'];
 
-  // Detectar tipo de columna por nombre
-  const isIdColumn = (col: string) => /\bid\b|identifier|código/i.test(col);
-  const isMoneyColumn = (col: string) => /precio|costo|cost|price|tarifa|rate|monto|amount|total|ingreso|revenue|venta|sales/i.test(col);
-  const isQuantityColumn = (col: string) => /cantidad|cant|stock|units?|unidades|qty/i.test(col);
-  const isPercentColumn = (col: string) => /porcentaje|percent|%|margen|margin|tasa|rate(?!icio)/i.test(col);
+  // Seleccionar columnas relevantes según la vista
+  let selectedCols: string[] = [];
 
-  return kpiCols.map((col, i) => {
+  if (view === 'business') {
+    // Visión general: primeros 4 numéricos
+    selectedCols = numeric.slice(0, 4);
+  } else if (view === 'financial') {
+    // Financiero: columnas de dinero + margen si existe
+    selectedCols = numeric
+      .filter(col => isMoneyColumn(col) || isPercentColumn(col))
+      .slice(0, 4);
+    if (selectedCols.length === 0) selectedCols = numeric.slice(0, 4);
+  } else if (view === 'inventory') {
+    // Inventario: stock, cantidades, alertas
+    selectedCols = numeric
+      .filter(col => isQuantityColumn(col) || isPercentColumn(col))
+      .slice(0, 4);
+    if (selectedCols.length === 0) selectedCols = numeric.slice(0, 4);
+  } else if (view === 'quality') {
+    // Calidad/marca: ratings, porcentajes
+    selectedCols = numeric
+      .filter(col => isPercentColumn(col) || isMoneyColumn(col))
+      .slice(0, 4);
+    if (selectedCols.length === 0) selectedCols = numeric.slice(0, 4);
+  } else if (view === 'temporal') {
+    // Temporal: cambios, tendencias
+    selectedCols = numeric
+      .filter(col => !isIdColumn(col))
+      .slice(0, 4);
+  } else {
+    // Por defecto
+    selectedCols = numeric.slice(0, 4);
+  }
+
+  // Si no hay numéricos, usar categoriales (conteos)
+  if (selectedCols.length === 0 && categorical.length > 0) {
+    selectedCols = categorical.slice(0, 4);
+  }
+
+  return selectedCols.map((col, i) => {
     const vals = rows.map(r => toNum(r[col])).filter(v => !isNaN(v));
     const total = vals.reduce((a, b) => a + b, 0);
     const avg   = vals.length ? total / vals.length : 0;
     const max   = vals.length ? Math.max(...vals) : 0;
+    const min   = vals.length ? Math.min(...vals) : 0;
     const count = vals.length;
 
     // Detectar si tiene % en los datos
@@ -99,40 +146,49 @@ function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) 
 
     let displayVal: string;
     let metricType: string;
+    let description: string;
 
-    // Lógica de formateo por tipo de columna
+    // Lógica inteligente por tipo de columna
     if (isIdColumn(col)) {
-      // IDs: mostrar COUNT, no suma
-      displayVal = count.toString();
+      // IDs: contar únicos
+      const unique = new Set(vals.map(v => String(v))).size;
+      displayVal = unique.toString();
       metricType = 'count';
+      description = `${unique} registros únicos`;
     } else if (dataHasPercent || isPercentColumn(col)) {
-      // Porcentajes: mostrar promedio
+      // Porcentajes: promedio
       displayVal = `${avg.toFixed(1)}%`;
       metricType = 'percent';
+      description = `Promedio: ${avg.toFixed(1)}% (Min: ${min.toFixed(1)}%, Max: ${max.toFixed(1)}%)`;
     } else if (isMoneyColumn(col)) {
-      // Moneda: mostrar suma con $
+      // Moneda: suma + promedio
+      const avgMoney = total > 1_000_000
+        ? `$${(avg/1_000_000).toFixed(2)}M`
+        : avg > 1_000
+        ? `$${(avg/1_000).toFixed(1)}K`
+        : `$${avg.toFixed(0)}`;
       displayVal = total > 1_000_000
         ? `$${(total/1_000_000).toFixed(2)}M`
         : total > 1_000
         ? `$${(total/1_000).toFixed(1)}K`
         : `$${total.toFixed(0)}`;
       metricType = 'money';
+      description = `Total: ${displayVal} | Promedio: ${avgMoney}`;
     } else if (isQuantityColumn(col)) {
-      // Cantidad: mostrar suma sin $
+      // Cantidad: suma + promedio
+      const avgQty = avg.toFixed(1);
       displayVal = total > 1_000_000
         ? `${(total/1_000_000).toFixed(2)}M`
         : total > 1_000
         ? `${(total/1_000).toFixed(1)}K`
         : total.toFixed(0);
       metricType = 'quantity';
+      description = `Total: ${displayVal} | Promedio: ${avgQty}`;
     } else {
-      // Por defecto: mostrar suma con formato inteligente
-      displayVal = total > 1_000_000
-        ? `$${(total/1_000_000).toFixed(2)}M`
-        : total > 1_000
-        ? `$${(total/1_000).toFixed(1)}K`
-        : total.toFixed(0);
-      metricType = 'default';
+      // Datos categóricos o desconocidos: contar
+      displayVal = count.toString();
+      metricType = 'count';
+      description = `${count} items`;
     }
 
     const pct = Math.min(100, Math.round((total / (max * count || 1)) * 100));
@@ -140,12 +196,12 @@ function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) 
     return {
       label: col,
       value: displayVal,
-      delta: `${count} registros`,
+      delta: description,
       dir: 'up' as const,
-      color: COLORS[i],
-      icon: ICONS[i],
+      color: COLORS[i % COLORS.length],
+      icon: ICONS[i % ICONS.length],
       pct: pct || 50,
-      bar: BARS[i],
+      bar: BARS[i % BARS.length],
       isPercent: dataHasPercent || isPercentColumn(col),
       valueCount: count,
       metricType,
@@ -153,7 +209,7 @@ function calcKPIs(rows: Record<string, any>[], numeric: string[], name: string) 
   });
 }
 
-type KpiData = ReturnType<typeof calcKPIs>[number];
+type KpiData = ReturnType<typeof generateDynamicKPIs>[number];
 
 function KpiFlippableCard({
   k,
@@ -697,12 +753,29 @@ function DashboardContent() {
   // Cargar datasets de la DB (también al abrir el modal «Cargar datos» o tras guardar un archivo)
   useEffect(() => {
     const loadDatasets = () => {
-      // NO cargar automáticamente todos los datasets históricos
-      // Solo actualizar cuando el usuario carga nuevos archivos (evento 'dashlify:datasets-changed')
-      // Esto previene un selector enorme con archivos antiguos
+      fetch('/api/datasets')
+        .then((r) => r.json())
+        .then((data) => {
+          let ds: Dataset[] = Array.isArray(data.datasets) ? data.datasets : [];
 
-      // Si necesitas acceder a un dataset específico, úsalo desde localStorage o desde dashboards guardados
-      setDatasets([]);
+          // Filtrar: mostrar solo los archivos cargados recientemente en esta sesión
+          const recentIds = localStorage.getItem('dashlify_recent_files');
+          if (recentIds) {
+            try {
+              const ids = JSON.parse(recentIds) as string[];
+              ds = ds.filter(d => ids.includes(d.id));
+            } catch (e) {
+              // Si hay error al parsear, mostrar todos
+            }
+          }
+
+          setDatasets(ds);
+          setActiveDatasetId((prev) => {
+            if (prev && ds.some((d) => d.id === prev)) return prev;
+            return ds[0]?.id ?? null;
+          });
+        })
+        .catch(() => {});
     };
     loadDatasets();
     window.addEventListener('dashlify:datasets-changed', loadDatasets);
@@ -796,14 +869,19 @@ function DashboardContent() {
   const rows    = (activeDataset?.rawSchema?.sampleData ?? []) as Record<string, any>[];
   const headers = activeDataset?.rawSchema?.headers ?? [];
   const types   = detectColumnTypes(headers, rows);
-  const kpis    = rows.length > 0 && types.numeric.length > 0
-    ? calcKPIs(rows, types.numeric, activeDataset?.name ?? '')
-    : [];
+
+  // KPIs dinámicos según la vista y los datos
+  const [aiLayer, setAiLayer] = useState<AISchemaInterpretation | null>(null);
+  const kpis = useMemo(
+    () => rows.length > 0 && (types.numeric.length > 0 || types.categorical.length > 0)
+      ? generateDynamicKPIs(rows, types.numeric, types.categorical, viewParam, aiLayer?.domain)
+      : [],
+    [rows, types.numeric, types.categorical, viewParam, aiLayer?.domain]
+  );
 
   const hasData = rows.length > 0 && headers.length > 0;
   /** Con datos cargados, la subida solo se muestra con ?action=upload (clic en «Cargar datos» en el header). */
   const showUploadZone = !hasData || params.get('action') === 'upload';
-  const [aiLayer, setAiLayer] = useState<AISchemaInterpretation | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   const headerSig = useMemo(() => buildHeadersSignature(headers), [headers]);
@@ -1079,8 +1157,8 @@ function DashboardContent() {
         <SavedDashboardWidgetsGrid widgets={savedVisualWidgets} />
       )}
 
-      {/* KPI GRID — resumen en vista "Visión general" */}
-      {hasData && viewParam === 'business' && kpis.length > 0 && (
+      {/* KPI GRID — dinámicos según la vista activa */}
+      {hasData && kpis.length > 0 && (
         <div className="kpi-grid">
           {kpis.map(k => (
             <KpiFlippableCard

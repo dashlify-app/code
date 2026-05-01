@@ -47,6 +47,7 @@ const newId = () => `custom-${++customIdCounter}-${Date.now()}`;
 export default function WidgetCatalog({
   suggestions,
   onSave,
+  onBack,
   availableHeaders = [],
   sampleData = [],
   sampleDataByFile = {},
@@ -54,6 +55,7 @@ export default function WidgetCatalog({
 }: {
   suggestions: WidgetSuggestion[];
   onSave: (selected: any[]) => void;
+  onBack?: () => void;
   availableHeaders?: string[];
   sampleData?: Record<string, any>[];
   /** Por nombre de archivo: filas para que cada widget use el dataset correcto en cargas múltiples */

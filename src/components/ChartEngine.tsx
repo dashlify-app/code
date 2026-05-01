@@ -70,10 +70,18 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
       label: (context: any) => {
         const val = context.parsed?.y ?? context.parsed ?? 0;
         const t = (title || '').toLowerCase();
+        const l = (context.dataset.label || '').toLowerCase();
         const label = context.dataset.label || '';
-        if (t.includes('tiempo') || t.includes('entrega') || t.includes(' d.')) return `${label}: ${Number(val).toFixed(1)} d`;
-        if (t.includes('%') || t.includes('margen') || t.includes('mom')) return `${label}: ${Number(val).toFixed(1)}%`;
-        if (Number(val) >= 1000) return `${label}: $${Number(val).toLocaleString()}`;
+
+        // Detectar tipo de columna
+        const isTime = t.includes('tiempo') || t.includes('entrega') || t.includes(' d.');
+        const isPercent = t.includes('%') || t.includes('margen') || t.includes('mom') || l.includes('calificacion') || l.includes('rating');
+        const isMoney = t.includes('costo') || t.includes('precio') || t.includes('salario') || t.includes('cost') || t.includes('price') || t.includes('salary') || t.includes('revenue') || t.includes('ingreso') || t.includes('venta') || l.includes('costo') || l.includes('precio') || l.includes('salario');
+
+        if (isTime) return `${label}: ${Number(val).toFixed(1)} d`;
+        if (isPercent) return `${label}: ${Number(val).toFixed(1)}%`;
+        if (isMoney && Number(val) >= 1000) return `${label}: $${Number(val).toLocaleString()}`;
+        if (isMoney) return `${label}: $${Number(val).toFixed(2)}`;
         return `${label}: ${Number(val).toLocaleString()}`;
       }
     }

@@ -26,10 +26,12 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 
 export default function DataCopilot({
   files,
-  onProceed
+  onProceed,
+  onBack
 }: {
   files: any[];
   onProceed: (selectedWidgets: GeneratedWidget[]) => void;
+  onBack?: () => void;
 }) {
   const analysis = files[0]?.analysis;
   const initialText = analysis?.narrative || analysis?.description || 'He analizado tus datos.';
@@ -153,14 +155,26 @@ export default function DataCopilot({
     <div className="flex h-full min-h-0 w-full min-w-0 max-h-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xl animate-in fade-in zoom-in-95 duration-500">
       {/* LEFT: Chat Area */}
       <div className="flex min-h-0 w-1/2 min-w-0 flex-col border-r border-slate-100 bg-slate-50/50">
-        <div className="p-4 border-b border-slate-100 bg-white flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
-            <Sparkles size={20} />
+        <div className="p-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900">Dashlify Copilot</h3>
+              <p className="text-xs text-slate-500">Tu analista de datos IA</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-slate-900">Dashlify Copilot</h3>
-            <p className="text-xs text-slate-500">Tu analista de datos IA</p>
-          </div>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="text-xs font-mono font-semibold px-3 py-1.5 rounded border transition-all"
+              style={{ borderColor: 'var(--border)', color: 'var(--text2)' }}
+              title="Volver para elegir otro tipo de análisis"
+            >
+              ← Volver
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">

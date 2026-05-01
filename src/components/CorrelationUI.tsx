@@ -18,12 +18,14 @@ interface CorrelationResult {
   recommendedLabel: string;
 }
 
-export default function CorrelationUI({ 
-  correlation, 
-  onApprove 
-}: { 
-  correlation: CorrelationResult; 
+export default function CorrelationUI({
+  correlation,
+  onApprove,
+  onBack
+}: {
+  correlation: CorrelationResult;
   onApprove: (approved: Relationship[]) => void;
+  onBack?: () => void;
 }) {
   const [approvedIndices, setApprovedIndices] = useState<number[]>([]);
 
