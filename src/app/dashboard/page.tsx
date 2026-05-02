@@ -19,6 +19,7 @@ import type { AISchemaInterpretation, CachedSchemaInterpretation } from '@/lib/a
 import { computeColumnStats } from '@/lib/columnStats';
 import { SemanticViewCharts } from '@/components/SemanticViewCharts';
 import { SavedDashboardWidgetsGrid } from '@/components/SavedDashboardWidgetsGrid';
+import { CustomChartModal, type PendingChart } from '@/components/CustomChartModal';
 import { hydrateDashboardWidgets } from '@/lib/hydrateDashboardWidgets';
 import type { SavedWidgetVM } from '@/components/SavedDashboardWidgetsGrid';
 
@@ -749,6 +750,7 @@ function DashboardContent() {
   const [hasSavedDashboard, setHasSavedDashboard] = useState(false);
   const [dashboardsListLoaded, setDashboardsListLoaded] = useState(false);
   const [savedVisualWidgets, setSavedVisualWidgets] = useState<SavedWidgetVM[]>([]);
+  const [chartModalOpen, setChartModalOpen] = useState(false);
 
   // Cargar datasets de la DB (también al abrir el modal «Cargar datos» o tras guardar un archivo)
   useEffect(() => {
@@ -1025,6 +1027,24 @@ function DashboardContent() {
     headers,
   ]);
 
+  const handleAddChart = (pending: PendingChart) => {
+    const newWidget: SavedWidgetVM = {
+      id: `custom-${Date.now()}`,
+      title: pending.title,
+      type: pending.type,
+      description: pending.description,
+      category: '💡 Personalizado',
+      config: {
+        ...pending.config,
+        sampleData: rows,
+        headers: headers,
+        datasetName: activeDataset?.name || '',
+      },
+    };
+
+    setSavedVisualWidgets(prev => [...prev, newWidget]);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" style={{color:'var(--text3)'}}>
@@ -1139,7 +1159,37 @@ function DashboardContent() {
           </p>
         </div>
         <div className="sec-hd-r">
-          {/* Botones RANGO y FILTROS removidos - no se utilizaban */}
+          {hasData && rows.length > 0 && headers.length > 0 && (
+            <button
+              onClick={() => setChartModalOpen(true)}
+              style={{
+                padding: '10px 20px',
+                border: 'none',
+                borderRadius: '12px',
+                background: 'var(--accent, #0ea5e9)',
+                color: 'white',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                const btn = e.currentTarget;
+                btn.style.transform = 'scale(1.02)';
+                btn.style.boxShadow = '0 4px 12px rgba(14, 165, 233, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                const btn = e.currentTarget;
+                btn.style.transform = 'scale(1)';
+                btn.style.boxShadow = 'none';
+              }}
+            >
+              <span>+ Crear nueva gráfica con datos de dashboard</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1210,6 +1260,15 @@ function DashboardContent() {
           <UploadZone />
         </div>
       )}
+
+      {/* Custom Chart Modal */}
+      <CustomChartModal
+        open={chartModalOpen}
+        onClose={() => setChartModalOpen(false)}
+        onConfirm={handleAddChart}
+        availableFields={headers}
+        datasetName={activeDataset?.name || ''}
+      />
     </>
   );
 }

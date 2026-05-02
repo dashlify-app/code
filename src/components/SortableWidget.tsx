@@ -364,7 +364,21 @@ export function SortableWidget({
   };
 
   const [expanded, setExpanded] = useState(false);
+  // Paleta de colores por defecto (debe coincidir con ChartEngine)
+  const DEFAULT_PALETTE = [
+    '#0ea5e9', // azul
+    '#8b5cf6', // púrpura
+    '#ec4899', // rosa
+    '#10b981', // verde
+    '#f97316', // naranja
+  ];
+
   const [flipped, setFlipped] = useState(false);
+  const [showColorCustomizer, setShowColorCustomizer] = useState(false);
+  // Inicializar customColors desde la config guardada o array vacío
+  const [customColors, setCustomColors] = useState<string[]>(() => {
+    return (widget.config?.customColors as string[]) || [];
+  });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const persistedColSpan = normalizeColSpan(widget.config?.colSpan);
   const [localColSpan, setLocalColSpan] = useState<1 | 2 | 3>(persistedColSpan);
@@ -469,6 +483,7 @@ export function SortableWidget({
               ? (label) => setFilter(String(xAxisCol), label)
               : undefined
           }
+          customColors={customColors.length > 0 ? customColors : undefined}
         />
       </div>
     );
@@ -480,6 +495,22 @@ export function SortableWidget({
       : colSpan === 2
         ? 'lg:col-span-2'
         : 'lg:col-span-1';
+
+  // Extraer información para personalización de colores
+  const cfg = widget.config ?? {};
+  const rows: Record<string, any>[] = cfg?.sampleData ?? [];
+  const xKey = findRealKey(rows[0] ?? {}, cfg?.x || cfg?.xAxis);
+  const yAxisRawConfig = cfg?.y || cfg?.yAxis;
+  const yKeysForColors = Array.isArray(yAxisRawConfig)
+    ? yAxisRawConfig.map(k => String(k))
+    : [String(yAxisRawConfig || 'Valor')];
+
+  // Para gráficas de distribución (pie, donut), mostrar colores por categoría del eje X
+  // En otros casos, mostrar colores por serie del eje Y
+  const isDistributionChart = ['pie', 'donut'].includes(widget.type);
+  const colorLabels = isDistributionChart
+    ? Array.from(new Set(rows.map(r => String(r[xKey] ?? '—')))).filter(v => v !== '—')
+    : yKeysForColors;
 
   // Resaltar visualmente si este widget tiene un filtro activo
   const xAxisCol = widget.config?.x || widget.config?.xAxis;
@@ -614,21 +645,135 @@ export function SortableWidget({
 
             <div className="widget-face widget-face-back h-full">
               <div className="chart-card widget-flip-back relative flex h-full min-h-[320px] min-w-0 flex-col">
-                <div className="chart-hd">
-                  <div>
-                    <div className="chart-title">{widget.title}</div>
-                    <div className="chart-sub" style={{ marginTop: 3 }}>
-                      Cómo se calcula
+                {!showColorCustomizer ? (
+                  <>
+                    <div className="chart-hd">
+                      <div>
+                        <div className="chart-title">{widget.title}</div>
+                        <div className="chart-sub" style={{ marginTop: 3 }}>
+                          Cómo se calcula
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="widget-explain-body">
-                  <WidgetCalcExplain
-                    config={widget.config}
-                    widgetType={widget.type}
-                    activeFilters={activeFilters}
-                  />
-                </div>
+                    <div className="widget-explain-body">
+                      <WidgetCalcExplain
+                        config={widget.config}
+                        widgetType={widget.type}
+                        activeFilters={activeFilters}
+                      />
+                    </div>
+                    <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                      <button
+                        type="button"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          background: 'var(--accent, #0ea5e9)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          marginBottom: 8
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowColorCustomizer(true);
+                        }}
+                      >
+                        🎨 Personalizar colores
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="chart-hd">
+                      <div>
+                        <div className="chart-title">{widget.title}</div>
+                        <div className="chart-sub" style={{ marginTop: 3 }}>
+                          Personalizar colores
+                        </div>
+                      </div>
+                    </div>
+                    <div className="widget-explain-body" style={{ flex: 1, overflow: 'auto' }}>
+                      <div style={{ padding: '12px 0' }}>
+                        {colorLabels.map((label, idx) => (
+                          <div key={idx} style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: 6, color: 'var(--text)' }}>
+                              {label}
+                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <input
+                                type="color"
+                                value={customColors[idx] || DEFAULT_PALETTE[idx % DEFAULT_PALETTE.length]}
+                                onChange={(e) => {
+                                  const newColors = [...customColors];
+                                  newColors[idx] = e.target.value;
+                                  setCustomColors(newColors);
+                                }}
+                                style={{
+                                  width: 48,
+                                  height: 48,
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer'
+                                }}
+                              />
+                              <span style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'monospace' }}>
+                                {customColors[idx] || DEFAULT_PALETTE[idx % DEFAULT_PALETTE.length]}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        style={{
+                          padding: '6px 12px',
+                          background: 'transparent',
+                          color: 'var(--text)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          cursor: 'pointer'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowColorCustomizer(false);
+                        }}
+                      >
+                        ← Atrás
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          padding: '6px 12px',
+                          background: 'var(--accent, #0ea5e9)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Guardar los colores en la configuración del widget
+                          if (onUpdate && customColors.length > 0) {
+                            onUpdate({ customColors });
+                          }
+                          setShowColorCustomizer(false);
+                        }}
+                      >
+                        ✓ Aplicar
+                      </button>
+                    </div>
+                  </>
+                )}
                 {onDelete && (
                   <button
                     type="button"

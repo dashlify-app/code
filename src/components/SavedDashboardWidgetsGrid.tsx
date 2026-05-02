@@ -13,8 +13,6 @@ import {
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
 import { FilterProvider } from './FilterContext';
 import { SortableWidget } from './SortableWidget';
-import { AddChartCard } from './AddChartCard';
-import { CustomChartModal, type PendingChart } from './CustomChartModal';
 
 export type SavedWidgetVM = {
   id: string;
@@ -94,7 +92,6 @@ export function SavedDashboardWidgetsGrid({
   onWidgetAdd?: (widget: SavedWidgetVM) => void;
 }) {
   const [groupedState, setGroupedState] = useState<Record<string, SavedWidgetVM[]>>(() => regroupFromWidgets(widgets));
-  const [modalOpen, setModalOpen] = useState(false);
 
   const idsSignature = useMemo(() => [...widgets].map((w) => w.id).sort().join(','), [widgets]);
 
@@ -127,43 +124,6 @@ export function SavedDashboardWidgetsGrid({
     setGroupedState((s) => ({ ...s, [category]: next }));
   }, []);
 
-  const handleAddChart = useCallback((pending: PendingChart) => {
-    console.log('[SavedDashboardWidgetsGrid] handleAddChart called with:', pending);
-
-    const newWidget: SavedWidgetVM = {
-      id: `custom-${Date.now()}`,
-      title: pending.title,
-      type: pending.type,
-      description: pending.description,
-      category: '💡 Personalizado',
-      config: {
-        ...pending.config,
-        sampleData: rows,
-        headers: headers,
-        datasetName: datasetName,
-      },
-    };
-
-    console.log('[SavedDashboardWidgetsGrid] Created newWidget:', newWidget);
-
-    // Update local state
-    setGroupedState((prev) => {
-      const category = '💡 Personalizado';
-      const updated = {
-        ...prev,
-        [category]: [...(prev[category] || []), newWidget],
-      };
-      console.log('[SavedDashboardWidgetsGrid] Updated groupedState:', updated);
-      return updated;
-    });
-
-    // Notify parent
-    if (onWidgetAdd) {
-      console.log('[SavedDashboardWidgetsGrid] Calling onWidgetAdd');
-      onWidgetAdd(newWidget);
-    }
-  }, [rows, headers, datasetName, onWidgetAdd]);
-
   if (!widgets.length) return null;
 
   const entries = Object.entries(groupedState).sort(([a], [b]) => a.localeCompare(b, 'es'));
@@ -174,23 +134,7 @@ export function SavedDashboardWidgetsGrid({
         {entries.map(([category, items]) => (
           <CategorySection key={category} category={category} items={items} onReorder={onReorder} />
         ))}
-
-        {/* Add Chart Card */}
-        {rows.length > 0 && headers.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 lg:grid-cols-3 lg:gap-6">
-            <AddChartCard onClick={() => setModalOpen(true)} />
-          </div>
-        )}
       </div>
-
-      {/* Custom Chart Modal */}
-      <CustomChartModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onConfirm={handleAddChart}
-        availableFields={headers}
-        datasetName={datasetName}
-      />
     </FilterProvider>
   );
 }

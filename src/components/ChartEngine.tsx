@@ -39,6 +39,7 @@ interface Props {
   theme?: string;
   isDark?: boolean;
   onElementClick?: (label: string) => void;
+  customColors?: string[];
 }
 
 const PALETTE = [
@@ -49,8 +50,21 @@ const PALETTE = [
   { border: '#f97316', bg: 'rgba(249, 115, 22, 0.1)', glow: 'rgba(249, 115, 22, 0.5)' },
 ];
 
-export default function ChartEngine({ type, labels, datasets, title, theme = 'modern', isDark = true, onElementClick }: Props) {
+export default function ChartEngine({ type, labels, datasets, title, theme = 'modern', isDark = true, onElementClick, customColors }: Props) {
   const chartRef = useRef<any>(null);
+
+  // Usar customColors si están disponibles, sino usar la paleta por defecto
+  const colorPalette = customColors && customColors.length > 0
+    ? customColors.map(color => ({
+        border: color,
+        bg: color.startsWith('#')
+          ? color + '20'  // Agregar transparencia
+          : `rgba(${parseInt(color.slice(1, 3), 16)}, ${parseInt(color.slice(3, 5), 16)}, ${parseInt(color.slice(5, 7), 16)}, 0.1)`,
+        glow: color.startsWith('#')
+          ? color + '80'  // Más opacidad para el glow
+          : `rgba(${parseInt(color.slice(1, 3), 16)}, ${parseInt(color.slice(3, 5), 16)}, ${parseInt(color.slice(5, 7), 16)}, 0.5)`,
+      }))
+    : PALETTE;
 
   const isEnterprise = theme === 'enterprise';
   const tickColor = isEnterprise ? '#4a6b82' : isDark ? '#4a6b82' : '#94a3b8';
@@ -147,7 +161,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
 
     const scatterData = {
       datasets: datasets.map((ds, i) => {
-        const color = PALETTE[i % PALETTE.length];
+        const color = colorPalette[i % colorPalette.length];
         return {
           label: ds.label,
           data: ds.data as { x: number; y: number }[],
@@ -192,7 +206,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
       labels,
       datasets: [{
         data: datasets[0]?.data as number[] || [],
-        backgroundColor: labels.map((_, i) => PALETTE[i % PALETTE.length].border + 'cc'),
+        backgroundColor: labels.map((_, i) => colorPalette[i % colorPalette.length].border + 'cc'),
         borderColor: isDark ? '#0f172a' : '#ffffff',
         borderWidth: 2,
         hoverOffset: 20,
@@ -250,7 +264,7 @@ export default function ChartEngine({ type, labels, datasets, title, theme = 'mo
   const chartData: ChartData<any> = {
     labels,
     datasets: datasets.map((ds, i) => {
-      const color = PALETTE[i % PALETTE.length];
+      const color = colorPalette[i % colorPalette.length];
       return {
         label: ds.label,
         data: ds.data,
