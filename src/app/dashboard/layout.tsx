@@ -370,10 +370,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div className="conn-row">
               <div className="conn-info">
-                <span>🌐</span>
+                <span>🔗</span>
                 <div>
-                  <div className="conn-name">API / Sheets</div>
-                  <div className="conn-status">○ Próximamente</div>
+                  <div className="conn-name">Google Drive / Sheets</div>
+                  <div className="conn-status">○ Desconectado</div>
                 </div>
               </div>
               <div className="toggle" />

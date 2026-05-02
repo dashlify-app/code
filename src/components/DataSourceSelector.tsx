@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import UploadZone from './UploadZone';
 import { GoogleSheetsModal, ImportedSheet } from './GoogleSheetsModal';
 import { GoogleSheetsDataset } from '@/types/dataset';
@@ -8,8 +8,14 @@ import { GoogleSheetsDataset } from '@/types/dataset';
 type TabType = 'upload' | 'google';
 
 export function DataSourceSelector() {
+  const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
+
+  // Solo renderizar en cliente para evitar hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Manejar importación de Google Sheets
   const handleGoogleSheetImport = async (sheetData: ImportedSheet) => {
@@ -29,6 +35,11 @@ export function DataSourceSelector() {
 
   // UploadZone maneja sus datos de forma diferente (mediante eventos)
   // DataSourceSelector solo necesita renderizar UploadZone sin callbacks adicionales
+
+  // Evitar hydration mismatch: no renderizar hasta que esté montado
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <div className="data-source-selector">
