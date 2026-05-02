@@ -16,27 +16,36 @@ export function DataSourceSelector({ onDataLoaded }: DataSourceSelectorProps) {
   const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
 
   // Manejar importación de Google Sheets
-  const handleGoogleSheetImport = (sheetData: ImportedSheet) => {
-    const googleSheetsDataset: GoogleSheetsDataset = {
-      id: `gs-${Date.now()}`,
-      name: sheetData.name,
-      sourceType: 'google-sheets',
-      sourceUrl: sheetData.sourceUrl,
-      sheetId: sheetData.id,
-      isAutoRefresh: sheetData.isAutoRefresh,
-      refreshInterval: sheetData.refreshInterval,
-      lastRefreshedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      rawSchema: {
-        headers: sheetData.headers,
-        sampleData: sheetData.data.slice(0, 100), // Guardar primeras 100 filas como muestra
-        rowCount: sheetData.data.length,
-      },
-    };
+  const handleGoogleSheetImport = async (sheetData: ImportedSheet) => {
+    try {
+      const googleSheetsDataset: GoogleSheetsDataset = {
+        id: `gs-${Date.now()}`,
+        name: sheetData.name,
+        sourceType: 'google-sheets',
+        sourceUrl: sheetData.sourceUrl,
+        sheetId: sheetData.id,
+        isAutoRefresh: sheetData.isAutoRefresh,
+        refreshInterval: sheetData.refreshInterval,
+        lastRefreshedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        rawSchema: {
+          headers: sheetData.headers,
+          sampleData: sheetData.data.slice(0, 100), // Guardar primeras 100 filas como muestra
+          rowCount: sheetData.data.length,
+        },
+      };
 
-    onDataLoaded(googleSheetsDataset);
-    setGoogleSheetsModalOpen(false);
+      onDataLoaded(googleSheetsDataset);
+
+      // Disparar evento personalizado (igual que UploadZone)
+      // Esto permite que el dashboard se entere de los cambios
+      window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
+
+      setGoogleSheetsModalOpen(false);
+    } catch (error) {
+      console.error('Error importando Google Sheet:', error);
+    }
   };
 
   // Manejar carga de archivo
