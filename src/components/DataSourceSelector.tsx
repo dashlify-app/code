@@ -1,0 +1,155 @@
+'use client';
+
+import React, { useState } from 'react';
+import { UploadZone } from './UploadZone';
+import { GoogleSheetsModal, ImportedSheet } from './GoogleSheetsModal';
+import { GoogleSheetsDataset, UploadedDataset, RawSchema } from '@/types/dataset';
+
+interface DataSourceSelectorProps {
+  onDataLoaded: (dataset: UploadedDataset | GoogleSheetsDataset) => void;
+}
+
+type TabType = 'upload' | 'google';
+
+export function DataSourceSelector({ onDataLoaded }: DataSourceSelectorProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('upload');
+  const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
+
+  // Manejar importación de Google Sheets
+  const handleGoogleSheetImport = (sheetData: ImportedSheet) => {
+    const googleSheetsDataset: GoogleSheetsDataset = {
+      id: `gs-${Date.now()}`,
+      name: sheetData.name,
+      sourceType: 'google-sheets',
+      sourceUrl: sheetData.sourceUrl,
+      sheetId: sheetData.id,
+      isAutoRefresh: sheetData.isAutoRefresh,
+      refreshInterval: sheetData.refreshInterval,
+      lastRefreshedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      rawSchema: {
+        headers: sheetData.headers,
+        sampleData: sheetData.data.slice(0, 100), // Guardar primeras 100 filas como muestra
+        rowCount: sheetData.data.length,
+      },
+    };
+
+    onDataLoaded(googleSheetsDataset);
+    setGoogleSheetsModalOpen(false);
+  };
+
+  // Manejar carga de archivo
+  const handleFileLoaded = (
+    headers: string[],
+    sampleData: Record<string, any>[],
+    fileName: string,
+    fullData?: Record<string, any>[]
+  ) => {
+    const uploadedDataset: UploadedDataset = {
+      id: `ul-${Date.now()}`,
+      name: fileName,
+      sourceType: 'upload',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      rawSchema: {
+        headers,
+        sampleData,
+        rowCount: fullData?.length || sampleData.length,
+      },
+    };
+
+    onDataLoaded(uploadedDataset);
+  };
+
+  return (
+    <div className="data-source-selector">
+      {/* Tabs */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          borderBottom: '2px solid var(--border)',
+          marginBottom: 20,
+        }}
+      >
+        <button
+          onClick={() => setActiveTab('upload')}
+          style={{
+            padding: '12px 20px',
+            border: 'none',
+            background: 'transparent',
+            color: activeTab === 'upload' ? 'var(--accent)' : 'var(--text2)',
+            borderBottom: activeTab === 'upload' ? '3px solid var(--accent)' : 'none',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: activeTab === 'upload' ? 'bold' : 'normal',
+            marginBottom: '-2px',
+            transition: 'color 0.2s',
+          }}
+        >
+          📁 Subir archivos
+        </button>
+        <button
+          onClick={() => setActiveTab('google')}
+          style={{
+            padding: '12px 20px',
+            border: 'none',
+            background: 'transparent',
+            color: activeTab === 'google' ? 'var(--accent)' : 'var(--text2)',
+            borderBottom: activeTab === 'google' ? '3px solid var(--accent)' : 'none',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: activeTab === 'google' ? 'bold' : 'normal',
+            marginBottom: '-2px',
+            transition: 'color 0.2s',
+          }}
+        >
+          🔗 Google Sheets
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'upload' && (
+        <div>
+          <UploadZone onDataLoaded={handleFileLoaded} />
+        </div>
+      )}
+
+      {activeTab === 'google' && (
+        <div
+          style={{
+            padding: '20px',
+            background: 'var(--surface2)',
+            borderRadius: '12px',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: 8 }}>
+              Conectar Google Sheets
+            </div>
+            <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: 0 }}>
+              Importa datos directamente desde tus Google Sheets. Puedes hacer búsquedas en Drive o pegar una URL/ID.
+            </p>
+          </div>
+          <button
+            onClick={() => setGoogleSheetsModalOpen(true)}
+            className="btn btn-primary"
+            style={{ marginTop: 12 }}
+          >
+            🔐 Conectar con Google Sheets
+          </button>
+        </div>
+      )}
+
+      {/* Google Sheets Modal */}
+      <GoogleSheetsModal
+        open={googleSheetsModalOpen}
+        onClose={() => setGoogleSheetsModalOpen(false)}
+        onImport={handleGoogleSheetImport}
+      />
+    </div>
+  );
+}
