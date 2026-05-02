@@ -1,42 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UploadZone } from './UploadZone';
+import UploadZone from './UploadZone';
 import { GoogleSheetsModal, ImportedSheet } from './GoogleSheetsModal';
-import { GoogleSheetsDataset, UploadedDataset, RawSchema } from '@/types/dataset';
-
-interface DataSourceSelectorProps {
-  onDataLoaded: (dataset: UploadedDataset | GoogleSheetsDataset) => void;
-}
+import { GoogleSheetsDataset } from '@/types/dataset';
 
 type TabType = 'upload' | 'google';
 
-export function DataSourceSelector({ onDataLoaded }: DataSourceSelectorProps) {
+export function DataSourceSelector() {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
 
   // Manejar importación de Google Sheets
   const handleGoogleSheetImport = async (sheetData: ImportedSheet) => {
     try {
-      const googleSheetsDataset: GoogleSheetsDataset = {
-        id: `gs-${Date.now()}`,
-        name: sheetData.name,
-        sourceType: 'google-sheets',
-        sourceUrl: sheetData.sourceUrl,
-        sheetId: sheetData.id,
-        isAutoRefresh: sheetData.isAutoRefresh,
-        refreshInterval: sheetData.refreshInterval,
-        lastRefreshedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        rawSchema: {
-          headers: sheetData.headers,
-          sampleData: sheetData.data.slice(0, 100), // Guardar primeras 100 filas como muestra
-          rowCount: sheetData.data.length,
-        },
-      };
-
-      onDataLoaded(googleSheetsDataset);
+      // Nota: El dataset de Google Sheets se guarda en localStorage y en la BD
+      // El evento 'dashlify:datasets-changed' dispara la recarga en el dashboard
 
       // Disparar evento personalizado (igual que UploadZone)
       // Esto permite que el dashboard se entere de los cambios
@@ -48,28 +27,8 @@ export function DataSourceSelector({ onDataLoaded }: DataSourceSelectorProps) {
     }
   };
 
-  // Manejar carga de archivo
-  const handleFileLoaded = (
-    headers: string[],
-    sampleData: Record<string, any>[],
-    fileName: string,
-    fullData?: Record<string, any>[]
-  ) => {
-    const uploadedDataset: UploadedDataset = {
-      id: `ul-${Date.now()}`,
-      name: fileName,
-      sourceType: 'upload',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      rawSchema: {
-        headers,
-        sampleData,
-        rowCount: fullData?.length || sampleData.length,
-      },
-    };
-
-    onDataLoaded(uploadedDataset);
-  };
+  // UploadZone maneja sus datos de forma diferente (mediante eventos)
+  // DataSourceSelector solo necesita renderizar UploadZone sin callbacks adicionales
 
   return (
     <div className="data-source-selector">
@@ -121,7 +80,7 @@ export function DataSourceSelector({ onDataLoaded }: DataSourceSelectorProps) {
       {/* Tab Content */}
       {activeTab === 'upload' && (
         <div>
-          <UploadZone onDataLoaded={handleFileLoaded} />
+          <UploadZone />
         </div>
       )}
 

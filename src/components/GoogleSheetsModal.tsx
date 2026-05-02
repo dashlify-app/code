@@ -59,7 +59,8 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
   // Obtener datos de la sheet
   const fetchSheetData = async (id: string, url: string) => {
-    if (!session?.accessToken) {
+    const accessToken = (session as any)?.accessToken;
+    if (!accessToken) {
       setError('Sesión de Google no disponible. Por favor inicia sesión primero.');
       return;
     }
@@ -73,7 +74,7 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sheetId: id,
-          accessToken: (session as any).accessToken,
+          accessToken,
         }),
       });
 
@@ -99,7 +100,8 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
   // Listar archivos de Google Drive
   const handleListDriveFiles = async () => {
-    if (!session?.accessToken) {
+    const accessToken = (session as any)?.accessToken;
+    if (!accessToken) {
       setError('Sesión de Google no disponible. Por favor inicia sesión primero.');
       return;
     }
@@ -112,7 +114,7 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          accessToken: (session as any).accessToken,
+          accessToken,
         }),
       });
 

@@ -784,24 +784,6 @@ function DashboardContent() {
     return () => window.removeEventListener('dashlify:datasets-changed', loadDatasets);
   }, []);
 
-  // Handler para nuevas fuentes de datos (archivos subidos o Google Sheets)
-  const handleDataSourceLoaded = (dataset: any) => {
-    // Agregar el dataset a la lista de recientes en localStorage
-    const recentIds = JSON.parse(localStorage.getItem('dashlify_recent_files') || '[]') as string[];
-    if (!recentIds.includes(dataset.id)) {
-      recentIds.unshift(dataset.id);
-      localStorage.setItem('dashlify_recent_files', JSON.stringify(recentIds.slice(0, 10))); // Guardar últimos 10
-    }
-
-    // Agregar dataset al estado local
-    setDatasets((prev) => {
-      const newDatasets = [dataset as Dataset, ...prev.filter((d) => d.id !== dataset.id)];
-      // Establecer como activo
-      setActiveDatasetId(dataset.id);
-      return newDatasets;
-    });
-  };
-
   useEffect(() => {
     const load = () => {
       fetch('/api/dashboards')
@@ -1092,7 +1074,7 @@ function DashboardContent() {
           </div>
         </div>
         <div id="upload-zone" style={{ marginTop: 8 }}>
-          <DataSourceSelector onDataLoaded={handleDataSourceLoaded} />
+          <DataSourceSelector />
         </div>
       </>
     );
@@ -1275,7 +1257,7 @@ function DashboardContent() {
 
       {showUploadZone && (
         <div id="upload-zone" style={{ marginTop: hasData ? 24 : 0 }}>
-          <DataSourceSelector onDataLoaded={handleDataSourceLoaded} />
+          <DataSourceSelector />
         </div>
       )}
 
