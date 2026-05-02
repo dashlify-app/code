@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export const authOptions: NextAuthOptions = {
@@ -27,6 +28,17 @@ export const authOptions: NextAuthOptions = {
         return null;
       },
     }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      authorization: {
+        params: {
+          scope: 'openid email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets.readonly',
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    }),
   ],
   session: {
     strategy: 'jwt',
@@ -35,6 +47,15 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
+    async jwt({ token, account }) {
+      // Almacenar tokens de Google en JWT
+      if (account?.provider === 'google') {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.expiresAt = account.expires_at;
+      }
+      return token;
+    },
     async session({ session, token }) {
       if (session.user) {
         // Mapear email demo al ID real en Supabase, sin importar el token
@@ -43,6 +64,11 @@ export const authOptions: NextAuthOptions = {
         } else {
           (session.user as any).id = token.sub;
         }
+
+        // Agregar tokens de Google a la sesión
+        (session as any).accessToken = token.accessToken;
+        (session as any).refreshToken = token.refreshToken;
+        (session as any).expiresAt = token.expiresAt;
       }
       return session;
     },
