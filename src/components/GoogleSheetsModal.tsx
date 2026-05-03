@@ -16,7 +16,7 @@ export interface ImportedSheet {
 interface GoogleSheetsModalProps {
   open: boolean;
   onClose: () => void;
-  onImport: (sheetData: ImportedSheet) => void;
+  onImport: (sheetData: ImportedSheet) => void | Promise<void>;
 }
 
 type TabType = 'drive' | 'url';
@@ -54,36 +54,50 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
       return;
     }
 
+    // Siempre cargar los datos del API (funciona con o sin autenticación de Google)
     fetchSheetData(id, sheetUrl || `https://docs.google.com/spreadsheets/d/${id}`);
   };
 
   // Obtener datos de la sheet
   const fetchSheetData = async (id: string, url: string) => {
     const accessToken = (session as any)?.accessToken;
-    if (!accessToken) {
-      setError('Sesión de Google no disponible. Por favor inicia sesión primero.');
-      return;
-    }
 
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('/api/google-sheets/fetch', {
+      // Intentar sin autenticación primero (para sheets públicas)
+      const response = await fetch('/api/google-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'fetch',
           sheetId: id,
-          accessToken,
+          accessToken: accessToken || undefined,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+
+        // Si es privado y no tiene autenticación, mostrar botón para conectar
+        if (response.status === 403 && !accessToken) {
+          setError('Este Google Sheet es privado. Conecta tu cuenta para acceder.');
+          setPreview(null);
+          setLoading(false);
+          return;
+        }
+
         throw new Error(errorData.error || 'Error al obtener datos de la sheet');
       }
 
       const result = await response.json();
+
+      console.log('✅ [GoogleSheetsModal] Sheet data received:', {
+        rowCount: result.data?.length,
+        headerCount: result.headers?.length,
+        name: result.name,
+      });
 
       setPreview({
         data: result.data || [],
@@ -92,6 +106,7 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
         id: id,
       });
     } catch (err) {
+      console.error('❌ [GoogleSheetsModal] Error loading sheet:', err);
       setError(err instanceof Error ? err.message : 'Error al obtener datos de la sheet');
     } finally {
       setLoading(false);
@@ -110,10 +125,11 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
     setError('');
 
     try {
-      const response = await fetch('/api/google-sheets/drive/list', {
+      const response = await fetch('/api/google-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'list',
           accessToken,
         }),
       });
@@ -141,7 +157,10 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
   // Confirmar importación
   const handleConfirmImport = () => {
+    console.log('🔍 [GoogleSheetsModal] handleConfirmImport clicked');
+
     if (!preview) {
+      console.error('❌ [GoogleSheetsModal] No preview available');
       setError('Por favor carga una sheet antes de confirmar');
       return;
     }
@@ -156,7 +175,22 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
       isAutoRefresh: refreshMode === 'auto',
     };
 
-    onImport(importedSheet);
+    console.log('📤 [GoogleSheetsModal] Preparando para enviar:', {
+      nombre: importedSheet.name,
+      filas: importedSheet.data.length,
+      columnas: importedSheet.headers.length,
+    });
+
+    try {
+      // Llamar callback - es síncrono
+      onImport(importedSheet);
+      console.log('✅ [GoogleSheetsModal] onImport llamado');
+    } catch (error) {
+      console.error('❌ [GoogleSheetsModal] Error in onImport:', error);
+      setError('Error al importar: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      return;
+    }
+
     handleReset();
     onClose();
   };
@@ -176,95 +210,27 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
   if (!open) return null;
 
-  if (!session) {
-    return (
-      <div className="dlf-share-backdrop" onClick={onClose}>
-        <div className="dlf-share-card" onClick={(e) => e.stopPropagation()}>
-          <div className="dlf-share-header">
-            <div className="dlf-share-icon">🔗</div>
-            <div className="dlf-share-title">Conectar Google Sheets</div>
-            <button className="dlf-close-btn" onClick={onClose}>✕</button>
-          </div>
-          <div className="dlf-share-body">
-            <p style={{ marginBottom: '16px' }}>Necesitas iniciar sesión con Google para conectar Google Sheets.</p>
-            <button
-              onClick={() => signIn('google')}
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-            >
-              🔐 Iniciar sesión con Google
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="dlf-share-backdrop" onClick={onClose}>
       <div className="dlf-share-card" style={{ maxWidth: 700 }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="dlf-share-header">
-          <div className="dlf-share-icon">📊</div>
-          <div className="dlf-share-title">Conectar Google Sheets</div>
+          <div className="dlf-share-icon">🔗</div>
+          <div className="dlf-share-title">Importar Google Sheets</div>
           <button className="dlf-close-btn" onClick={onClose}>✕</button>
         </div>
 
         {/* Body */}
         <div className="dlf-share-body" style={{ gap: 16 }}>
-          {/* Pestañas */}
-          <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--border)' }}>
-            <button
-              onClick={() => { setActiveTab('drive'); setShowFileList(false); }}
-              style={{
-                padding: '12px 16px',
-                border: 'none',
-                background: 'transparent',
-                color: activeTab === 'drive' ? 'var(--accent)' : 'var(--text2)',
-                borderBottom: activeTab === 'drive' ? '2px solid var(--accent)' : 'none',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: activeTab === 'drive' ? 'bold' : 'normal',
-              }}
-            >
-              📁 Buscar en Drive
-            </button>
-            <button
-              onClick={() => { setActiveTab('url'); setShowFileList(false); }}
-              style={{
-                padding: '12px 16px',
-                border: 'none',
-                background: 'transparent',
-                color: activeTab === 'url' ? 'var(--accent)' : 'var(--text2)',
-                borderBottom: activeTab === 'url' ? '2px solid var(--accent)' : 'none',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: activeTab === 'url' ? 'bold' : 'normal',
-              }}
-            >
-              🔗 Pegar URL/ID
-            </button>
-          </div>
 
-          {/* Tab: Buscar en Drive */}
-          {activeTab === 'drive' && !showFileList && (
+          {/* Pegar URL/ID */}
+          {!showFileList && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: 0 }}>
-                Haz clic en "Listar Sheets" para ver tus Google Sheets en Drive y selecciona uno para importar.
-              </p>
-              <button
-                onClick={handleListDriveFiles}
-                disabled={loading}
-                className="btn btn-primary"
-              >
-                {loading ? '⏳ Cargando...' : '📂 Listar Sheets en Drive'}
-              </button>
-            </div>
-          )}
-
-          {/* Tab: Pegar URL/ID */}
-          {activeTab === 'url' && !showFileList && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', borderLeft: '3px solid var(--accent)' }}>
+                <p style={{ fontSize: '13px', margin: 0, opacity: 0.9 }}>
+                  💡 <strong>URLs públicas</strong> funcionan sin conectar Google. Para <strong>Sheets privados</strong>, conecta tu cuenta.
+                </p>
+              </div>
               <div>
                 <label className="form-label">URL de Google Sheets o ID</label>
                 <input
@@ -423,16 +389,28 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
             </div>
           )}
 
-          {/* Error message */}
+          {/* Error message con opción de conectar */}
           {error && (
-            <div style={{
-              padding: '12px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              color: 'var(--error)',
-              borderRadius: '8px',
-              fontSize: '13px',
-            }}>
-              {error}
+            <div>
+              <div style={{
+                padding: '12px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: 'var(--error)',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: 12,
+              }}>
+                {error}
+              </div>
+              {error.includes('privado') && !session && (
+                <button
+                  onClick={() => signIn('google')}
+                  className="btn btn-primary"
+                  style={{ width: '100%' }}
+                >
+                  🔐 Conectar Google Sheets
+                </button>
+              )}
             </div>
           )}
 
