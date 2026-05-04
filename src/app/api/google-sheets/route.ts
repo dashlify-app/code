@@ -115,9 +115,9 @@ async function fetchSheetDataPublic(sheetId: string) {
 
     // Primera fila son los headers
     const headers = rows[0] || [];
-    const data = rows.slice(1).map((row) => {
+    const data = rows.slice(1).map((row: any[]) => {
       const obj: Record<string, any> = {};
-      headers.forEach((header, idx) => {
+      headers.forEach((header: any, idx: number) => {
         obj[header] = row[idx] || '';
       });
       return obj;

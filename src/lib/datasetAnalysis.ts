@@ -86,13 +86,14 @@ export async function processDataset(dataset: DatasetForAnalysis) {
   const analyzed = { ...dataset, analysis };
 
   // Guardar en BD
-  let savedDataset = analyzed;
+  let savedDataset: any = analyzed;
   try {
     const created = await saveDatasetToDb(analyzed);
     savedDataset = { ...analyzed, id: created.id };
   } catch (e) {
-    // Si falla la BD, mantener análisis en UI
+    // Si falla la BD, generar ID en cliente y mantener análisis en UI
     console.error('Error guardando dataset:', e);
+    savedDataset = { ...analyzed, id: crypto.randomUUID() };
   }
 
   return savedDataset;
