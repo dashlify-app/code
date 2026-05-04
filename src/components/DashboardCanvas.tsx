@@ -116,6 +116,7 @@ function CanvasInner({
   dashboardId,
   initialTitle,
   initialTemplateId,
+  sourceType,
 }: {
   initialWidgets: any[];
   onSave: (widgets: any[]) => void;
@@ -123,6 +124,7 @@ function CanvasInner({
   dashboardId?: string;
   initialTitle?: string;
   initialTemplateId?: string;
+  sourceType?: 'upload' | 'google-sheets';
 }) {
   const [widgets, setWidgets] = useState<Widget[]>(
     initialWidgets.map((w, i) => ({
@@ -243,7 +245,11 @@ function CanvasInner({
       } ${tc.header}`}>
         <div className="flex items-center gap-4">
           <div className="bg-amber-50 text-amber-600 p-2 rounded-lg">
-            <Sparkles size={20} />
+            {sourceType === 'google-sheets' ? (
+              <img src="/icons/dashboard-sheets.svg" alt="Google Sheets" style={{ width: '20px', height: '20px' }} />
+            ) : (
+              <img src="/icons/dashboard-file.svg" alt="File" style={{ width: '20px', height: '20px' }} />
+            )}
           </div>
           <div>
             <input
@@ -383,6 +389,7 @@ export default function DashboardCanvas(props: {
   dashboardId?: string;
   initialTitle?: string;
   initialTemplateId?: string;
+  sourceType?: 'upload' | 'google-sheets';
 }) {
   return (
     <FilterProvider>

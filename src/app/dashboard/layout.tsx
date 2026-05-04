@@ -10,7 +10,7 @@ import { GoogleSheetsModal, type ImportedSheet } from '@/components/GoogleSheets
 import { GoogleSheetsAnalysisUI } from '@/components/GoogleSheetsAnalysisUI';
 import { processDataset } from '@/lib/datasetAnalysis';
 
-type DashboardRow = { id: string; title: string; updatedAt: string };
+type DashboardRow = { id: string; title: string; updatedAt: string; sourceType?: 'upload' | 'google-sheets' };
 
 function DeleteDashboardModal({
   open,
@@ -382,6 +382,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {dashboards.map((d) => {
                   const href = `/dashboard/canvas/${d.id}`;
                   const active = pathname === href;
+                  const isGoogleSheets = d.sourceType === 'google-sheets';
+                  const iconSrc = isGoogleSheets
+                    ? '/icons/dashboard-sheets.svg'
+                    : '/icons/dashboard-file.svg';
                   return (
                     <div key={d.id} className="dash-list-row">
                       <Link
@@ -389,9 +393,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         className={`dash-list-item${active ? ' active' : ''}`}
                         title={d.title}
                       >
-                        <span className="dli-icon" aria-hidden>
-                          📐
-                        </span>
+                        <img
+                          src={iconSrc}
+                          alt={isGoogleSheets ? 'Google Sheets' : 'File'}
+                          className="dli-icon"
+                          style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+                        />
                         <span className="dli-body">
                           <span className="dli-name truncate">{d.title}</span>
                           <span className="dli-sub truncate">

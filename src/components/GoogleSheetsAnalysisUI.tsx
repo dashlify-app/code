@@ -109,6 +109,7 @@ export function GoogleSheetsAnalysisUI({ sheetData, onClose }: GoogleSheetsAnaly
     return (
       <DashboardCanvas
         initialWidgets={selectedWidgets}
+        sourceType="google-sheets"
         onSave={() => {
           console.log('✅ Dashboard creado desde Google Sheet');
           onClose();
@@ -135,9 +136,12 @@ export function GoogleSheetsAnalysisUI({ sheetData, onClose }: GoogleSheetsAnaly
     }}>
       {/* Header */}
       <div style={{ textAlign: 'center' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>
-          📊 {sheetData.name}
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '8px' }}>
+          <img src="/icons/dashboard-sheets.svg" alt="Google Sheets" style={{ width: '32px', height: '32px' }} />
+          <h2 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
+            {sheetData.name}
+          </h2>
+        </div>
         <p style={{ opacity: 0.7, fontSize: '14px' }}>
           {sheetData.data.length} filas • {sheetData.headers.length} columnas
         </p>

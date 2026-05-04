@@ -16,6 +16,7 @@ export default function DashboardCanvasPage() {
   const [payload, setPayload] = useState<{
     title: string;
     templateId: string;
+    sourceType?: 'upload' | 'google-sheets';
     widgets: { id: string; title: string; type: string; config: any }[];
   } | null>(null);
 
@@ -42,9 +43,23 @@ export default function DashboardCanvasPage() {
       // 3. Inject sampleData: el índice vive en config (guardado con el widget), no en la raíz
       const widgetsWithData = hydrateDashboardWidgets(d.widgets || [], datasets);
 
+      // 4. Determine sourceType from the dashboard's datasets
+      let sourceType: 'upload' | 'google-sheets' = 'upload';
+      if (d.widgets && d.widgets.length > 0) {
+        const firstWidget = d.widgets[0];
+        const datasetId = firstWidget.datasetId;
+        if (datasetId) {
+          const dataset = datasets.find((ds: any) => ds.id === datasetId);
+          if (dataset && dataset.sourceType) {
+            sourceType = dataset.sourceType;
+          }
+        }
+      }
+
       setPayload({
         title: d.title,
         templateId: d.templateId,
+        sourceType,
         widgets: widgetsWithData,
       });
     } catch {
@@ -102,6 +117,7 @@ export default function DashboardCanvasPage() {
         dashboardId={id}
         initialTitle={payload.title}
         initialTemplateId={payload.templateId}
+        sourceType={payload.sourceType}
         initialWidgets={payload.widgets}
         onSave={async () => {
           await load();

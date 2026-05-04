@@ -17,7 +17,53 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ dashboards: dashboards || [] });
+    // Enrich dashboards with sourceType information
+    const enrichedDashboards = await Promise.all(
+      (dashboards || []).map(async (dashboard) => {
+        try {
+          // Get all widgets for this dashboard
+          const { data: widgets } = await supabaseAdmin
+            .from('Widget')
+            .select('datasetId, datasetName')
+            .eq('dashboardId', dashboard.id);
+
+          // Get unique dataset names/ids
+          const datasetIds = new Set(
+            (widgets || [])
+              .map((w) => w.datasetId)
+              .filter((id): id is string => typeof id === 'string')
+          );
+
+          let sourceType: 'upload' | 'google-sheets' = 'upload';
+
+          if (datasetIds.size > 0) {
+            // Get the first dataset's sourceType
+            const { data: datasets } = await supabaseAdmin
+              .from('Dataset')
+              .select('sourceType')
+              .in('id', Array.from(datasetIds))
+              .limit(1);
+
+            if (datasets && datasets.length > 0 && datasets[0].sourceType) {
+              sourceType = datasets[0].sourceType as 'upload' | 'google-sheets';
+            }
+          }
+
+          return {
+            ...dashboard,
+            sourceType,
+          };
+        } catch {
+          // Fallback to 'upload' if there's an error
+          return {
+            ...dashboard,
+            sourceType: 'upload' as const,
+          };
+        }
+      })
+    );
+
+    return NextResponse.json({ dashboards: enrichedDashboards });
   } catch (e) {
     console.error('GET /api/dashboards', e);
     return NextResponse.json({ error: 'Error al listar dashboards' }, { status: 500 });
