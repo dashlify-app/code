@@ -11,6 +11,9 @@ export interface DatasetForAnalysis {
   sampleData: any[];
   size?: string;
   type?: string;
+  sourceType?: 'upload' | 'google-sheets';
+  sheetId?: string;
+  sourceUrl?: string;
 }
 
 /**
@@ -52,6 +55,9 @@ export async function saveDatasetToDb(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: dataset.name,
+      sourceType: dataset.sourceType || 'upload',
+      sheetId: dataset.sheetId,
+      sourceUrl: dataset.sourceUrl,
       rawSchema: {
         headers: dataset.headers,
         sampleData: dataset.sampleData,

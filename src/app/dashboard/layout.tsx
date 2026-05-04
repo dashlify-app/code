@@ -220,6 +220,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           sampleData: sheetData.data,
           type: 'google-sheets',
           size: '0 KB',
+          sourceType: 'google-sheets',
+          sheetId: sheetData.id,
+          sourceUrl: sheetData.sourceUrl,
         });
 
         console.log('✅ [Dashboard] Google Sheet procesado:', {

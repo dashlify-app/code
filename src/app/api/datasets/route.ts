@@ -43,7 +43,7 @@ export async function GET() {
 
   const { data: datasets, error } = await supabaseAdmin
     .from('Dataset')
-    .select('id, name, rawSchema, createdAt, updatedAt')
+    .select('id, name, rawSchema, sourceType, sheetId, sourceUrl, createdAt, updatedAt')
     .eq('organizationId', organizationId)
     .order('createdAt', { ascending: false });
 
@@ -76,11 +76,14 @@ export async function POST(req: Request) {
       id: crypto.randomUUID(),
       name: String(body.name),
       rawSchema: body.rawSchema,
+      sourceType: body.sourceType || 'upload',
+      sheetId: body.sheetId || null,
+      sourceUrl: body.sourceUrl || null,
       organizationId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     })
-    .select('id, name, rawSchema')
+    .select('id, name, rawSchema, sourceType')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
