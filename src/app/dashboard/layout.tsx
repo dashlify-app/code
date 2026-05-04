@@ -384,8 +384,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   const active = pathname === href;
                   const isGoogleSheets = d.sourceType === 'google-sheets';
                   const iconSrc = isGoogleSheets
-                    ? '/icons/dashboard-sheets-pro.svg'
-                    : '/icons/dashboard-file-pro.svg';
+                    ? '/icons/dashboard-sheets.svg'
+                    : '/icons/dashboard-file.svg';
                   return (
                     <div key={d.id} className="dash-list-row">
                       <Link

@@ -244,11 +244,11 @@ function CanvasInner({
         theme === 'enterprise' ? 'rounded-b-[13px]' : 'rounded-2xl'
       } ${tc.header}`}>
         <div className="flex items-center gap-4">
-          <div className="bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-600 p-2.5 rounded-lg shadow-sm">
+          <div className="p-2 rounded-lg">
             {sourceType === 'google-sheets' ? (
-              <img src="/icons/dashboard-sheets-pro.svg" alt="Google Sheets" style={{ width: '24px', height: '24px' }} />
+              <img src="/icons/dashboard-sheets.svg" alt="Google Sheets" style={{ width: '24px', height: '24px' }} />
             ) : (
-              <img src="/icons/dashboard-file-pro.svg" alt="Archivo" style={{ width: '24px', height: '24px' }} />
+              <img src="/icons/dashboard-file.svg" alt="Archivo" style={{ width: '24px', height: '24px' }} />
             )}
           </div>
           <div>

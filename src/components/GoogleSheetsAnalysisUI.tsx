@@ -137,9 +137,7 @@ export function GoogleSheetsAnalysisUI({ sheetData, onClose }: GoogleSheetsAnaly
       {/* Header */}
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '8px' }}>
-          <div style={{ background: 'linear-gradient(to bottom right, #d1fae5, #d1fae5)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/icons/dashboard-sheets-pro.svg" alt="Google Sheets" style={{ width: '40px', height: '40px' }} />
-          </div>
+          <img src="/icons/dashboard-sheets.svg" alt="Google Sheets" style={{ width: '40px', height: '40px' }} />
           <h2 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
             {sheetData.name}
           </h2>
