@@ -1,10 +1,50 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardCanvas from '@/components/DashboardCanvas';
 import { DashboardViewTypeBlock } from '@/components/DashboardViewTypeBlock';
 import { hydrateDashboardWidgets } from '@/lib/hydrateDashboardWidgets';
+import { buildSemanticContext, getViewsForDataset, type SemanticViewKey } from '@/lib/semanticContext';
+
+/** Detectar tipos de columnas en un dataset */
+function detectColumnTypes(headers: string[], rows: Record<string, any>[]) {
+  const sample = rows.slice(0, 20);
+  const numeric: string[] = [];
+  const categorical: string[] = [];
+  const dates: string[] = [];
+
+  for (const h of headers) {
+    const vals = sample.map((r) => {
+      const v = r[h];
+      return v !== null && v !== undefined && v !== '' ? String(v).trim() : null;
+    }).filter((v) => v !== null);
+
+    if (vals.length === 0) continue; // Sin datos, pasar a la siguiente columna
+
+    // Detectar si es numérico
+    const numVals = vals.map((v) => {
+      const n = parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+      return !isNaN(n) ? n : null;
+    }).filter((v) => v !== null);
+
+    const numRatio = numVals.length / vals.length;
+
+    // Detectar si es fecha
+    const dateVals = vals.filter((v) => !isNaN(Date.parse(String(v))));
+    const dateRatio = dateVals.length / vals.length;
+
+    if (dateRatio > 0.5) {
+      dates.push(h);
+    } else if (numRatio > 0.5) {
+      numeric.push(h);
+    } else {
+      categorical.push(h);
+    }
+  }
+
+  return { numeric, categorical, dates };
+}
 
 export default function DashboardCanvasPage() {
   const params = useParams();
@@ -18,7 +58,18 @@ export default function DashboardCanvasPage() {
     templateId: string;
     sourceType?: 'upload' | 'google-sheets';
     widgets: { id: string; title: string; type: string; config: any }[];
+    headers?: string[];
+    rows?: Record<string, any>[];
   } | null>(null);
+
+  // Calcular vistas disponibles basadas en los datos del dataset
+  const enabledViews = useMemo((): SemanticViewKey[] | null => {
+    if (!payload?.headers || !payload?.rows) return null;
+
+    const types = detectColumnTypes(payload.headers, payload.rows);
+    const semantic = buildSemanticContext(payload.headers, payload.rows, types.dates);
+    return getViewsForDataset(semantic);
+  }, [payload?.headers, payload?.rows]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -45,6 +96,9 @@ export default function DashboardCanvasPage() {
 
       // 4. Determine sourceType from the dashboard's datasets
       let sourceType: 'upload' | 'google-sheets' = 'upload';
+      let datasetHeaders: string[] | undefined;
+      let datasetRows: Record<string, any>[] | undefined;
+
       if (d.widgets && d.widgets.length > 0) {
         const firstWidget = d.widgets[0];
         const datasetId = firstWidget.datasetId;
@@ -52,6 +106,11 @@ export default function DashboardCanvasPage() {
           const dataset = datasets.find((ds: any) => ds.id === datasetId);
           if (dataset && dataset.sourceType) {
             sourceType = dataset.sourceType;
+          }
+          // Extract headers and rows for semantic context
+          if (dataset?.rawSchema) {
+            datasetHeaders = dataset.rawSchema.headers;
+            datasetRows = dataset.rawSchema.sampleData;
           }
         }
       }
@@ -61,6 +120,8 @@ export default function DashboardCanvasPage() {
         templateId: d.templateId,
         sourceType,
         widgets: widgetsWithData,
+        headers: datasetHeaders,
+        rows: datasetRows,
       });
     } catch {
       setError('Error de red');
@@ -111,6 +172,7 @@ export default function DashboardCanvasPage() {
         showActive={false}
         onSelectView={(k) => router.push(`/dashboard?view=${k}`)}
         hint="Abre el análisis en el panel (Visualizar) con el modo de vista elegido; misma sesión de datos."
+        enabledViewKeys={enabledViews}
       />
       <DashboardCanvas
         key={`${id}-${payload.widgets.map((w) => w.id).join(',')}`}
