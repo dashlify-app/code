@@ -1,0 +1,35 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" width="64" height="64">
+  <!-- Fondo círculo azul -->
+  <circle cx="32" cy="32" r="30" fill="#1F2937" opacity="0.08" />
+
+  <!-- Documento -->
+  <g transform="translate(32, 32)">
+    <!-- Cuerpo del documento -->
+    <rect x="-10" y="-16" width="20" height="32" rx="1.5" fill="#1F2937" stroke="#1F2937" stroke-width="1"/>
+
+    <!-- Esquina doblada (fold) -->
+    <path d="M 8 -16 L 8 -8 L 14 -8" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <polygon points="8,-16 14,-8 8,-8" fill="#1F2937" opacity="0.2"/>
+
+    <!-- Líneas de contenido -->
+    <g stroke="#1F2937" stroke-width="1.2" stroke-linecap="round" opacity="0.85">
+      <!-- Línea 1 (título) -->
+      <line x1="-8" y1="-10" x2="6" y2="-10" />
+
+      <!-- Línea 2 -->
+      <line x1="-8" y1="-5" x2="8" y2="-5" />
+
+      <!-- Línea 3 -->
+      <line x1="-8" y1="0" x2="8" y2="0" />
+
+      <!-- Línea 4 -->
+      <line x1="-8" y1="5" x2="7" y2="5" />
+
+      <!-- Línea 5 (más corta) -->
+      <line x1="-8" y1="10" x2="4" y2="10" />
+    </g>
+
+    <!-- Pequeño indicador de tipo (como Excel/CSV) -->
+    <circle cx="10" cy="12" r="2.5" fill="#1F2937" opacity="0.4"/>
+  </g>
+</svg>
