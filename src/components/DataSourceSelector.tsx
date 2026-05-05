@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import UploadZone from './UploadZone';
-import { GoogleSheetsModal, ImportedSheet } from './GoogleSheetsModal';
-import { GoogleSheetsDataset } from '@/types/dataset';
+import { GoogleSheetsModal, type ImportedSheet } from './GoogleSheetsModal';
+import { GoogleSheetsAnalysisUI, type GoogleSheetData } from './GoogleSheetsAnalysisUI';
+import { processDataset } from '@/lib/datasetAnalysis';
 
 type TabType = 'upload' | 'google';
 
-export function DataSourceSelector() {
+export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boolean) => void }) {
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
+  const [googleSheetAnalysis, setGoogleSheetAnalysis] = useState<GoogleSheetData | null>(null);
 
   // Solo renderizar en cliente para evitar hydration mismatch
   useEffect(() => {
@@ -18,27 +20,77 @@ export function DataSourceSelector() {
   }, []);
 
   // Manejar importación de Google Sheets
-  const handleGoogleSheetImport = async (sheetData: ImportedSheet) => {
+  const handleGoogleSheetImport = useCallback(async (sheetData: ImportedSheet) => {
+    console.log('📥 [DataSourceSelector] Google Sheet importado:', {
+      nombre: sheetData.name,
+      filas: sheetData.data.length,
+      columnas: sheetData.headers.length,
+    });
+
     try {
-      // Nota: El dataset de Google Sheets se guarda en localStorage y en la BD
-      // El evento 'dashlify:datasets-changed' dispara la recarga en el dashboard
+      console.log('⏳ [DataSourceSelector] Analizando Google Sheet con IA...');
 
-      // Disparar evento personalizado (igual que UploadZone)
-      // Esto permite que el dashboard se entere de los cambios
-      window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
+      // Procesar el Google Sheet igual que un archivo
+      const processed = await processDataset({
+        name: sheetData.name,
+        headers: sheetData.headers,
+        sampleData: sheetData.data,
+        type: 'google-sheets',
+        size: '0 KB',
+        sourceType: 'google-sheets',
+        sheetId: sheetData.id,
+        sourceUrl: sheetData.sourceUrl,
+      });
 
+      console.log('✅ [DataSourceSelector] Google Sheet procesado:', {
+        id: processed.id,
+        nombre: processed.name,
+        filas: processed.sampleData?.length,
+        analisisCompleto: !!processed.analysis,
+      });
+
+      // Crear objeto GoogleSheetData con análisis
+      const googleSheetData: GoogleSheetData = {
+        id: processed.id,
+        name: processed.name,
+        headers: processed.headers,
+        data: processed.sampleData || [],
+        analysis: processed.analysis, // Aquí está el análisis completo
+      };
+
+      // Guardar en estado para mostrar la UI de análisis
+      setGoogleSheetAnalysis(googleSheetData);
+
+      // Cerrar modal
       setGoogleSheetsModalOpen(false);
-    } catch (error) {
-      console.error('Error importando Google Sheet:', error);
-    }
-  };
 
-  // UploadZone maneja sus datos de forma diferente (mediante eventos)
-  // DataSourceSelector solo necesita renderizar UploadZone sin callbacks adicionales
+      // Cambiar a pestaña de análisis
+      setActiveTab('google');
+    } catch (error) {
+      console.error('❌ Error importando Google Sheet:', error);
+      alert('❌ Error al procesar Google Sheet: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+    }
+  }, []);
+
+  // Manejar cierre de análisis de Google Sheets
+  const handleCloseGoogleAnalysis = useCallback(() => {
+    setGoogleSheetAnalysis(null);
+    setActiveTab('upload');
+  }, []);
 
   // Evitar hydration mismatch: no renderizar hasta que esté montado
   if (!isMounted) {
     return null;
+  }
+
+  // Si hay análisis de Google Sheets activo, mostrar esa UI
+  if (googleSheetAnalysis) {
+    return (
+      <GoogleSheetsAnalysisUI
+        sheetData={googleSheetAnalysis}
+        onClose={handleCloseGoogleAnalysis}
+      />
+    );
   }
 
   return (
@@ -91,7 +143,7 @@ export function DataSourceSelector() {
       {/* Tab Content */}
       {activeTab === 'upload' && (
         <div>
-          <UploadZone />
+          <UploadZone onWideChange={onWideChange} />
         </div>
       )}
 

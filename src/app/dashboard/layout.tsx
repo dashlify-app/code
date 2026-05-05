@@ -5,10 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Minus } from 'lucide-react';
-import UploadZone from '@/components/UploadZone';
-import { GoogleSheetsModal, type ImportedSheet } from '@/components/GoogleSheetsModal';
-import { GoogleSheetsAnalysisUI } from '@/components/GoogleSheetsAnalysisUI';
-import { processDataset } from '@/lib/datasetAnalysis';
+import { DataSourceSelector } from '@/components/DataSourceSelector';
 
 type DashboardRow = { id: string; title: string; updatedAt: string; sourceType?: 'upload' | 'google-sheets' };
 
@@ -75,8 +72,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const deleteInFlight = useRef(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadModalWide, setUploadModalWide] = useState(false);
-  const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
-  const [googleSheetAnalysis, setGoogleSheetAnalysis] = useState<any>(null);
   const onUploadZoneWideChange = useCallback((wide: boolean) => {
     setUploadModalWide(wide);
   }, []);
@@ -201,57 +196,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setUploadModalOpen(true);
   };
 
-  const openGoogleSheetsModal = () => {
-    setGoogleSheetsModalOpen(true);
-  };
-
-  const handleGoogleSheetImport = (sheetData: ImportedSheet) => {
-    console.log('📥 [Dashboard] Iniciando procesamiento de Google Sheet:', sheetData.name);
-
-    // Procesar en background
-    (async () => {
-      try {
-        console.log('⏳ [Dashboard] Analizando sheet con IA...');
-
-        // Procesar el Google Sheet como si fuera un archivo
-        const processed = await processDataset({
-          name: sheetData.name,
-          headers: sheetData.headers,
-          sampleData: sheetData.data,
-          type: 'google-sheets',
-          size: '0 KB',
-          sourceType: 'google-sheets',
-          sheetId: sheetData.id,
-          sourceUrl: sheetData.sourceUrl,
-        });
-
-        console.log('✅ [Dashboard] Google Sheet procesado:', {
-          id: processed.id,
-          nombre: processed.name,
-          filas: processed.sampleData?.length,
-        });
-
-        // Notificar que hay nuevos datasets
-        window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
-
-        // Mostrar la UI de análisis con opciones de gráficas
-        setGoogleSheetAnalysis({
-          id: processed.id,
-          name: processed.name,
-          headers: processed.headers,
-          data: processed.sampleData || [],
-          analysis: processed.analysis,
-        });
-      } catch (error) {
-        console.error('❌ [Dashboard] Error al procesar Google Sheet:', error);
-        alert('❌ Error: ' + (error instanceof Error ? error.message : 'Error al procesar sheet'));
-      }
-    })();
-  };
-
-  // Detectar si usuario está autenticado con Google (tiene accessToken de Google)
-  const isGoogleAuthenticated = !!(session && (session as any)?.accessToken);
-
   if (status === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#070b0f] text-[#00d4ff]">
@@ -261,18 +205,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const rootClass = [dark ? 'dash-dark' : '', sidebarOpen ? '' : 'sidebar-collapsed'].filter(Boolean).join(' ');
-
-  // Si hay un Google Sheet en análisis, mostrar la UI de análisis
-  if (googleSheetAnalysis) {
-    return (
-      <div className={rootClass} style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-        <GoogleSheetsAnalysisUI
-          sheetData={googleSheetAnalysis}
-          onClose={() => setGoogleSheetAnalysis(null)}
-        />
-      </div>
-    );
-  }
 
   return (
     <div id="dash-admin" className={rootClass}>
@@ -448,15 +380,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span>📊</span>
                 <div>
                   <div className="conn-name">Google Sheets</div>
-                  <div className={`conn-status${isGoogleAuthenticated ? ' on' : ''}`}>
-                    {isGoogleAuthenticated ? '● Conectado' : '○ Opcional'}
+                  <div className={`conn-status${(session && (session as any)?.accessToken) ? ' on' : ''}`}>
+                    {(session && (session as any)?.accessToken) ? '● Conectado' : '○ Opcional'}
                   </div>
                 </div>
               </div>
               <button
                 type="button"
-                className={`toggle${isGoogleAuthenticated ? ' on' : ''}`}
-                onClick={openGoogleSheetsModal}
+                className={`toggle${(session && (session as any)?.accessToken) ? ' on' : ''}`}
+                onClick={openUpload}
                 title="Importar Google Sheets"
                 aria-label="Importar Google Sheets"
               />
@@ -492,13 +424,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="dash-upload-modal-title" className="dash-upload-modal-title">
-              Cargar nuevo archivo
+              Cargar datos
             </h3>
             <p className="dash-upload-modal-lead" hidden={uploadModalWide}>
-              La IA interpreta tu archivo y genera un dashboard en segundos.
+              La IA interpreta tu archivo o Google Sheet y genera un dashboard en segundos.
             </p>
             <div className="dash-upload-modal-body">
-              <UploadZone onWideChange={onUploadZoneWideChange} />
+              <DataSourceSelector onWideChange={onUploadZoneWideChange} />
             </div>
             <div className="dash-upload-modal-foot">
               <button type="button" className="btn-sm" onClick={() => setUploadModalOpen(false)}>
@@ -508,16 +440,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       ) : null}
-
-      <GoogleSheetsModal
-        open={googleSheetsModalOpen}
-        onClose={() => setGoogleSheetsModalOpen(false)}
-        onImport={(sheetData) => {
-          console.log('🎬 [Layout] onImport callback ejecutado');
-          setGoogleSheetsModalOpen(false);
-          handleGoogleSheetImport(sheetData);
-        }}
-      />
     </div>
   );
 }
