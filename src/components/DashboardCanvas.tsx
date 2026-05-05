@@ -229,13 +229,13 @@ function CanvasInner({
   return (
     <div className={`space-y-4 animate-in fade-in duration-700 p-8 transition-all ${
       theme === 'enterprise' ? 'dash-canvas-enterprise rounded-[13px]' : 'rounded-4xl'
-    } ${tc.canvas}`}>
+    } ${theme === 'enterprise' ? 'dash-enterprise' : theme === 'dark' ? 'dash-dark' : ''} ${tc.canvas}`}>
 
       {/* Enterprise banner */}
       {theme === 'enterprise' && (
-        <div className="flex items-center gap-3 px-5 py-2 rounded-t-[13px] border border-slate-200 bg-white/70 text-[10px] tracking-[2px] uppercase font-bold text-slate-400 font-mono backdrop-blur-xl">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          Dashlify Enterprise · Business Intelligence
+        <div className="flex items-center gap-3 px-5 py-2 rounded-t-[13px] border border-(--border) bg-(--header-bg) text-[10px] tracking-[2px] uppercase font-bold text-(--text3) font-mono backdrop-blur-xl">
+          <span className="w-2 h-2 rounded-full bg-(--accent2) animate-pulse" />
+          Dashlify Enterprise · Investment Insights
         </div>
       )}
 

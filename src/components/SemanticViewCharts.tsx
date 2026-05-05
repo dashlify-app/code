@@ -563,10 +563,49 @@ type Props = {
   headers: string[];
   /** Frases de prioridad generadas por el modelo (además de reglas heurísticas) */
   priorityInsightsFromAI?: string[] | null;
+  theme?: 'modern' | 'enterprise' | 'dark';
 };
 
-export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsightsFromAI }: Props) {
+export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsightsFromAI, theme = 'modern' }: Props) {
   const [chartWidths, setChartWidths] = useState<Record<string, 'third' | 'twoThirds' | 'full'>>({});
+  const isEnterprise = theme === 'enterprise';
+  const isDark = theme === 'dark';
+
+  const axisPropsThemed = useMemo(() => {
+    const tickFill = isEnterprise ? '#4a6b82' : isDark ? '#8bafc7' : '#94a3b8';
+    return {
+      ...axisProps,
+      tick: { ...(axisProps as any).tick, fill: tickFill },
+    };
+  }, [isEnterprise, isDark]);
+
+  const gridPropsThemed = useMemo(
+    () => ({
+      ...gridProps,
+      stroke: isEnterprise ? 'rgba(26, 42, 58, 0.35)' : isDark ? 'rgba(26, 42, 58, 0.25)' : gridProps.stroke,
+    }),
+    [isEnterprise, isDark]
+  );
+
+  const tooltipStyleThemed = useMemo(() => {
+    if (isEnterprise) {
+      return {
+        ...tooltipStyle,
+        backgroundColor: '#111820',
+        border: '1px solid #1a2a3a',
+        color: '#8bafc7',
+      } as const;
+    }
+    if (isDark) {
+      return {
+        ...tooltipStyle,
+        backgroundColor: 'rgba(17, 24, 32, 0.95)',
+        border: '1px solid rgba(0, 212, 255, 0.2)',
+        color: '#8bafc7',
+      } as const;
+    }
+    return tooltipStyle;
+  }, [isEnterprise, isDark]);
 
   const handleWidthChange = (panelId: string, newWidth: 'third' | 'twoThirds' | 'full') => {
     setChartWidths((prev) => ({
@@ -851,10 +890,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 >
                   <ChartBox>
                     <BarChart data={groupCount(rows, effectiveBarCol)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                      <CartesianGrid {...gridProps} />
-                      <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
-                      <YAxis {...axisProps} />
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <CartesianGrid {...gridPropsThemed} />
+                      <XAxis dataKey="name" {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 12)} />
+                      <YAxis {...axisPropsThemed} />
+                      <Tooltip contentStyle={tooltipStyleThemed} />
                       <Bar dataKey="value" name="Conteo" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ChartBox>
@@ -887,7 +926,7 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                           <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <Tooltip contentStyle={tooltipStyleThemed} />
                       <Legend />
                     </PieChart>
                   </ChartBox>
@@ -911,10 +950,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 >
                   <ChartBox>
                     <LineChart data={revenueByMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                      <CartesianGrid {...gridProps} />
-                      <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 7)} />
-                      <YAxis {...axisProps} />
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <CartesianGrid {...gridPropsThemed} />
+                      <XAxis dataKey="name" {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 7)} />
+                      <YAxis {...axisPropsThemed} />
+                      <Tooltip contentStyle={tooltipStyleThemed} />
                       <Line type="monotone" dataKey="value" name="Total" stroke="#8b5cf6" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ChartBox>
@@ -933,10 +972,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 >
                   <ChartBox>
                     <BarChart layout="vertical" data={groupCount(rows, sem.brand, 10)} margin={{ top: 8, right: 8, left: 60, bottom: 0 }}>
-                      <CartesianGrid {...gridProps} horizontal={false} />
-                      <XAxis type="number" {...axisProps} />
-                      <YAxis dataKey="name" type="category" width={88} {...axisProps} tickFormatter={(v) => String(v).slice(0, 16)} />
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <CartesianGrid {...gridPropsThemed} horizontal={false} />
+                      <XAxis type="number" {...axisPropsThemed} />
+                      <YAxis dataKey="name" type="category" width={88} {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 16)} />
+                      <Tooltip contentStyle={tooltipStyleThemed} />
                       <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]}>
                         {groupCount(rows, sem.brand, 10).map((_, i) => (
                           <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
@@ -985,9 +1024,9 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                       <ChartBox>
                         <ScatterChart margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                           <CartesianGrid />
-                          <XAxis dataKey="x" name="Precio" type="number" unit="" {...axisProps} />
-                          <YAxis dataKey="y" name="Costo" type="number" {...axisProps} />
-                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyle} />
+                          <XAxis dataKey="x" name="Precio" type="number" unit="" {...axisPropsThemed} />
+                          <YAxis dataKey="y" name="Costo" type="number" {...axisPropsThemed} />
+                          <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={tooltipStyleThemed} />
                           <Scatter name="Items" data={priceCostPts} fill="#0ea5e9" />
                         </ScatterChart>
                       </ChartBox>
@@ -1010,10 +1049,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     ) : (
                       <ChartBox>
                         <BarChart data={marginRows.map((m) => ({ name: m.name.slice(0, 14), m: m.margin }))} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
-                          <CartesianGrid {...gridProps} />
-                          <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
-                          <YAxis {...axisProps} unit="%" />
-                          <Tooltip contentStyle={tooltipStyle} />
+                          <CartesianGrid {...gridPropsThemed} />
+                          <XAxis dataKey="name" {...axisPropsThemed} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
+                          <YAxis {...axisPropsThemed} unit="%" />
+                          <Tooltip contentStyle={tooltipStyleThemed} />
                           <Bar dataKey="m" name="Margen %" fill="#8b5cf6" maxBarSize={32} />
                         </BarChart>
                       </ChartBox>
@@ -1039,10 +1078,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                           data={marginRows.map((m) => ({ name: m.name.slice(0, 12), p: m.profit }))}
                           margin={{ top: 8, right: 8, left: -10, bottom: 40 }}
                         >
-                          <CartesianGrid {...gridProps} />
-                          <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
-                          <YAxis {...axisProps} />
-                          <Tooltip contentStyle={tooltipStyle} />
+                          <CartesianGrid {...gridPropsThemed} />
+                          <XAxis dataKey="name" {...axisPropsThemed} interval={0} angle={-20} textAnchor="end" height={50} tick={{ fontSize: 8 }} />
+                          <YAxis {...axisPropsThemed} />
+                          <Tooltip contentStyle={tooltipStyleThemed} />
                           <Bar dataKey="p" name="Contrib. relativa" fill="#f97316" maxBarSize={32} />
                         </BarChart>
                       </ChartBox>
@@ -1081,10 +1120,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                           })()}
                           margin={{ top: 8, right: 8, left: -10, bottom: 0 }}
                         >
-                          <CartesianGrid {...gridProps} />
-                          <XAxis dataKey="name" {...axisProps} />
-                          <YAxis {...axisProps} />
-                          <Tooltip contentStyle={tooltipStyle} />
+                          <CartesianGrid {...gridPropsThemed} />
+                          <XAxis dataKey="name" {...axisPropsThemed} />
+                          <YAxis {...axisPropsThemed} />
+                          <Tooltip contentStyle={tooltipStyleThemed} />
                           <Bar dataKey="value" fill="#14b8a6" />
                         </BarChart>
                       </ChartBox>
@@ -1129,10 +1168,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 >
                   <ChartBox>
                     <BarChart data={pairData} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
-                      <CartesianGrid {...gridProps} />
-                      <XAxis dataKey="name" {...axisProps} tick={{ fontSize: 8 }} angle={-25} textAnchor="end" height={50} />
-                      <YAxis {...axisProps} />
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <CartesianGrid {...gridPropsThemed} />
+                      <XAxis dataKey="name" {...axisPropsThemed} tick={{ fontSize: 8 }} angle={-25} textAnchor="end" height={50} />
+                      <YAxis {...axisPropsThemed} />
+                      <Tooltip contentStyle={tooltipStyleThemed} />
                       <Legend />
                       <Bar dataKey="stock" name="Stock" fill="#0ea5e9" />
                       <Bar dataKey="min" name="Mínimo" fill="#f97316" />
@@ -1153,10 +1192,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 >
                   <ChartBox>
                     <BarChart layout="vertical" data={groupSum(rows, sem.warehouse, sem.stock)} margin={{ top: 8, right: 8, left: 70, bottom: 0 }}>
-                      <CartesianGrid {...gridProps} horizontal={false} />
-                      <XAxis type="number" {...axisProps} />
-                      <YAxis dataKey="name" type="category" width={64} {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <CartesianGrid {...gridPropsThemed} horizontal={false} />
+                      <XAxis type="number" {...axisPropsThemed} />
+                      <YAxis dataKey="name" type="category" width={64} {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 12)} />
+                      <Tooltip contentStyle={tooltipStyleThemed} />
                       <Bar dataKey="value" fill="#10b981" />
                     </BarChart>
                   </ChartBox>
@@ -1175,10 +1214,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                 >
                   <ChartBox>
                     <BarChart data={leadBySup} layout="vertical" margin={{ top: 8, right: 8, left: 70, bottom: 0 }}>
-                      <CartesianGrid {...gridProps} horizontal={false} />
-                      <XAxis type="number" {...axisProps} />
-                      <YAxis dataKey="name" type="category" width={64} {...axisProps} tickFormatter={(v) => String(v).slice(0, 12)} />
-                      <Tooltip contentStyle={tooltipStyle} />
+                      <CartesianGrid {...gridPropsThemed} horizontal={false} />
+                      <XAxis type="number" {...axisPropsThemed} />
+                      <YAxis dataKey="name" type="category" width={64} {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 12)} />
+                      <Tooltip contentStyle={tooltipStyleThemed} />
                       <Bar dataKey="value" fill="#ec4899" />
                     </BarChart>
                   </ChartBox>
@@ -1216,10 +1255,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   >
                     <ChartBox>
                       <BarChart data={groupCount(rows, sem.supplier!)} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 10)} />
-                        <YAxis {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
+                        <CartesianGrid {...gridPropsThemed} />
+                        <XAxis dataKey="name" {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 10)} />
+                        <YAxis {...axisPropsThemed} />
+                        <Tooltip contentStyle={tooltipStyleThemed} />
                         <Bar dataKey="value" fill="#0ea5e9" />
                       </BarChart>
                     </ChartBox>
@@ -1238,10 +1277,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                   >
                     <ChartBox>
                       <LineChart data={leadBySup} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 8)} />
-                        <YAxis {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
+                        <CartesianGrid {...gridPropsThemed} />
+                        <XAxis dataKey="name" {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 8)} />
+                        <YAxis {...axisPropsThemed} />
+                        <Tooltip contentStyle={tooltipStyleThemed} />
                         <Line dataKey="value" stroke="#8b5cf6" dot />
                       </LineChart>
                     </ChartBox>
@@ -1270,7 +1309,7 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                             <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
                           ))}
                         </Pie>
-                        <Tooltip contentStyle={tooltipStyle} />
+                        <Tooltip contentStyle={tooltipStyleThemed} />
                         <Legend />
                       </PieChart>
                     </ChartBox>
@@ -1314,9 +1353,9 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     <ChartBox>
                       <ScatterChart margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                         <CartesianGrid />
-                        <XAxis dataKey="x" name="Reseñas / x" type="number" {...axisProps} />
-                        <YAxis dataKey="y" name="Rating" type="number" domain={[0, 5]} {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
+                        <XAxis dataKey="x" name="Reseñas / x" type="number" {...axisPropsThemed} />
+                        <YAxis dataKey="y" name="Rating" type="number" domain={[0, 5]} {...axisPropsThemed} />
+                        <Tooltip contentStyle={tooltipStyleThemed} />
                         <Scatter name="Items" data={qualityPts} fill="#f59e0b" />
                       </ScatterChart>
                     </ChartBox>
@@ -1342,10 +1381,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                           .slice(0, 12)}
                         margin={{ top: 8, right: 8, left: -10, bottom: 40 }}
                       >
-                        <CartesianGrid {...gridProps} />
-                        <XAxis dataKey="name" {...axisProps} tick={{ fontSize: 8 }} angle={-20} textAnchor="end" height={50} />
-                        <YAxis domain={[0, 5]} {...axisProps} />
-                        <Tooltip contentStyle={tooltipStyle} />
+                        <CartesianGrid {...gridPropsThemed} />
+                        <XAxis dataKey="name" {...axisPropsThemed} tick={{ fontSize: 8 }} angle={-20} textAnchor="end" height={50} />
+                        <YAxis domain={[0, 5]} {...axisPropsThemed} />
+                        <Tooltip contentStyle={tooltipStyleThemed} />
                         <Bar dataKey="v" fill="#10b981" />
                       </BarChart>
                     </ChartBox>
@@ -1412,10 +1451,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                               <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid {...gridProps} />
-                          <XAxis dataKey="name" {...axisProps} tickFormatter={(v) => String(v).slice(0, 7)} />
-                          <YAxis {...axisProps} />
-                          <Tooltip contentStyle={tooltipStyle} />
+                          <CartesianGrid {...gridPropsThemed} />
+                          <XAxis dataKey="name" {...axisPropsThemed} tickFormatter={(v) => String(v).slice(0, 7)} />
+                          <YAxis {...axisPropsThemed} />
+                          <Tooltip contentStyle={tooltipStyleThemed} />
                           <Area dataKey="value" stroke="#0ea5e9" fill="url(#lgT2)" name="Eventos" />
                         </AreaChart>
                       </ChartBox>
@@ -1438,10 +1477,10 @@ export function SemanticViewCharts({ view, rows, sem, headers: _h, priorityInsig
                     ) : (
                       <ChartBox>
                         <LineChart data={byMonth} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-                          <CartesianGrid {...gridProps} />
-                          <XAxis dataKey="name" {...axisProps} />
-                          <YAxis {...axisProps} />
-                          <Tooltip contentStyle={tooltipStyle} />
+                          <CartesianGrid {...gridPropsThemed} />
+                          <XAxis dataKey="name" {...axisPropsThemed} />
+                          <YAxis {...axisPropsThemed} />
+                          <Tooltip contentStyle={tooltipStyleThemed} />
                           <Line dataKey="value" stroke="#10b981" strokeWidth={2} dot />
                         </LineChart>
                       </ChartBox>

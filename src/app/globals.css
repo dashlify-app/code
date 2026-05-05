@@ -23,6 +23,28 @@
   --glow:rgba(0,212,255,0.12);
 }
 
+/* Enterprise = “Plotly-like executive” (LIGHT): blancos/grises + acento azul */
+.dash-enterprise {
+  --bg:#f6f8fb;
+  --surface:#ffffff;
+  --surface2:#f3f6fb;
+  --surface3:#e8eef7;
+  --border:#e6edf6;
+  --border2:#cfd9e6;
+  --accent:#1f77b4;
+  --accent2:#2ca02c;
+  --accent3:#9467bd;
+  --accent4:#ff7f0e;
+  --accent5:#e377c2;
+  --text:#0f172a;   /* títulos */
+  --text2:#334155;  /* cuerpo */
+  --text3:#64748b;  /* labels */
+  --header-bg: rgba(255,255,255,0.85);
+  --footer-bg: rgba(255,255,255,0.92);
+  --grid-op: 0.03;
+  --glow: rgba(31,119,180,0.12);
+}
+
 body {
   font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
   background: var(--bg);
@@ -56,6 +78,13 @@ body::before {
   border-color: var(--border2);
   box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
   transform: translateY(-2px);
+}
+
+.dash-enterprise .chart-card:hover {
+  box-shadow:
+    0 18px 40px -24px rgba(15, 23, 42, 0.16),
+    0 0 0 1px rgba(31, 119, 180, 0.08),
+    0 0 28px rgba(31, 119, 180, 0.08);
 }
 
 .kpi-card {

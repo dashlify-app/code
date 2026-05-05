@@ -745,6 +745,7 @@ function DashboardContent() {
   const pathname = usePathname();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [dashboardDatasetAllowList, setDashboardDatasetAllowList] = useState<{ ids: Set<string>; names: Set<string> } | null>(null);
+  const [dashboardTheme, setDashboardTheme] = useState<'modern' | 'enterprise' | 'dark'>('modern');
   const [loading, setLoading] = useState(true);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
   const [kpiFlipped, setKpiFlipped] = useState<Record<string, boolean>>({});
@@ -846,6 +847,12 @@ function DashboardContent() {
         const dRes = await fetch(`/api/dashboards/${dashId}`);
         const dJson = await dRes.json();
         if (cancelled || !dJson.dashboard?.widgets) return;
+
+        // Tema guardado en el dashboard (templateId). Default: modern.
+        const t = String(dJson.dashboard?.templateId || '').toLowerCase();
+        if (!cancelled) {
+          setDashboardTheme(t === 'enterprise' || t === 'dark' || t === 'modern' ? (t as any) : 'modern');
+        }
 
         // Datasets permitidos para este dashboard (por datasetId persistido en Widget/config).
         const allowIds = new Set<string>();
@@ -1090,7 +1097,7 @@ function DashboardContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" style={{color:'var(--text3)'}}>
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent mr-3" />
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-(--accent) border-t-transparent mr-3" />
         Cargando datos…
       </div>
     );
@@ -1099,16 +1106,19 @@ function DashboardContent() {
   if (!dashboardsListLoaded) {
     return (
       <div className="flex items-center justify-center h-64" style={{ color: 'var(--text3)' }}>
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent mr-3" />
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-(--accent) border-t-transparent mr-3" />
         Cargando panel…
       </div>
     );
   }
 
+  const themeWrapClass =
+    dashboardTheme === 'enterprise' ? 'dash-enterprise' : dashboardTheme === 'dark' ? 'dash-dark' : '';
+
   // Pantalla limpia de carga/importación (sin renderizar el dashboard actual debajo).
   if (params.get('action') === 'upload') {
     return (
-      <>
+      <div className={themeWrapClass}>
         <div className="sec-hd">
           <div className="sec-hd-l">
             <h2>Cargar datos</h2>
@@ -1118,13 +1128,13 @@ function DashboardContent() {
         <div id="upload-zone" style={{ marginTop: 8 }}>
           <DataSourceSelector />
         </div>
-      </>
+      </div>
     );
   }
 
   if (!hasSavedDashboard) {
     return (
-      <>
+      <div className={themeWrapClass}>
         <NoSavedDashboardState sessionHasDatasets={datasets.length > 0} />
         <div className="sec-hd">
           <div className="sec-hd-l">
@@ -1135,12 +1145,12 @@ function DashboardContent() {
         <div id="upload-zone" style={{ marginTop: 8 }}>
           <DataSourceSelector />
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className={themeWrapClass}>
       {/* AI BAR — dinámica */}
       <div className="ai-bar">
         <span className="ai-chip">IA</span>
@@ -1268,6 +1278,7 @@ function DashboardContent() {
           rows={rows}
           headers={headers}
           datasetName={activeDataset?.name || ''}
+          theme={dashboardTheme}
           onWidgetAdd={(newWidget) => {
             // Add new widget to state for immediate display in canvas or here
             setSavedVisualWidgets(prev => [...prev, newWidget]);
@@ -1298,6 +1309,7 @@ function DashboardContent() {
           sem={semantic}
           headers={headers}
           priorityInsightsFromAI={aiLayer?.priorityInsights}
+          theme={dashboardTheme}
         />
       )}
 
@@ -1328,7 +1340,7 @@ function DashboardContent() {
         availableFields={headers}
         datasetName={activeDataset?.name || ''}
       />
-    </>
+    </div>
   );
 }
 
@@ -1336,7 +1348,7 @@ export default function DashboardPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64" style={{color:'var(--text3)'}}>
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent mr-3" />
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-(--accent) border-t-transparent mr-3" />
         Cargando…
       </div>
     }>

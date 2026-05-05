@@ -51,6 +51,24 @@ export async function POST(req: Request) {
          - sourceFile: nombre del archivo (.xlsx/.csv) al que pertenecen esas columnas.
          - aggregate cuando aplique: uno de "sum" | "avg" | "count" | "median" | "cumulative" | "mom" | "outliers".
 
+      6. Benchmark "tipo IA" (PRESENTACIÓN EJECUTIVA):
+         - Incluye en config un campo: benchmarkMode = "auto" | "previousPeriod" | "globalAvg" | "none".
+         - Reglas:
+           - Si type es "line" o "area" y xAxis es temporal → benchmarkMode: "previousPeriod".
+           - Si type es "bar" (xAxis categórico) y es una métrica agregada → benchmarkMode: "globalAvg".
+           - Si type es "pie" | "donut" | "scatter" | "stat" → benchmarkMode: "none".
+           - Si tienes dudas, usa "auto".
+
+      7. Delta ejecutivo (PRESENTACIÓN EJECUTIVA):
+         - Incluye en config:
+           - showDelta: true | false  (si se debe mostrar delta vs benchmark en tooltip)
+           - deltaLabel: string (ej. "vs S&P 500", "vs Promedio", "vs Periodo anterior"). Debe ser corto.
+         - Reglas:
+           - Si benchmarkMode es "none" → showDelta: false.
+           - Si benchmarkMode es "previousPeriod" → showDelta: true, deltaLabel: "vs Periodo anterior".
+           - Si benchmarkMode es "globalAvg" → showDelta: true, deltaLabel: "vs Promedio".
+           - Si benchmarkMode es "auto" → showDelta: true y deltaLabel coherente con la gráfica.
+
       Piensa en reglas de negocio (margen, stock, rentabilidad, alertas, comparativas entre tablas vinculadas).
 
       Devuelve estrictamente un JSON con:

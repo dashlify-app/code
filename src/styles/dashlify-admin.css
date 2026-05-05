@@ -1304,11 +1304,18 @@
   padding: 4px 8px;
 }
 #dash-admin .chart-wrap {
-  height: 205px;
-  min-height: 205px;
   display: block;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+}
+
+/* En cards del canvas (SortableWidget), deja que el gráfico use la altura disponible */
+#dash-admin .chart-card .chart-wrap {
+  height: auto;
+  /* Asegura espacio para eje X + leyenda (evita cortes) */
+  min-height: 260px;
+  flex: 1 1 auto;
+  overflow: visible;
 }
 /* Vistas semánticas (Panel): gráfico + fila fija al pie — sin solapar ejes/leyenda. */
 #dash-admin .chart-wrap.semantic-panel-chart-stack {
@@ -1333,7 +1340,7 @@
   margin-bottom: 16px;
 }
 #dash-admin .widget-grid .chart-wrap {
-  height: 200px;
+  height: auto;
 }
 
 #dash-admin .dash-canvas-enterprise .chart-card {

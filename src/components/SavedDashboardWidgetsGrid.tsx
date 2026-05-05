@@ -37,10 +37,12 @@ function CategorySection({
   category,
   items,
   onReorder,
+  theme,
 }: {
   category: string;
   items: SavedWidgetVM[];
   onReorder: (category: string, next: SavedWidgetVM[]) => void;
+  theme: 'modern' | 'enterprise' | 'dark';
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -65,7 +67,7 @@ function CategorySection({
         <SortableContext items={items.map((w) => w.id)} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-4 lg:grid-cols-3 lg:gap-6 mb-4">
             {items.map((w) => (
-              <SortableWidget key={w.id} id={w.id} widget={w} theme="modern" isDark={false} />
+              <SortableWidget key={w.id} id={w.id} widget={w} theme={theme} isDark={theme === 'dark'} />
             ))}
           </div>
         </SortableContext>
@@ -83,12 +85,14 @@ export function SavedDashboardWidgetsGrid({
   rows = [],
   headers = [],
   datasetName = '',
+  theme = 'modern',
   onWidgetAdd,
 }: {
   widgets: SavedWidgetVM[];
   rows?: Record<string, any>[];
   headers?: string[];
   datasetName?: string;
+  theme?: 'modern' | 'enterprise' | 'dark';
   onWidgetAdd?: (widget: SavedWidgetVM) => void;
 }) {
   const [groupedState, setGroupedState] = useState<Record<string, SavedWidgetVM[]>>(() => regroupFromWidgets(widgets));
@@ -132,7 +136,13 @@ export function SavedDashboardWidgetsGrid({
     <FilterProvider>
       <div className="saved-dashboard-widgets space-y-8 mb-8">
         {entries.map(([category, items]) => (
-          <CategorySection key={category} category={category} items={items} onReorder={onReorder} />
+          <CategorySection
+            key={category}
+            category={category}
+            items={items}
+            onReorder={onReorder}
+            theme={theme}
+          />
         ))}
       </div>
     </FilterProvider>
