@@ -7,6 +7,7 @@ import {
   MultiDatasetAnalysis,
   DatasetForAnalysis,
 } from '@/lib/types/multiDataset';
+import { devWarn } from '@/lib/logger';
 
 /**
  * POST /api/analyze-multi
@@ -343,7 +344,7 @@ function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAn
   const validatedWidgets = analysis.proposedWidgets.filter(widget => {
     // Verificar que xAxis no esté vacío
     if (!widget.config.xAxis || widget.config.xAxis.trim() === '') {
-      console.warn(`Widget "${widget.title}" tiene xAxis vacío - será filtrado`);
+      devWarn(`Widget "${widget.title}" tiene xAxis vacío - será filtrado`);
       return false;
     }
 
@@ -351,7 +352,7 @@ function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAn
     if (widget.type !== 'stat') {
       const yAxis = widget.config.yAxis;
       if (!yAxis || (typeof yAxis === 'string' && yAxis.trim() === '')) {
-        console.warn(`Widget "${widget.title}" tiene yAxis vacío - será filtrado`);
+        devWarn(`Widget "${widget.title}" tiene yAxis vacío - será filtrado`);
         return false;
       }
     }
@@ -360,7 +361,7 @@ function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAn
     if (widget.config.aggregate) {
       const validAggregates = ['sum', 'avg', 'count', 'median', 'min', 'max', 'count_distinct', 'cumulative', 'mom', 'outliers'];
       if (!validAggregates.includes(widget.config.aggregate)) {
-        console.warn(`Widget "${widget.title}" tiene aggregate inválido "${widget.config.aggregate}" - será filtrado`);
+        devWarn(`Widget "${widget.title}" tiene aggregate inválido "${widget.config.aggregate}" - será filtrado`);
         return false;
       }
     }
@@ -369,7 +370,7 @@ function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAn
     if (widget.datasetConfig && widget.datasetConfig.joins && widget.datasetConfig.joins.length > 0) {
       // Si tiene joins, debe tener primary dataset definido
       if (!widget.datasetConfig.primary) {
-        console.warn(`Widget "${widget.title}" tiene joins pero no primary dataset - será filtrado`);
+        devWarn(`Widget "${widget.title}" tiene joins pero no primary dataset - será filtrado`);
         return false;
       }
     }
@@ -379,7 +380,7 @@ function validateAndCleanWidgets(analysis: MultiDatasetAnalysis): MultiDatasetAn
 
   // Si filtramos widgets, avisar
   if (validatedWidgets.length < analysis.proposedWidgets.length) {
-    console.warn(
+    devWarn(
       `Se filtraron ${analysis.proposedWidgets.length - validatedWidgets.length} widgets con configuración inválida`
     );
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { devLog } from '@/lib/logger';
 
 export interface PendingChart {
   title: string;
@@ -72,10 +73,10 @@ export function CustomChartModal({
   };
 
   const handleConfirm = () => {
-    console.log('[CustomChartModal] handleConfirm called, aiResponse:', aiResponse);
+    devLog('[CustomChartModal] handleConfirm called, aiResponse:', aiResponse);
 
     if (!aiResponse?.approved) {
-      console.log('[CustomChartModal] IA did not approve, setting error');
+      devLog('[CustomChartModal] IA did not approve, setting error');
       setError('IA debe aprobar antes de confirmar');
       return;
     }
@@ -89,7 +90,7 @@ export function CustomChartModal({
       datasetIndex: 0,
     };
 
-    console.log('[CustomChartModal] Calling onConfirm with:', { title: aiResponse.title, type: aiResponse.chartType });
+    devLog('[CustomChartModal] Calling onConfirm with:', { title: aiResponse.title, type: aiResponse.chartType });
 
     onConfirm({
       title: aiResponse.title || `${yField} por ${xField}`,
@@ -101,7 +102,7 @@ export function CustomChartModal({
       config,
     });
 
-    console.log('[CustomChartModal] onConfirm called, cleaning up and closing');
+    devLog('[CustomChartModal] onConfirm called, cleaning up and closing');
     setXField('');
     setYField('');
     setUserDescription('');

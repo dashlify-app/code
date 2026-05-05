@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase';
+import { devLog, devVerbose } from '@/lib/logger';
 
 interface UsageStats {
   prompt_tokens: number;
@@ -16,10 +17,10 @@ interface LogData {
 
 export async function logAIUsage(data: LogData) {
   try {
-    console.log('[logAIUsage] Iniciando logging de IA...');
-    console.log('[logAIUsage] userId:', data.userId);
-    console.log('[logAIUsage] actionType:', data.actionType);
-    console.log('[logAIUsage] tokens:', {
+    devLog('[logAIUsage] Iniciando logging de IA...');
+    devLog('[logAIUsage] userId:', data.userId);
+    devLog('[logAIUsage] actionType:', data.actionType);
+    devLog('[logAIUsage] tokens:', {
       prompt: data.usage.prompt_tokens,
       completion: data.usage.completion_tokens,
       total: data.usage.total_tokens
@@ -30,7 +31,7 @@ export async function logAIUsage(data: LogData) {
     const completionCost = data.usage.completion_tokens * 0.000015;
     const estimatedCostUSD = promptCost + completionCost;
 
-    console.log('[logAIUsage] Costo calculado:', estimatedCostUSD);
+    devLog('[logAIUsage] Costo calculado:', estimatedCostUSD);
 
     const payload = {
       userId: data.userId || null,
@@ -44,7 +45,7 @@ export async function logAIUsage(data: LogData) {
       createdAt: new Date().toISOString(),
     };
 
-    console.log('[logAIUsage] Payload a insertar:', JSON.stringify(payload, null, 2));
+    devVerbose('[logAIUsage] Payload a insertar:', JSON.stringify(payload, null, 2));
 
     // Usar .insert() sin .select() para evitar problemas con id auto-generated
     const { error, data: insertedData } = await supabaseAdmin
@@ -62,8 +63,8 @@ export async function logAIUsage(data: LogData) {
       throw error;
     }
 
-    console.log('[logAIUsage] ✅ Log guardado exitosamente en Supabase');
-    console.log('[logAIUsage] Response data:', insertedData);
+    devLog('[logAIUsage] ✅ Log guardado exitosamente en Supabase');
+    devVerbose('[logAIUsage] Response data:', insertedData);
   } catch (error) {
     console.error('[logAIUsage] ❌ Error fatal al guardar log de IA en Supabase:', error);
     console.error('[logAIUsage] Error details:', {

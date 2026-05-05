@@ -217,10 +217,10 @@ function calculateMetric(rows: JoinedRow[], calc: Calculation): number {
     }
 
     case 'min':
-      return Math.min(...values, 0);
+      return values.length === 0 ? 0 : Math.min(...values);
 
     case 'max':
-      return Math.max(...values, 0);
+      return values.length === 0 ? 0 : Math.max(...values);
 
     default:
       return values.reduce((a, b) => a + b, 0); // default sum

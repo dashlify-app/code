@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { devLog, devVerbose } from '@/lib/logger';
 
 const sheets = google.sheets('v4');
 const drive = google.drive('v3');
@@ -25,8 +26,8 @@ async function fetchSheetDataPublic(sheetId: string) {
     // Usar la API REST de Google Sheets directamente para sheets públicos
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
 
-    console.log('🔍 [fetchSheetDataPublic] Iniciando con sheetId:', sheetId);
-    console.log('🔑 [fetchSheetDataPublic] API Key presente:', !!apiKey);
+    devLog('🔍 [fetchSheetDataPublic] Iniciando con sheetId:', sheetId);
+    devLog('🔑 [fetchSheetDataPublic] API Key presente:', !!apiKey);
 
     if (!apiKey) {
       throw new Error('Google API Key no configurada');
@@ -34,7 +35,7 @@ async function fetchSheetDataPublic(sheetId: string) {
 
     // Obtener información de la sheet (spreadsheet metadata)
     const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${apiKey}`;
-    console.log('📡 [fetchSheetDataPublic] Metadata URL:', metadataUrl);
+    devLog('📡 [fetchSheetDataPublic] Metadata request, sheetId:', sheetId);
 
     const metadataResponse = await fetch(metadataUrl, {
       headers: {
@@ -42,7 +43,7 @@ async function fetchSheetDataPublic(sheetId: string) {
       },
     });
 
-    console.log('📊 [fetchSheetDataPublic] Metadata response status:', metadataResponse.status);
+    devLog('📊 [fetchSheetDataPublic] Metadata response status:', metadataResponse.status);
 
     if (!metadataResponse.ok) {
       const errorText = await metadataResponse.text();
@@ -60,7 +61,7 @@ async function fetchSheetDataPublic(sheetId: string) {
     }
 
     const spreadsheet = await metadataResponse.json();
-    console.log('✅ [fetchSheetDataPublic] Spreadsheet metadata:', {
+    devLog('✅ [fetchSheetDataPublic] Spreadsheet metadata:', {
       title: spreadsheet.properties?.title,
       sheetsCount: spreadsheet.sheets?.length,
       firstSheetName: spreadsheet.sheets?.[0]?.properties?.title
@@ -76,8 +77,7 @@ async function fetchSheetDataPublic(sheetId: string) {
     // Obtener datos de la hoja (valores)
     const range = `${sheetName}!A:Z`;
     const valuesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
-    console.log('📡 [fetchSheetDataPublic] Values URL:', valuesUrl);
-    console.log('📡 [fetchSheetDataPublic] Range:', range);
+    devLog('📡 [fetchSheetDataPublic] Values request, range:', range, 'sheetId:', sheetId);
 
     const valuesResponse = await fetch(valuesUrl, {
       headers: {
@@ -85,7 +85,7 @@ async function fetchSheetDataPublic(sheetId: string) {
       },
     });
 
-    console.log('📊 [fetchSheetDataPublic] Values response status:', valuesResponse.status);
+    devLog('📊 [fetchSheetDataPublic] Values response status:', valuesResponse.status);
 
     if (!valuesResponse.ok) {
       const errorText = await valuesResponse.text();
@@ -94,16 +94,16 @@ async function fetchSheetDataPublic(sheetId: string) {
     }
 
     const valuesData = await valuesResponse.json();
-    console.log('✅ [fetchSheetDataPublic] Values data:', {
+    devLog('✅ [fetchSheetDataPublic] Values data:', {
       rowCount: valuesData.values?.length,
       firstRow: valuesData.values?.[0],
-      fullResponse: valuesData
     });
+    devVerbose('✅ [fetchSheetDataPublic] Values full response:', valuesData);
 
     const rows = valuesData.values || [];
 
     if (rows.length === 0) {
-      console.log('⚠️ [fetchSheetDataPublic] No rows found in sheet');
+      devLog('⚠️ [fetchSheetDataPublic] No rows found in sheet');
       return NextResponse.json({
         data: [],
         headers: [],
@@ -123,7 +123,7 @@ async function fetchSheetDataPublic(sheetId: string) {
       return obj;
     });
 
-    console.log('✅ [fetchSheetDataPublic] Successfully processed:', {
+    devLog('✅ [fetchSheetDataPublic] Successfully processed:', {
       headersCount: headers.length,
       rowsCount: data.length,
       headers: headers

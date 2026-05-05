@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { logAIUsage } from '@/lib/aiLogger';
 import { checkRateLimit, logApiCall } from '@/lib/rateLimiter';
+import { devLog, devVerbose } from '@/lib/logger';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,22 +12,22 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    console.log('[/api/analyze] Recibiendo solicitud...');
+    devLog('[/api/analyze] Recibiendo solicitud...');
 
     const session = await getServerSession(authOptions);
-    console.log('[/api/analyze] Session:', session);
-    console.log('[/api/analyze] Session.user:', session?.user);
-    console.log('[/api/analyze] Session.user.id:', session?.user?.id);
+    devLog('[/api/analyze] Session:', session);
+    devLog('[/api/analyze] Session.user:', session?.user);
+    devLog('[/api/analyze] Session.user.id:', session?.user?.id);
 
     if (!session?.user?.id) {
-      console.log('[/api/analyze] ❌ 401: No hay sesión válida');
+      devLog('[/api/analyze] ❌ 401: No hay sesión válida');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    console.log('[/api/analyze] ✓ Usuario autenticado:', session.user.id);
+    devLog('[/api/analyze] ✓ Usuario autenticado:', session.user.id);
 
     const allowed = await checkRateLimit(session.user.id, 'analyze');
-    console.log('[/api/analyze] Rate limit check:', allowed);
+    devLog('[/api/analyze] Rate limit check:', allowed);
     if (!allowed) {
       return NextResponse.json(
         { error: 'Límite de llamadas excedido. Máximo 10 por minuto.' },
@@ -130,9 +131,9 @@ DEVUELVE EXACTAMENTE ESTE JSON (sin markdown, sin bloques de código):
 
     const analysis = JSON.parse(response.choices[0].message.content || '{}');
 
-    console.log('--- GPT-4o PROPOSAL JSON ---');
-    console.log(JSON.stringify(analysis, null, 2));
-    console.log('-----------------------------');
+    devVerbose('--- GPT-4o PROPOSAL JSON ---');
+    devVerbose(JSON.stringify(analysis, null, 2));
+    devVerbose('-----------------------------');
 
     if (response.usage) {
       await logAIUsage({

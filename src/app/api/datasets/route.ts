@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
+import { devLog } from '@/lib/logger';
 
 async function getOrganizationIdForUser(userId: string) {
   const { data: user, error: userError } = await supabaseAdmin
@@ -32,12 +33,12 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as any)?.id as string | undefined;
 
-  console.log('GET /api/datasets - session:', { userId, email: session?.user?.email });
+  devLog('GET /api/datasets - session:', { userId, email: session?.user?.email });
 
   if (!userId) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
   const organizationId = await getOrganizationIdForUser(userId);
-  console.log('organizationId result:', organizationId);
+  devLog('organizationId result:', organizationId);
 
   if (!organizationId) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
 
@@ -56,12 +57,12 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as any)?.id as string | undefined;
 
-  console.log('POST /api/datasets - session:', { userId, email: session?.user?.email });
+  devLog('POST /api/datasets - session:', { userId, email: session?.user?.email });
 
   if (!userId) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
   const organizationId = await getOrganizationIdForUser(userId);
-  console.log('organizationId result:', organizationId);
+  devLog('organizationId result:', organizationId);
 
   if (!organizationId) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
 

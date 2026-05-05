@@ -237,7 +237,7 @@ describe('multiDatasetJoin - Motor de Joins Local', () => {
         name: 'median_amount',
         column: 'amount',
         aggregate: 'median',
-        groupBy: 'id',
+        groupBy: 'customer_id',
       };
 
       const allDatasets = new Map([

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useSession, signIn } from 'next-auth/react';
+import { devLog } from '@/lib/logger';
 
 export interface ImportedSheet {
   id: string;
@@ -93,7 +94,7 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
       const result = await response.json();
 
-      console.log('✅ [GoogleSheetsModal] Sheet data received:', {
+      devLog('✅ [GoogleSheetsModal] Sheet data received:', {
         rowCount: result.data?.length,
         headerCount: result.headers?.length,
         name: result.name,
@@ -157,7 +158,7 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
   // Confirmar importación
   const handleConfirmImport = () => {
-    console.log('🔍 [GoogleSheetsModal] handleConfirmImport clicked');
+    devLog('🔍 [GoogleSheetsModal] handleConfirmImport clicked');
 
     if (!preview) {
       console.error('❌ [GoogleSheetsModal] No preview available');
@@ -175,7 +176,7 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
       isAutoRefresh: refreshMode === 'auto',
     };
 
-    console.log('📤 [GoogleSheetsModal] Preparando para enviar:', {
+    devLog('📤 [GoogleSheetsModal] Preparando para enviar:', {
       nombre: importedSheet.name,
       filas: importedSheet.data.length,
       columnas: importedSheet.headers.length,
@@ -184,7 +185,7 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
     try {
       // Llamar callback - es síncrono
       onImport(importedSheet);
-      console.log('✅ [GoogleSheetsModal] onImport llamado');
+      devLog('✅ [GoogleSheetsModal] onImport llamado');
     } catch (error) {
       console.error('❌ [GoogleSheetsModal] Error in onImport:', error);
       setError('Error al importar: ' + (error instanceof Error ? error.message : 'Error desconocido'));

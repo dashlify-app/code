@@ -5,6 +5,7 @@ import UploadZone from './UploadZone';
 import { GoogleSheetsModal, type ImportedSheet } from './GoogleSheetsModal';
 import { GoogleSheetsAnalysisUI, type GoogleSheetData } from './GoogleSheetsAnalysisUI';
 import { processDataset } from '@/lib/datasetAnalysis';
+import { devLog } from '@/lib/logger';
 
 type TabType = 'upload' | 'google';
 
@@ -21,14 +22,14 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
 
   // Manejar importación de Google Sheets
   const handleGoogleSheetImport = useCallback(async (sheetData: ImportedSheet) => {
-    console.log('📥 [DataSourceSelector] Google Sheet importado:', {
+    devLog('📥 [DataSourceSelector] Google Sheet importado:', {
       nombre: sheetData.name,
       filas: sheetData.data.length,
       columnas: sheetData.headers.length,
     });
 
     try {
-      console.log('⏳ [DataSourceSelector] Analizando Google Sheet con IA...');
+      devLog('⏳ [DataSourceSelector] Analizando Google Sheet con IA...');
 
       // Procesar el Google Sheet igual que un archivo
       const processed = await processDataset({
@@ -42,7 +43,7 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
         sourceUrl: sheetData.sourceUrl,
       });
 
-      console.log('✅ [DataSourceSelector] Google Sheet procesado:', {
+      devLog('✅ [DataSourceSelector] Google Sheet procesado:', {
         id: processed.id,
         nombre: processed.name,
         filas: processed.sampleData?.length,
