@@ -114,6 +114,9 @@ export default function WidgetCatalog({
 
   const totalSelected = selectedIndices.length + customWidgets.length;
 
+  const selectAllAi = () => setSelectedIndices(suggestions.map((_, i) => i));
+  const clearAllAi = () => setSelectedIndices([]);
+
   const resolveSampleForWidget = (cfg: any) => {
     const src =
       (typeof cfg?.sourceFile === 'string' && cfg.sourceFile) ||
@@ -202,7 +205,29 @@ export default function WidgetCatalog({
 
         {/* ── Tab: IA Suggestions ─────────────────────────────────────────── */}
         {activeTab === 'ai' && (
-          <div className="space-y-5">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+              <div className="text-[11px] font-semibold text-slate-600">
+                {suggestions.length} sugerencia{suggestions.length !== 1 ? 's' : ''} · seleccionadas: <strong>{selectedIndices.length}</strong>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={selectAllAi}
+                  className="rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-indigo-700"
+                >
+                  Seleccionar todo
+                </button>
+                <button
+                  type="button"
+                  onClick={clearAllAi}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+
             {Object.entries(
               suggestions.reduce((acc, widget, i) => {
                 const cat = widget.category || '💡 Sugerencias Generales';
@@ -210,82 +235,98 @@ export default function WidgetCatalog({
                 acc[cat].push({ widget, i });
                 return acc;
               }, {} as Record<string, { widget: WidgetSuggestion; i: number }[]>)
-            ).map(([category, items]) => (
-              <div
-                key={category}
-                className="grid grid-cols-2 content-start gap-2.5 md:grid-cols-3 xl:grid-cols-4"
-              >
-                <h4 className="col-span-full border-b border-slate-100 pb-1 text-sm font-bold text-slate-800">
-                  {category}
-                </h4>
-                {items.map(({ widget, i }) => (
-                  <div
-                    key={i}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        toggleAiSelect(i);
-                      }
-                    }}
-                    onClick={() => toggleAiSelect(i)}
-                    className={`group relative flex min-h-0 cursor-pointer flex-col gap-2 rounded-2xl border-2 p-3 transition-all ${
-                      selectedIndices.includes(i)
-                        ? 'border-indigo-600 bg-indigo-50/50'
-                        : 'border-slate-100 bg-white hover:border-slate-200'
-                    }`}
+            ).length === 0 ? null : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {Object.entries(
+                  suggestions.reduce((acc, widget, i) => {
+                    const cat = widget.category || '💡 Sugerencias Generales';
+                    if (!acc[cat]) acc[cat] = [];
+                    acc[cat].push({ widget, i });
+                    return acc;
+                  }, {} as Record<string, { widget: WidgetSuggestion; i: number }[]>)
+                ).map(([category, items]) => (
+                  <section
+                    key={category}
+                    className="rounded-2xl border border-slate-200 bg-white p-3"
                   >
-                    <div className="flex gap-2.5">
-                      <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                          selectedIndices.includes(i) ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'
-                        }`}
-                      >
-                        {TYPE_ICONS[overriddenTypes[i] || widget.type] ?? <BarChart2 size={16} />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-bold leading-snug text-slate-900">{widget.title}</h4>
-                        <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-slate-500">{widget.description}</p>
-                      </div>
+                    <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                      <h4 className="min-w-0 truncate text-sm font-black text-slate-800">{category}</h4>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">
+                        {items.length}
+                      </span>
                     </div>
-                    <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100/80 pt-2">
-                      <div className="flex min-w-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-slate-400">Tipo</span>
-                        <select
-                          value={overriddenTypes[i] || widget.type}
-                          onChange={(e) => setOverriddenTypes((prev) => ({ ...prev, [i]: e.target.value }))}
-                          className="max-w-[100px] cursor-pointer rounded border-0 bg-indigo-50 px-1 py-0.5 text-[9px] font-bold uppercase text-indigo-600 outline-none hover:bg-indigo-100 focus:ring-0"
+                    <div className="flex flex-col gap-2">
+                      {items.map(({ widget, i }) => (
+                        <div
+                          key={i}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleAiSelect(i);
+                            }
+                          }}
+                          onClick={() => toggleAiSelect(i)}
+                          className={`group relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 p-3 transition-all ${
+                            selectedIndices.includes(i)
+                              ? 'border-indigo-600 bg-indigo-50/50'
+                              : 'border-slate-100 bg-white hover:border-slate-200'
+                          }`}
                         >
-                          {CHART_TYPES.map((ct) => (
-                            <option key={ct.key} value={ct.key}>
-                              {ct.key}
-                            </option>
-                          ))}
-                          <option value="donut">donut</option>
-                          <option value="area">area</option>
-                          <option value="scatter">scatter</option>
-                        </select>
-                      </div>
-                      <div
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                          selectedIndices.includes(i)
-                            ? 'border-indigo-600 bg-indigo-600 text-white'
-                            : 'border-slate-200 text-transparent'
-                        }`}
-                      >
-                        <Check size={10} strokeWidth={4} />
-                      </div>
+                          <div className="flex gap-2.5">
+                            <div
+                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                                selectedIndices.includes(i) ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-400'
+                              }`}
+                            >
+                              {TYPE_ICONS[overriddenTypes[i] || widget.type] ?? <BarChart2 size={16} />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-bold leading-snug text-slate-900">{widget.title}</h4>
+                              <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-slate-500">{widget.description}</p>
+                            </div>
+                          </div>
+                          <div className="mt-1 flex items-center justify-between gap-2 border-t border-slate-100/80 pt-2">
+                            <div className="flex min-w-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-slate-400">Tipo</span>
+                              <select
+                                value={overriddenTypes[i] || widget.type}
+                                onChange={(e) => setOverriddenTypes((prev) => ({ ...prev, [i]: e.target.value }))}
+                                className="max-w-[100px] cursor-pointer rounded border-0 bg-indigo-50 px-1 py-0.5 text-[9px] font-bold uppercase text-indigo-600 outline-none hover:bg-indigo-100 focus:ring-0"
+                              >
+                                {CHART_TYPES.map((ct) => (
+                                  <option key={ct.key} value={ct.key}>
+                                    {ct.key}
+                                  </option>
+                                ))}
+                                <option value="donut">donut</option>
+                                <option value="area">area</option>
+                                <option value="scatter">scatter</option>
+                              </select>
+                            </div>
+                            <div
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                                selectedIndices.includes(i)
+                                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                                  : 'border-slate-200 text-transparent'
+                              }`}
+                            >
+                              <Check size={10} strokeWidth={4} />
+                            </div>
+                          </div>
+                          {selectedIndices.includes(i) && (
+                            <div className="absolute right-1.5 top-1.5 rounded bg-indigo-600 px-1.5 py-0.5 text-[8px] font-black text-white">
+                              OK
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    {selectedIndices.includes(i) && (
-                      <div className="absolute right-1.5 top-1.5 rounded bg-indigo-600 px-1.5 py-0.5 text-[8px] font-black text-white">
-                        OK
-                      </div>
-                    )}
-                  </div>
+                  </section>
                 ))}
               </div>
-            ))}
+            )}
           </div>
         )}
 
@@ -428,7 +469,7 @@ export default function WidgetCatalog({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-slate-200 bg-[var(--surface)] pt-3">
+      <div className="shrink-0 border-t border-slate-200 bg-(--surface) pt-3">
         {totalSelected > 0 && (
           <p className="mb-1.5 text-center text-[11px] font-medium text-slate-500">
             {selectedIndices.length > 0 && `${selectedIndices.length} de IA`}
