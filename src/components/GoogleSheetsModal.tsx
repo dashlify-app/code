@@ -18,14 +18,17 @@ interface GoogleSheetsModalProps {
   open: boolean;
   onClose: () => void;
   onImport: (sheetData: ImportedSheet) => void | Promise<void>;
+  /**
+   * - modal: renderiza como overlay (comportamiento actual)
+   * - inline-url: renderiza embebido (sin backdrop) y enfocado en pegar URL/ID
+   */
+  mode?: 'modal' | 'inline-url';
 }
 
-type TabType = 'drive' | 'url';
 type RefreshMode = 'manual' | 'auto';
 
-export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModalProps) {
+export function GoogleSheetsModal({ open, onClose, onImport, mode = 'modal' }: GoogleSheetsModalProps) {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<TabType>('drive');
   const [sheetUrl, setSheetUrl] = useState('');
   const [sheetId, setSheetId] = useState('');
   const [refreshMode, setRefreshMode] = useState<RefreshMode>('manual');
@@ -198,7 +201,6 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
   // Resetear formulario
   const handleReset = () => {
-    setActiveTab('drive');
     setSheetUrl('');
     setSheetId('');
     setRefreshMode('manual');
@@ -211,230 +213,216 @@ export function GoogleSheetsModal({ open, onClose, onImport }: GoogleSheetsModal
 
   if (!open) return null;
 
-  return (
-    <div className="dlf-share-backdrop" onClick={onClose}>
-      <div className="dlf-share-card" style={{ maxWidth: 700 }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="dlf-share-header">
-          <div className="dlf-share-icon">🔗</div>
-          <div className="dlf-share-title">Importar Google Sheets</div>
-          <button className="dlf-close-btn" onClick={onClose}>✕</button>
+  const content = (
+    <div className="dlf-share-body" style={{ gap: 16 }}>
+      {/* Pegar URL/ID (inline-url fuerza este flujo) */}
+      {(!showFileList || mode === 'inline-url') && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div
+            style={{
+              padding: '12px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '8px',
+              borderLeft: '3px solid var(--accent)',
+            }}
+          >
+            <p style={{ fontSize: '13px', margin: 0, opacity: 0.9 }}>
+              💡 <strong>URLs públicas</strong> funcionan sin conectar Google. Para <strong>Sheets privados</strong>, conecta tu cuenta.
+            </p>
+          </div>
+          <div>
+            <label className="form-label">URL de Google Sheets o ID</label>
+            <input
+              type="text"
+              placeholder="Ej: https://docs.google.com/spreadsheets/d/SHEET_ID/edit"
+              value={sheetUrl}
+              onChange={(e) => setSheetUrl(e.target.value)}
+              className="form-input w-full"
+              style={{ marginBottom: 8 }}
+            />
+            <input
+              type="text"
+              placeholder="O pega solo el ID: SHEET_ID"
+              value={sheetId}
+              onChange={(e) => setSheetId(e.target.value)}
+              className="form-input w-full"
+            />
+            <div style={{ fontSize: '12px', opacity: 0.6, marginTop: 4 }}>Puedes usar la URL completa o solo el ID de la sheet</div>
+          </div>
+          <button onClick={handleDirectInput} disabled={loading || (!sheetUrl && !sheetId)} className="btn btn-primary">
+            {loading ? '⏳ Cargando...' : '⬇️ Cargar Sheet'}
+          </button>
         </div>
+      )}
 
-        {/* Body */}
-        <div className="dlf-share-body" style={{ gap: 16 }}>
-
-          {/* Pegar URL/ID */}
-          {!showFileList && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', borderLeft: '3px solid var(--accent)' }}>
-                <p style={{ fontSize: '13px', margin: 0, opacity: 0.9 }}>
-                  💡 <strong>URLs públicas</strong> funcionan sin conectar Google. Para <strong>Sheets privados</strong>, conecta tu cuenta.
-                </p>
-              </div>
-              <div>
-                <label className="form-label">URL de Google Sheets o ID</label>
-                <input
-                  type="text"
-                  placeholder="Ej: https://docs.google.com/spreadsheets/d/SHEET_ID/edit"
-                  value={sheetUrl}
-                  onChange={(e) => setSheetUrl(e.target.value)}
-                  className="form-input w-full"
-                  style={{ marginBottom: 8 }}
-                />
-                <input
-                  type="text"
-                  placeholder="O pega solo el ID: SHEET_ID"
-                  value={sheetId}
-                  onChange={(e) => setSheetId(e.target.value)}
-                  className="form-input w-full"
-                />
-                <div style={{ fontSize: '12px', opacity: 0.6, marginTop: 4 }}>
-                  Puedes usar la URL completa o solo el ID de la sheet
-                </div>
-              </div>
-              <button
-                onClick={handleDirectInput}
-                disabled={loading || (!sheetUrl && !sheetId)}
-                className="btn btn-primary"
-              >
-                {loading ? '⏳ Cargando...' : '⬇️ Cargar Sheet'}
-              </button>
-            </div>
-          )}
-
-          {/* Mostrar lista de archivos Drive */}
-          {showFileList && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
-                onClick={() => setShowFileList(false)}
-                style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-              >
-                ← Volver
-              </button>
-              <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                {driveFiles.length === 0 ? (
-                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text2)' }}>
-                    No se encontraron Google Sheets
-                  </div>
-                ) : (
-                  driveFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      onClick={() => handleSelectFile(file)}
-                      style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid var(--border)',
-                        cursor: 'pointer',
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface3)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{file.name}</div>
-                      <div style={{ fontSize: '12px', opacity: 0.6 }}>{file.id}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Vista previa de datos */}
-          {preview && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ padding: '12px', background: 'var(--surface3)', borderRadius: '8px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 8 }}>
-                  ✅ Sheet cargada: <strong>{preview.name}</strong>
-                </div>
-                <div style={{ fontSize: '12px', opacity: 0.8 }}>
-                  {preview.headers.length} columnas | {preview.data.length} filas
-                </div>
-              </div>
-
-              {/* Preview tabla */}
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
-                <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--surface3)', borderBottom: '1px solid var(--border)' }}>
-                      {preview.headers.map((header) => (
-                        <th
-                          key={header}
-                          style={{
-                            padding: '8px',
-                            textAlign: 'left',
-                            fontWeight: 'bold',
-                            whiteSpace: 'nowrap',
-                            color: 'var(--accent)',
-                          }}
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.data.slice(0, 5).map((row, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                        {preview.headers.map((header) => (
-                          <td key={`${idx}-${header}`} style={{ padding: '8px', whiteSpace: 'nowrap' }}>
-                            {String(row[header] || '').substring(0, 30)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Configuración de refresh */}
-              <div>
-                <label className="form-label">Actualización de datos</label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '14px' }}>
-                    <input
-                      type="radio"
-                      value="manual"
-                      checked={refreshMode === 'manual'}
-                      onChange={(e) => setRefreshMode(e.target.value as RefreshMode)}
-                    />
-                    🔘 Manual (Refrescar manualmente)
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '14px' }}>
-                    <input
-                      type="radio"
-                      value="auto"
-                      checked={refreshMode === 'auto'}
-                      onChange={(e) => setRefreshMode(e.target.value as RefreshMode)}
-                    />
-                    ⏰ Automático
-                  </label>
-                </div>
-
-                {refreshMode === 'auto' && (
-                  <div style={{ marginTop: 8 }}>
-                    <label className="form-label" style={{ marginBottom: 4 }}>Cada cuántos minutos refrescar</label>
-                    <select
-                      value={refreshInterval}
-                      onChange={(e) => setRefreshInterval(Number(e.target.value))}
-                      className="form-select w-full"
-                    >
-                      <option value={5}>5 minutos</option>
-                      <option value={10}>10 minutos</option>
-                      <option value={15}>15 minutos</option>
-                      <option value={30}>30 minutos</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Error message con opción de conectar */}
-          {error && (
-            <div>
-              <div style={{
-                padding: '12px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: 'var(--error)',
-                borderRadius: '8px',
-                fontSize: '13px',
-                marginBottom: 12,
-              }}>
-                {error}
-              </div>
-              {error.includes('privado') && !session && (
-                <button
-                  onClick={() => signIn('google')}
-                  className="btn btn-primary"
-                  style={{ width: '100%' }}
+      {/* Mostrar lista de archivos Drive (solo en modal) */}
+      {mode !== 'inline-url' && showFileList && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button
+            onClick={() => setShowFileList(false)}
+            style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
+          >
+            ← Volver
+          </button>
+          <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
+            {driveFiles.length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text2)' }}>No se encontraron Google Sheets</div>
+            ) : (
+              driveFiles.map((file) => (
+                <div
+                  key={file.id}
+                  onClick={() => handleSelectFile(file)}
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--border)',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface3)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  🔐 Conectar Google Sheets
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 8 }}>
-            <button
-              onClick={onClose}
-              className="btn btn-outline"
-              disabled={loading}
-            >
-              Cancelar
-            </button>
-            {preview && (
-              <button
-                onClick={handleConfirmImport}
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                ✅ Importar Sheet
-              </button>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{file.name}</div>
+                  <div style={{ fontSize: '12px', opacity: 0.6 }}>{file.id}</div>
+                </div>
+              ))
             )}
           </div>
         </div>
+      )}
+
+      {/* Vista previa de datos */}
+      {preview && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ padding: '12px', background: 'var(--surface3)', borderRadius: '8px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: 8 }}>
+              ✅ Sheet cargada: <strong>{preview.name}</strong>
+            </div>
+            <div style={{ fontSize: '12px', opacity: 0.8 }}>
+              {preview.headers.length} columnas | {preview.data.length} filas
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
+            <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--surface3)', borderBottom: '1px solid var(--border)' }}>
+                  {preview.headers.map((header) => (
+                    <th
+                      key={header}
+                      style={{
+                        padding: '8px',
+                        textAlign: 'left',
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap',
+                        color: 'var(--accent)',
+                      }}
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.data.slice(0, 5).map((row, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                    {preview.headers.map((header) => (
+                      <td key={`${idx}-${header}`} style={{ padding: '8px', whiteSpace: 'nowrap' }}>
+                        {String(row[header] || '').substring(0, 30)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <label className="form-label">Actualización de datos</label>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '14px' }}>
+                <input
+                  type="radio"
+                  value="manual"
+                  checked={refreshMode === 'manual'}
+                  onChange={(e) => setRefreshMode(e.target.value as RefreshMode)}
+                />
+                🔘 Manual (Refrescar manualmente)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '14px' }}>
+                <input type="radio" value="auto" checked={refreshMode === 'auto'} onChange={(e) => setRefreshMode(e.target.value as RefreshMode)} />
+                ⏰ Automático
+              </label>
+            </div>
+
+            {refreshMode === 'auto' && (
+              <div style={{ marginTop: 8 }}>
+                <label className="form-label" style={{ marginBottom: 4 }}>
+                  Cada cuántos minutos refrescar
+                </label>
+                <select value={refreshInterval} onChange={(e) => setRefreshInterval(Number(e.target.value))} className="form-select w-full">
+                  <option value={5}>5 minutos</option>
+                  <option value={10}>10 minutos</option>
+                  <option value={15}>15 minutos</option>
+                  <option value={30}>30 minutos</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div>
+          <div
+            style={{
+              padding: '12px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: 'var(--error)',
+              borderRadius: '8px',
+              fontSize: '13px',
+              marginBottom: 12,
+            }}
+          >
+            {error}
+          </div>
+          {error.includes('privado') && !session && (
+            <button onClick={() => signIn('google')} className="btn btn-primary" style={{ width: '100%' }}>
+              🔐 Conectar Google Sheets
+            </button>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 8 }}>
+        {mode !== 'inline-url' ? (
+          <button onClick={onClose} className="btn btn-outline" disabled={loading}>
+            Cancelar
+          </button>
+        ) : null}
+        {preview && (
+          <button onClick={handleConfirmImport} className="btn btn-primary" disabled={loading}>
+            ✅ Importar Sheet
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  if (mode === 'inline-url') {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <div className="dlf-share-backdrop" onClick={onClose}>
+      <div className="dlf-share-card" style={{ maxWidth: 700 }} onClick={(e) => e.stopPropagation()}>
+        <div className="dlf-share-header">
+          <div className="dlf-share-icon">🔗</div>
+          <div className="dlf-share-title">Importar Google Sheets</div>
+          <button className="dlf-close-btn" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {content}
       </div>
     </div>
   );

@@ -17,7 +17,6 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
     const tab = params?.get('tab');
     return tab === 'google' ? 'google' : 'upload';
   });
-  const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
   const [googleSheetAnalysis, setGoogleSheetAnalysis] = useState<GoogleSheetData | null>(null);
 
   // Solo renderizar en cliente para evitar hydration mismatch
@@ -73,9 +72,6 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
 
       // Guardar en estado para mostrar la UI de análisis
       setGoogleSheetAnalysis(googleSheetData);
-
-      // Cerrar modal
-      setGoogleSheetsModalOpen(false);
 
       // Cambiar a pestaña de análisis
       setActiveTab('google');
@@ -161,39 +157,15 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
       )}
 
       {activeTab === 'google' && (
-        <div
-          style={{
-            padding: '20px',
-            background: 'var(--surface2)',
-            borderRadius: '12px',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: 8 }}>
-              Conectar Google Sheets
-            </div>
-            <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: 0 }}>
-              Importa datos directamente desde tus Google Sheets. Puedes hacer búsquedas en Drive o pegar una URL/ID.
-            </p>
-          </div>
-          <button
-            onClick={() => setGoogleSheetsModalOpen(true)}
-            className="btn btn-primary"
-            style={{ marginTop: 12 }}
-          >
-            🔐 Conectar con Google Sheets
-          </button>
+        <div style={{ padding: 18, background: 'var(--surface2)', borderRadius: 12 }}>
+          <GoogleSheetsModal
+            open={true}
+            mode="inline-url"
+            onClose={() => {}}
+            onImport={handleGoogleSheetImport}
+          />
         </div>
       )}
-
-      {/* Google Sheets Modal */}
-      <GoogleSheetsModal
-        open={googleSheetsModalOpen}
-        onClose={() => setGoogleSheetsModalOpen(false)}
-        onImport={handleGoogleSheetImport}
-      />
     </div>
   );
 }
