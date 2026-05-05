@@ -744,6 +744,7 @@ function DashboardContent() {
   const router = useRouter();
   const pathname = usePathname();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [dashboardDatasetAllowList, setDashboardDatasetAllowList] = useState<Set<string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
   const [kpiFlipped, setKpiFlipped] = useState<Record<string, boolean>>({});
@@ -771,6 +772,11 @@ function DashboardContent() {
             }
           }
 
+          // Si existe dashboard guardado, mostrar solo datasets que ese dashboard referencia (origen de datos).
+          if (dashboardDatasetAllowList && dashboardDatasetAllowList.size > 0) {
+            ds = ds.filter((d) => dashboardDatasetAllowList.has(d.id));
+          }
+
           setDatasets(ds);
           setActiveDatasetId((prev) => {
             if (prev && ds.some((d) => d.id === prev)) return prev;
@@ -782,7 +788,7 @@ function DashboardContent() {
     loadDatasets();
     window.addEventListener('dashlify:datasets-changed', loadDatasets);
     return () => window.removeEventListener('dashlify:datasets-changed', loadDatasets);
-  }, []);
+  }, [dashboardDatasetAllowList]);
 
   useEffect(() => {
     const load = () => {
@@ -807,6 +813,7 @@ function DashboardContent() {
   useEffect(() => {
     if (!hasSavedDashboard) {
       setSavedVisualWidgets([]);
+      setDashboardDatasetAllowList(null);
       return;
     }
     let cancelled = false;
@@ -822,6 +829,18 @@ function DashboardContent() {
         const dRes = await fetch(`/api/dashboards/${dashId}`);
         const dJson = await dRes.json();
         if (cancelled || !dJson.dashboard?.widgets) return;
+
+        // Datasets permitidos para este dashboard (por datasetId persistido en Widget/config).
+        const allow = new Set<string>();
+        for (const w of dJson.dashboard.widgets as any[]) {
+          const id =
+            (typeof w?.datasetId === 'string' && w.datasetId) ||
+            (typeof w?.config?.datasetId === 'string' && w.config.datasetId) ||
+            null;
+          if (id) allow.add(id);
+        }
+        if (!cancelled) setDashboardDatasetAllowList(allow.size > 0 ? allow : null);
+
         setSavedVisualWidgets(hydrateDashboardWidgets(dJson.dashboard.widgets, datasets));
       } catch {
         if (!cancelled) setSavedVisualWidgets([]);
