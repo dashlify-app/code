@@ -11,6 +11,7 @@ import WidgetCatalog from './WidgetCatalog';
 import DashboardCanvas from './DashboardCanvas';
 import DataCopilot from './DataCopilot';
 import MultiDatasetAnalysisResult from './MultiDatasetAnalysisResult';
+import { GoogleSheetsModal, ImportedSheet } from './GoogleSheetsModal';
 import { computeColumnStats } from '@/lib/columnStats';
 import { MultiDatasetAnalysis, ProposedWidget } from '@/lib/types/multiDataset';
 
@@ -39,6 +40,8 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
   const [showCanvas, setShowCanvas] = useState(false);
   const [multiDatasetAnalysis, setMultiDatasetAnalysis] = useState<MultiDatasetAnalysis | null>(null);
   const [showMultiAnalysis, setShowMultiAnalysis] = useState(false);
+  const [activeTab, setActiveTab] = useState<'upload' | 'google'>('upload');
+  const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState(false);
 
   const hasLoadedFromDb = useRef(false);
 
@@ -70,6 +73,34 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
       return;
     }
   }, [sessionStatus, session?.user]);
+
+  const handleGoogleSheetImport = useCallback((sheetData: ImportedSheet) => {
+    // Convertir ImportedSheet a DatasetPreview (MISMO formato que CSV/XLSX)
+    const preview: DatasetPreview = {
+      id: crypto.randomUUID(),
+      name: sheetData.name,
+      size: '0 KB',   // N/A para Google Sheets
+      type: 'sheet',  // Tipo especial para Google Sheets
+      headers: sheetData.headers,
+      sampleData: sheetData.data,
+      // analysis se agregará después de analyzeFiles()
+    };
+
+    console.log('📥 [UploadZone] Google Sheet importado:', {
+      nombre: preview.name,
+      filas: preview.sampleData.length,
+      columnas: preview.headers.length,
+    });
+
+    // Agregar a estado EXACTAMENTE igual que onDrop()
+    setFiles(prev => [...prev, preview]);
+
+    // Cerrar modal
+    setShowGoogleSheetsModal(false);
+
+    // Cambiar de tab para que el usuario vea sus datos
+    setActiveTab('upload');
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     acceptedFiles.forEach(file => {
@@ -461,8 +492,45 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     />;
   }
 
+  // Si GoogleSheetsModal está abierto, mostrar solo eso
+  if (showGoogleSheetsModal) {
+    return (
+      <GoogleSheetsModal
+        open={true}
+        onClose={() => setShowGoogleSheetsModal(false)}
+        onImport={handleGoogleSheetImport}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Tabs para cambiar entre "Subir archivos" y "Google Sheets" */}
+      <div className="flex gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+        <button
+          onClick={() => setActiveTab('upload')}
+          className="px-4 py-2 font-medium text-sm transition-all"
+          style={{
+            color: activeTab === 'upload' ? 'var(--accent)' : 'var(--text2)',
+            borderBottom: activeTab === 'upload' ? '2px solid var(--accent)' : 'none',
+          }}
+        >
+          📁 Subir archivos
+        </button>
+        <button
+          onClick={() => setActiveTab('google')}
+          className="px-4 py-2 font-medium text-sm transition-all"
+          style={{
+            color: activeTab === 'google' ? 'var(--accent)' : 'var(--text2)',
+            borderBottom: activeTab === 'google' ? '2px solid var(--accent)' : 'none',
+          }}
+        >
+          🔗 Google Sheets
+        </button>
+      </div>
+
+      {/* Tab 1: Subir archivos (drag-drop) */}
+      {activeTab === 'upload' && (
       <div
         {...getRootProps()}
         className={`upload-zone-dash ${isDragActive ? 'drag' : ''}`}
@@ -525,9 +593,29 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
           </div>
         )}
       </div>
+      )}
+
+      {/* Tab 2: Google Sheets */}
+      {activeTab === 'google' && (
+        <div className="space-y-4 py-6 text-center">
+          <div className="text-3xl mb-3">🔗</div>
+          <h3 className="font-[family-name:var(--font-syne),sans-serif] text-[15px] font-bold" style={{ color: 'var(--text)' }}>
+            Conectar Google Sheets
+          </h3>
+          <p className="text-[13px] mt-2" style={{ color: 'var(--text2)' }}>
+            Importa datos directamente desde tus Google Sheets. Puedes hacer búsquedas en Drive o pegar una URL/ID.
+          </p>
+          <button
+            onClick={() => setShowGoogleSheetsModal(true)}
+            className="btn btn-primary mx-auto mt-4"
+          >
+            🔐 Conectar con Google Sheets
+          </button>
+        </div>
+      )}
 
       {/* Botones de acción FUERA del dropzone */}
-      {files.length > 0 && (
+      {files.length > 0 && activeTab === 'upload' && (
         <div className="space-y-3">
           {(() => {
             const hasUnanalyzed = files.some(f => !f.analysis);
