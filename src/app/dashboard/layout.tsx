@@ -65,6 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [liveSec, setLiveSec] = useState(8);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [googleSheetsEnabled, setGoogleSheetsEnabled] = useState(false);
+  const googleToggleByUser = useRef(false);
   const [dashboards, setDashboards] = useState<DashboardRow[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
@@ -178,15 +179,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   const toggleGoogleSheets = useCallback(() => {
-    setGoogleSheetsEnabled((prev) => {
-      const next = !prev;
-      localStorage.setItem('dashlify-google-enabled', next ? '1' : '0');
-      window.dispatchEvent(new CustomEvent('dashlify:google-enabled-changed', { detail: { enabled: next } }));
-      // Navegación coherente: al activar, abrir Google; al desactivar, volver a upload.
-      openUpload(next ? 'google' : 'upload');
-      return next;
-    });
-  }, [openUpload]);
+    googleToggleByUser.current = true;
+    setGoogleSheetsEnabled((prev) => !prev);
+  }, []);
+
+  // Persistir + emitir evento DESPUÉS del render (evita setState-durante-render en hijos).
+  useEffect(() => {
+    localStorage.setItem('dashlify-google-enabled', googleSheetsEnabled ? '1' : '0');
+    window.dispatchEvent(
+      new CustomEvent('dashlify:google-enabled-changed', { detail: { enabled: googleSheetsEnabled } })
+    );
+    if (googleToggleByUser.current) {
+      openUpload(googleSheetsEnabled ? 'google' : 'upload');
+      googleToggleByUser.current = false;
+    }
+  }, [googleSheetsEnabled, openUpload]);
 
   const toggleTheme = () => {
     setDark((d) => {
