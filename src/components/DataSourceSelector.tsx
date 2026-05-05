@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import UploadZone from './UploadZone';
 import { GoogleSheetsModal, type ImportedSheet } from './GoogleSheetsModal';
 import { GoogleSheetsAnalysisUI, type GoogleSheetData } from './GoogleSheetsAnalysisUI';
@@ -12,6 +12,7 @@ type TabType = 'upload' | 'google';
 
 export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boolean) => void }) {
   const params = useSearchParams();
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -28,11 +29,25 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
 
   // Permite navegar a /dashboard?action=upload&tab=google para abrir la pestaña correcta.
   useEffect(() => {
-    if (!googleEnabled && activeTab === 'google') setActiveTab('upload');
+    if (!googleEnabled) {
+      setActiveTab('upload');
+      return;
+    }
     const tab = params?.get('tab');
     if (tab === 'google' && googleEnabled) setActiveTab('google');
     else if (tab === 'upload') setActiveTab('upload');
-  }, [params, googleEnabled, activeTab]);
+  }, [params, googleEnabled]);
+
+  const setTab = useCallback(
+    (tab: TabType) => {
+      setActiveTab(tab);
+      const q = new URLSearchParams(params?.toString() ?? '');
+      q.set('action', 'upload');
+      q.set('tab', tab);
+      router.replace(`/dashboard?${q.toString()}`);
+    },
+    [params, router]
+  );
 
   useEffect(() => {
     const onToggle = (e: Event) => {
@@ -127,7 +142,7 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
         }}
       >
         <button
-          onClick={() => setActiveTab('upload')}
+          onClick={() => setTab('upload')}
           style={{
             padding: '12px 20px',
             border: 'none',
@@ -145,7 +160,7 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
         </button>
         {googleEnabled && (
           <button
-            onClick={() => setActiveTab('google')}
+            onClick={() => setTab('google')}
             style={{
               padding: '12px 20px',
               border: 'none',
