@@ -744,7 +744,7 @@ function DashboardContent() {
   const router = useRouter();
   const pathname = usePathname();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [dashboardDatasetAllowList, setDashboardDatasetAllowList] = useState<Set<string> | null>(null);
+  const [dashboardDatasetAllowList, setDashboardDatasetAllowList] = useState<{ ids: Set<string>; names: Set<string> } | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
   const [kpiFlipped, setKpiFlipped] = useState<Record<string, boolean>>({});
@@ -761,20 +761,37 @@ function DashboardContent() {
         .then((data) => {
           let ds: Dataset[] = Array.isArray(data.datasets) ? data.datasets : [];
 
-          // Filtrar: mostrar solo los archivos cargados recientemente en esta sesión
-          const recentIds = localStorage.getItem('dashlify_recent_files');
-          if (recentIds) {
-            try {
-              const ids = JSON.parse(recentIds) as string[];
-              ds = ds.filter(d => ids.includes(d.id));
-            } catch (e) {
-              // Si hay error al parsear, mostrar todos
-            }
-          }
-
           // Si existe dashboard guardado, mostrar solo datasets que ese dashboard referencia (origen de datos).
-          if (dashboardDatasetAllowList && dashboardDatasetAllowList.size > 0) {
-            ds = ds.filter((d) => dashboardDatasetAllowList.has(d.id));
+          if (dashboardDatasetAllowList) {
+            const { ids, names } = dashboardDatasetAllowList;
+            if (ids.size > 0) {
+              ds = ds.filter((d) => ids.has(d.id));
+            } else if (names.size > 0) {
+              // Fallback legacy: algunos widgets viejos solo tienen datasetName.
+              // Si hay múltiples datasets con el mismo nombre, usar el más reciente.
+              const newestByName = new Map<string, Dataset>();
+              for (const d of ds) {
+                if (!names.has(d.name)) continue;
+                const prev = newestByName.get(d.name);
+                const prevTs = prev ? Date.parse(prev.updatedAt || prev.createdAt || '') : -1;
+                const curTs = Date.parse(d.updatedAt || d.createdAt || '') || 0;
+                if (!prev || curTs >= prevTs) newestByName.set(d.name, d);
+              }
+              ds = Array.from(newestByName.values());
+            } else {
+              ds = [];
+            }
+          } else {
+            // Sin dashboard guardado: mostrar solo los archivos cargados recientemente en esta sesión (si existe el filtro)
+            const recentIds = localStorage.getItem('dashlify_recent_files');
+            if (recentIds) {
+              try {
+                const ids = JSON.parse(recentIds) as string[];
+                ds = ds.filter((d) => ids.includes(d.id));
+              } catch {
+                // ignore
+              }
+            }
           }
 
           setDatasets(ds);
@@ -831,15 +848,21 @@ function DashboardContent() {
         if (cancelled || !dJson.dashboard?.widgets) return;
 
         // Datasets permitidos para este dashboard (por datasetId persistido en Widget/config).
-        const allow = new Set<string>();
+        const allowIds = new Set<string>();
+        const allowNames = new Set<string>();
         for (const w of dJson.dashboard.widgets as any[]) {
           const id =
             (typeof w?.datasetId === 'string' && w.datasetId) ||
             (typeof w?.config?.datasetId === 'string' && w.config.datasetId) ||
             null;
-          if (id) allow.add(id);
+          if (id) allowIds.add(id);
+          const name =
+            (typeof w?.datasetName === 'string' && w.datasetName) ||
+            (typeof w?.config?.datasetName === 'string' && w.config.datasetName) ||
+            null;
+          if (name) allowNames.add(name);
         }
-        if (!cancelled) setDashboardDatasetAllowList(allow.size > 0 ? allow : null);
+        if (!cancelled) setDashboardDatasetAllowList(allowIds.size > 0 || allowNames.size > 0 ? { ids: allowIds, names: allowNames } : null);
 
         setSavedVisualWidgets(hydrateDashboardWidgets(dJson.dashboard.widgets, datasets));
       } catch {
