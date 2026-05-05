@@ -227,27 +227,60 @@ export function GoogleSheetsModal({ open, onClose, onImport, mode = 'modal' }: G
             }}
           >
             <p style={{ fontSize: '13px', margin: 0, opacity: 0.9 }}>
-              💡 <strong>URLs públicas</strong> funcionan sin conectar Google. Para <strong>Sheets privados</strong>, conecta tu cuenta.
+              💡 <strong>URLs públicas</strong> funcionan sin conectar Google.
             </p>
           </div>
-          <div>
-            <label className="form-label">URL de Google Sheets o ID</label>
-            <input
-              type="text"
-              placeholder="Ej: https://docs.google.com/spreadsheets/d/SHEET_ID/edit"
-              value={sheetUrl}
-              onChange={(e) => setSheetUrl(e.target.value)}
-              className="form-input w-full"
-              style={{ marginBottom: 8 }}
-            />
-            <input
-              type="text"
-              placeholder="O pega solo el ID: SHEET_ID"
-              value={sheetId}
-              onChange={(e) => setSheetId(e.target.value)}
-              className="form-input w-full"
-            />
-            <div style={{ fontSize: '12px', opacity: 0.6, marginTop: 4 }}>Puedes usar la URL completa o solo el ID de la sheet</div>
+          <div
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              background: 'var(--surface)',
+              padding: 14,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>
+                Opción A
+              </div>
+              <label className="form-label" style={{ marginBottom: 0 }}>
+                Pega la URL de Google Sheets
+              </label>
+              <input
+                type="text"
+                placeholder="https://docs.google.com/spreadsheets/d/SHEET_ID/edit"
+                value={sheetUrl}
+                onChange={(e) => setSheetUrl(e.target.value)}
+                className="form-input w-full"
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: 0.75 }}>
+              <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+              <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>o</div>
+              <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>
+                Opción B
+              </div>
+              <label className="form-label" style={{ marginBottom: 0 }}>
+                Pega solo el ID
+              </label>
+              <input
+                type="text"
+                placeholder="SHEET_ID"
+                value={sheetId}
+                onChange={(e) => setSheetId(e.target.value)}
+                className="form-input w-full"
+              />
+              <div style={{ fontSize: 12, opacity: 0.65 }}>
+                Tip: el ID es la parte entre <strong>/d/</strong> y <strong>/edit</strong> en la URL.
+              </div>
+            </div>
           </div>
           <button onClick={handleDirectInput} disabled={loading || (!sheetUrl && !sheetId)} className="btn btn-primary">
             {loading ? '⏳ Cargando...' : '⬇️ Cargar Sheet'}
