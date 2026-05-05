@@ -13,6 +13,7 @@ type TabType = 'upload' | 'google';
 export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boolean) => void }) {
   const params = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const tab = params?.get('tab');
     return tab === 'google' ? 'google' : 'upload';
@@ -22,14 +23,26 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
   // Solo renderizar en cliente para evitar hydration mismatch
   useEffect(() => {
     setIsMounted(true);
+    setGoogleEnabled(localStorage.getItem('dashlify-google-enabled') === '1');
   }, []);
 
   // Permite navegar a /dashboard?action=upload&tab=google para abrir la pestaña correcta.
   useEffect(() => {
+    if (!googleEnabled && activeTab === 'google') setActiveTab('upload');
     const tab = params?.get('tab');
-    if (tab === 'google') setActiveTab('google');
+    if (tab === 'google' && googleEnabled) setActiveTab('google');
     else if (tab === 'upload') setActiveTab('upload');
-  }, [params]);
+  }, [params, googleEnabled, activeTab]);
+
+  useEffect(() => {
+    const onToggle = (e: Event) => {
+      const enabled = (e as CustomEvent<{ enabled: boolean }>).detail?.enabled;
+      setGoogleEnabled(Boolean(enabled));
+      if (!enabled) setActiveTab('upload');
+    };
+    window.addEventListener('dashlify:google-enabled-changed', onToggle as EventListener);
+    return () => window.removeEventListener('dashlify:google-enabled-changed', onToggle as EventListener);
+  }, []);
 
   // Manejar importación de Google Sheets
   const handleGoogleSheetImport = useCallback(async (sheetData: ImportedSheet) => {
@@ -130,23 +143,25 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
         >
           📁 Subir archivos
         </button>
-        <button
-          onClick={() => setActiveTab('google')}
-          style={{
-            padding: '12px 20px',
-            border: 'none',
-            background: 'transparent',
-            color: activeTab === 'google' ? 'var(--accent)' : 'var(--text2)',
-            borderBottom: activeTab === 'google' ? '3px solid var(--accent)' : 'none',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: activeTab === 'google' ? 'bold' : 'normal',
-            marginBottom: '-2px',
-            transition: 'color 0.2s',
-          }}
-        >
-          🔗 Google Sheets
-        </button>
+        {googleEnabled && (
+          <button
+            onClick={() => setActiveTab('google')}
+            style={{
+              padding: '12px 20px',
+              border: 'none',
+              background: 'transparent',
+              color: activeTab === 'google' ? 'var(--accent)' : 'var(--text2)',
+              borderBottom: activeTab === 'google' ? '3px solid var(--accent)' : 'none',
+              cursor: 'pointer',
+              fontSize: '15px',
+              fontWeight: activeTab === 'google' ? 'bold' : 'normal',
+              marginBottom: '-2px',
+              transition: 'color 0.2s',
+            }}
+          >
+            🔗 Google Sheets
+          </button>
+        )}
       </div>
 
       {/* Tab Content */}
@@ -156,7 +171,7 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
         </div>
       )}
 
-      {activeTab === 'google' && (
+      {googleEnabled && activeTab === 'google' && (
         <div style={{ padding: 18, background: 'var(--surface2)', borderRadius: 12 }}>
           <GoogleSheetsModal
             open={true}

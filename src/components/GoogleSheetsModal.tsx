@@ -241,7 +241,17 @@ export function GoogleSheetsModal({ open, onClose, onImport, mode = 'modal' }: G
               gap: 12,
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div
+              style={{
+                border: '1px solid rgba(148, 163, 184, 0.35)',
+                background: 'rgba(248, 250, 252, 0.6)',
+                borderRadius: 12,
+                padding: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>
                 Opción A
               </div>
@@ -263,7 +273,17 @@ export function GoogleSheetsModal({ open, onClose, onImport, mode = 'modal' }: G
               <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div
+              style={{
+                border: '1px solid rgba(148, 163, 184, 0.35)',
+                background: 'rgba(248, 250, 252, 0.6)',
+                borderRadius: 12,
+                padding: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.7 }}>
                 Opción B
               </div>

@@ -64,6 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [dark, setDark] = useState(false);
   const [liveSec, setLiveSec] = useState(8);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [googleSheetsEnabled, setGoogleSheetsEnabled] = useState(false);
   const [dashboards, setDashboards] = useState<DashboardRow[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
@@ -77,6 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (localStorage.getItem('dash-theme') === 'dark') setDark(true);
     if (localStorage.getItem('dashlify-sidebar') === '0') setSidebarOpen(false);
+    setGoogleSheetsEnabled(localStorage.getItem('dashlify-google-enabled') === '1');
   }, []);
 
   const toggleSidebar = () => {
@@ -174,6 +176,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     [router]
   );
+
+  const toggleGoogleSheets = useCallback(() => {
+    setGoogleSheetsEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem('dashlify-google-enabled', next ? '1' : '0');
+      window.dispatchEvent(new CustomEvent('dashlify:google-enabled-changed', { detail: { enabled: next } }));
+      // Navegación coherente: al activar, abrir Google; al desactivar, volver a upload.
+      openUpload(next ? 'google' : 'upload');
+      return next;
+    });
+  }, [openUpload]);
 
   const toggleTheme = () => {
     setDark((d) => {
@@ -367,17 +380,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span>📊</span>
                 <div>
                   <div className="conn-name">Google Sheets</div>
-                  <div className={`conn-status${(session && (session as any)?.accessToken) ? ' on' : ''}`}>
-                    {(session && (session as any)?.accessToken) ? '● Conectado' : '○ Opcional'}
+                  <div className={`conn-status${googleSheetsEnabled ? ' on' : ''}`}>
+                    {googleSheetsEnabled ? '● Activo' : '○ Opcional'}
                   </div>
                 </div>
               </div>
               <button
                 type="button"
-                className={`toggle${(session && (session as any)?.accessToken) ? ' on' : ''}`}
-                onClick={() => openUpload('google')}
-                title="Importar Google Sheets"
-                aria-label="Importar Google Sheets"
+                className={`toggle${googleSheetsEnabled ? ' on' : ''}`}
+                onClick={toggleGoogleSheets}
+                title={googleSheetsEnabled ? 'Desactivar Google Sheets' : 'Activar Google Sheets'}
+                aria-label="Activar/Desactivar Google Sheets"
               />
             </div>
           </div>
