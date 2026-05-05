@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import UploadZone from './UploadZone';
 import { GoogleSheetsModal, type ImportedSheet } from './GoogleSheetsModal';
 import { GoogleSheetsAnalysisUI, type GoogleSheetData } from './GoogleSheetsAnalysisUI';
@@ -10,8 +11,12 @@ import { devLog } from '@/lib/logger';
 type TabType = 'upload' | 'google';
 
 export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boolean) => void }) {
+  const params = useSearchParams();
   const [isMounted, setIsMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('upload');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const tab = params?.get('tab');
+    return tab === 'google' ? 'google' : 'upload';
+  });
   const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
   const [googleSheetAnalysis, setGoogleSheetAnalysis] = useState<GoogleSheetData | null>(null);
 
@@ -19,6 +24,13 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Permite navegar a /dashboard?action=upload&tab=google para abrir la pestaña correcta.
+  useEffect(() => {
+    const tab = params?.get('tab');
+    if (tab === 'google') setActiveTab('google');
+    else if (tab === 'upload') setActiveTab('upload');
+  }, [params]);
 
   // Manejar importación de Google Sheets
   const handleGoogleSheetImport = useCallback(async (sheetData: ImportedSheet) => {

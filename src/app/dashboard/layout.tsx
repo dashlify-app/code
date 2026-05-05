@@ -5,7 +5,6 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Minus } from 'lucide-react';
-import { DataSourceSelector } from '@/components/DataSourceSelector';
 
 type DashboardRow = { id: string; title: string; updatedAt: string; sourceType?: 'upload' | 'google-sheets' };
 
@@ -70,11 +69,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deleteInFlight = useRef(false);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadModalWide, setUploadModalWide] = useState(false);
-  const onUploadZoneWideChange = useCallback((wide: boolean) => {
-    setUploadModalWide(wide);
-  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -170,18 +164,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('keydown', onKey);
   }, [pendingDelete, deletingId, cancelDelete]);
 
-  useEffect(() => {
-    if (!uploadModalOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setUploadModalOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [uploadModalOpen]);
-
-  useEffect(() => {
-    if (!uploadModalOpen) setUploadModalWide(false);
-  }, [uploadModalOpen]);
+  /** Abrir panel Visualizar y mostrar la zona de carga (sin modal). */
+  const openUpload = useCallback(
+    (tab?: 'upload' | 'google') => {
+      const q = new URLSearchParams();
+      q.set('action', 'upload');
+      if (tab) q.set('tab', tab);
+      router.push(`/dashboard?${q.toString()}`);
+    },
+    [router]
+  );
 
   const toggleTheme = () => {
     setDark((d) => {
@@ -189,11 +181,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       localStorage.setItem('dash-theme', next ? 'dark' : 'light');
       return next;
     });
-  };
-
-  /** Igual que legacy `openUpload()`: modal centrado (no solo scroll a la página). */
-  const openUpload = () => {
-    setUploadModalOpen(true);
   };
 
   if (status === 'loading') {
@@ -214,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="logo-tag">LIVE</span>
         </Link>
         <nav className="nav-pills" aria-label="Vista principal">
-          <button type="button" className="nav-pill" onClick={openUpload}>
+          <button type="button" className="nav-pill" onClick={() => openUpload('upload')}>
             ⬆ Cargar datos
           </button>
           <button type="button" className={`nav-pill ${pathname === '/dashboard' ? 'active' : ''}`} onClick={() => router.push('/dashboard')}>
@@ -388,7 +375,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button
                 type="button"
                 className={`toggle${(session && (session as any)?.accessToken) ? ' on' : ''}`}
-                onClick={openUpload}
+                onClick={() => openUpload('google')}
                 title="Importar Google Sheets"
                 aria-label="Importar Google Sheets"
               />
@@ -408,38 +395,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           void confirmDelete();
         }}
       />
-
-      {uploadModalOpen ? (
-        <div
-          className="dash-upload-modal-bg"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dash-upload-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setUploadModalOpen(false);
-          }}
-        >
-          <div
-            className={`dash-upload-modal${uploadModalWide ? ' dash-upload-modal--wide' : ''}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="dash-upload-modal-title" className="dash-upload-modal-title">
-              Cargar datos
-            </h3>
-            <p className="dash-upload-modal-lead" hidden={uploadModalWide}>
-              La IA interpreta tu archivo o Google Sheet y genera un dashboard en segundos.
-            </p>
-            <div className="dash-upload-modal-body">
-              <DataSourceSelector onWideChange={onUploadZoneWideChange} />
-            </div>
-            <div className="dash-upload-modal-foot">
-              <button type="button" className="btn-sm" onClick={() => setUploadModalOpen(false)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
