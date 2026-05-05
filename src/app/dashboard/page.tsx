@@ -1105,6 +1105,23 @@ function DashboardContent() {
     );
   }
 
+  // Pantalla limpia de carga/importación (sin renderizar el dashboard actual debajo).
+  if (params.get('action') === 'upload') {
+    return (
+      <>
+        <div className="sec-hd">
+          <div className="sec-hd-l">
+            <h2>Cargar datos</h2>
+            <p>SUBE ARCHIVOS O PEGA UN LINK DE GOOGLE SHEETS</p>
+          </div>
+        </div>
+        <div id="upload-zone" style={{ marginTop: 8 }}>
+          <DataSourceSelector />
+        </div>
+      </>
+    );
+  }
+
   if (!hasSavedDashboard) {
     return (
       <>
