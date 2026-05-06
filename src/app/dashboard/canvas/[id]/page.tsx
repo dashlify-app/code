@@ -63,8 +63,9 @@ export default function DashboardCanvasPage() {
   } | null>(null);
 
   // Calcular vistas disponibles basadas en los datos del dataset
-  const enabledViews = useMemo((): SemanticViewKey[] | null => {
-    if (!payload?.headers || !payload?.rows) return null;
+  const enabledViews = useMemo((): SemanticViewKey[] => {
+    // En canvas nunca queremos mostrar las 6 por default; si faltan datos, solo “Visión general”.
+    if (!payload?.headers || !payload?.rows) return ['business'];
 
     const types = detectColumnTypes(payload.headers, payload.rows);
     const semantic = buildSemanticContext(payload.headers, payload.rows, types.dates);

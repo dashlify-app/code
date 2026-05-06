@@ -1188,7 +1188,8 @@ function DashboardContent() {
           activeView={viewParam}
           showActive={pathname === '/dashboard'}
           onSelectView={(k) => router.push(`/dashboard?view=${k}`)}
-          enabledViewKeys={semantic ? availableViews : null}
+          // Siempre filtrar tabs por dataset actual; si la IA aún carga, cae a ['business'].
+          enabledViewKeys={availableViews}
           hint={
             semantic && availableViews.length < VIEW_KEYS.length
               ? 'Las vistas mostradas dependen de las columnas del archivo activo. Visión general siempre incluye el resumen completo.'

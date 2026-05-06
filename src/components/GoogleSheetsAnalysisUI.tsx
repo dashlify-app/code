@@ -209,7 +209,7 @@ export function GoogleSheetsAnalysisUI({ sheetData, onClose }: GoogleSheetsAnaly
 
       {/* Info */}
       <p style={{ textAlign: 'center', fontSize: '12px', opacity: 0.6 }}>
-        La IA analizará tu sheet y sugará gráficas automáticas
+        La IA analizará tu sheet y sugerirá gráficas automáticas
       </p>
     </div>
   );
