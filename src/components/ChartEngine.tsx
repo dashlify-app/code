@@ -448,7 +448,6 @@ export default function ChartEngine({
               ? 'Benchmark (mediana)'
               : 'Benchmark (promedio)',
         data: mode === 'previousPeriod' ? prev : labels.map(() => (useMedian ? med : avg)),
-        // @ts-expect-error custom marker for styling
         __execRole: 'benchmark',
       } as any,
     ];
