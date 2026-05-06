@@ -1,7 +1,30 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
+import bcrypt from 'bcryptjs';
 import { supabaseAdmin } from '@/lib/supabase';
+
+function isDemoLoginConfigured(): boolean {
+  return (
+    process.env.AUTH_DEMO_LOGIN_ENABLED === 'true' &&
+    Boolean(process.env.AUTH_DEMO_USER_EMAIL?.trim()) &&
+    Boolean(process.env.AUTH_DEMO_USER_PASSWORD) &&
+    Boolean(process.env.AUTH_DEMO_USER_ID?.trim())
+  );
+}
+
+function tryDemoAuthorize(email: string, password: string) {
+  if (!isDemoLoginConfigured()) return null;
+  const demoEmail = process.env.AUTH_DEMO_USER_EMAIL!.trim().toLowerCase();
+  const demoId = process.env.AUTH_DEMO_USER_ID!.trim();
+  if (email.trim().toLowerCase() !== demoEmail) return null;
+  if (password !== process.env.AUTH_DEMO_USER_PASSWORD) return null;
+  return {
+    id: demoId,
+    email: process.env.AUTH_DEMO_USER_EMAIL!.trim(),
+    name: 'Demo User',
+  };
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,16 +39,30 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // Demo: usuario hardcodeado para testing
-        if (credentials.email === '2005.ivan@gmail.com' && credentials.password === '123456') {
-          return {
-            id: 'cmodqsemt000104lbmwixnsed',
-            email: '2005.ivan@gmail.com',
-            name: 'Demo User',
-          };
+        const email = credentials.email.trim();
+        const password = credentials.password;
+
+        const demo = tryDemoAuthorize(email, password);
+        if (demo) return demo;
+
+        const { data: user, error } = await supabaseAdmin
+          .from('User')
+          .select('id, email, password')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (error || !user?.password) {
+          return null;
         }
 
-        return null;
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: email.split('@')[0] || 'Usuario',
+        };
       },
     }),
     GoogleProvider({
@@ -58,11 +95,15 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        // Mapear email demo al ID real en Supabase, sin importar el token
-        if (session.user.email === '2005.ivan@gmail.com') {
-          (session.user as any).id = 'cmodqsemt000104lbmwixnsed';
+        const demoEmail =
+          isDemoLoginConfigured() &&
+          session.user.email?.trim().toLowerCase() ===
+            process.env.AUTH_DEMO_USER_EMAIL!.trim().toLowerCase();
+
+        if (demoEmail) {
+          (session.user as { id?: string }).id = process.env.AUTH_DEMO_USER_ID!.trim();
         } else {
-          (session.user as any).id = token.sub;
+          (session.user as { id?: string }).id = token.sub;
         }
 
         // Agregar tokens de Google a la sesión (solo si existen)

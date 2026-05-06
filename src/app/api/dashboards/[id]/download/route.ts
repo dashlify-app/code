@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { authOptions } from '@/lib/auth';
 import { generateToken } from '@/lib/embedToken';
 import { buildEmbedHtml, assembleHtml } from '@/lib/embedTemplate';
+import { devLog, devVerbose } from '@/lib/logger';
 
 /**
  * POST /api/dashboards/{id}/download
@@ -66,13 +67,13 @@ export async function POST(
 
     // Usar los datos que el cliente envió (snapshot actual)
     const snapshotData = body.snapshotData;
-    console.log('[download] Usando snapshot del cliente:', {
+    devLog('[download] Usando snapshot del cliente:', {
       widgets: snapshotData.widgets?.length || 0,
       title: snapshotData.title,
     });
 
     // El snapshot ya tiene todos los datos del cliente, listo para inyectar
-    console.log('[download] Snapshot ready with', snapshotData.widgets?.length || 0, 'widgets');
+    devLog('[download] Snapshot ready with', snapshotData.widgets?.length || 0, 'widgets');
 
     // Generate token, persist hash
     const { plaintext, hash } = generateToken();
@@ -148,19 +149,19 @@ export async function POST(
     // Inject snapshot data into the obfuscated JS
     // The snapshot data must be assigned BEFORE dlf_init() is called in the obfuscated code
     const snapshotJson = JSON.stringify(snapshotData);
-    console.log('[download] Snapshot JSON size:', snapshotJson.length, 'bytes');
-    console.log('[download] Snapshot JSON (first 500 chars):', snapshotJson.substring(0, 500));
+    devLog('[download] Snapshot JSON size:', snapshotJson.length, 'bytes');
+    devVerbose('[download] Snapshot JSON (first 500 chars):', snapshotJson.substring(0, 500));
 
     // Check if dlf_init() exists in obfuscated code
     const hasInit = obfuscated.includes('dlf_init();');
-    console.log('[download] obfuscated code contains dlf_init();?', hasInit);
+    devVerbose('[download] obfuscated code contains dlf_init();?', hasInit);
 
     const withSnapshot = obfuscated.replace(
       'dlf_init();',
       `_DLF.snapshotData = ${snapshotJson};\ndlf_init();`
     );
 
-    console.log('[download] After replacement, injection succeeded?', withSnapshot !== obfuscated);
+    devVerbose('[download] After replacement, injection succeeded?', withSnapshot !== obfuscated);
 
     const finalHtml = assembleHtml(shell, withSnapshot);
 

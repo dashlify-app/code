@@ -744,6 +744,8 @@ function DashboardContent() {
   const router = useRouter();
   const pathname = usePathname();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [dashboardDatasetAllowList, setDashboardDatasetAllowList] = useState<{ ids: Set<string>; names: Set<string> } | null>(null);
+  const [dashboardTheme, setDashboardTheme] = useState<'modern' | 'enterprise' | 'dark'>('modern');
   const [loading, setLoading] = useState(true);
   const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
   const [kpiFlipped, setKpiFlipped] = useState<Record<string, boolean>>({});
@@ -760,14 +762,36 @@ function DashboardContent() {
         .then((data) => {
           let ds: Dataset[] = Array.isArray(data.datasets) ? data.datasets : [];
 
-          // Filtrar: mostrar solo los archivos cargados recientemente en esta sesión
-          const recentIds = localStorage.getItem('dashlify_recent_files');
-          if (recentIds) {
-            try {
-              const ids = JSON.parse(recentIds) as string[];
-              ds = ds.filter(d => ids.includes(d.id));
-            } catch (e) {
-              // Si hay error al parsear, mostrar todos
+          // Si existe dashboard guardado, mostrar solo datasets que ese dashboard referencia (origen de datos).
+          if (dashboardDatasetAllowList) {
+            const { ids, names } = dashboardDatasetAllowList;
+            if (ids.size > 0) {
+              ds = ds.filter((d) => ids.has(d.id));
+            } else if (names.size > 0) {
+              // Fallback legacy: algunos widgets viejos solo tienen datasetName.
+              // Si hay múltiples datasets con el mismo nombre, usar el más reciente.
+              const newestByName = new Map<string, Dataset>();
+              for (const d of ds) {
+                if (!names.has(d.name)) continue;
+                const prev = newestByName.get(d.name);
+                const prevTs = prev ? Date.parse(prev.updatedAt || prev.createdAt || '') : -1;
+                const curTs = Date.parse(d.updatedAt || d.createdAt || '') || 0;
+                if (!prev || curTs >= prevTs) newestByName.set(d.name, d);
+              }
+              ds = Array.from(newestByName.values());
+            } else {
+              ds = [];
+            }
+          } else {
+            // Sin dashboard guardado: mostrar solo los archivos cargados recientemente en esta sesión (si existe el filtro)
+            const recentIds = localStorage.getItem('dashlify_recent_files');
+            if (recentIds) {
+              try {
+                const ids = JSON.parse(recentIds) as string[];
+                ds = ds.filter((d) => ids.includes(d.id));
+              } catch {
+                // ignore
+              }
             }
           }
 
@@ -782,7 +806,7 @@ function DashboardContent() {
     loadDatasets();
     window.addEventListener('dashlify:datasets-changed', loadDatasets);
     return () => window.removeEventListener('dashlify:datasets-changed', loadDatasets);
-  }, []);
+  }, [dashboardDatasetAllowList]);
 
   useEffect(() => {
     const load = () => {
@@ -807,6 +831,7 @@ function DashboardContent() {
   useEffect(() => {
     if (!hasSavedDashboard) {
       setSavedVisualWidgets([]);
+      setDashboardDatasetAllowList(null);
       return;
     }
     let cancelled = false;
@@ -822,6 +847,30 @@ function DashboardContent() {
         const dRes = await fetch(`/api/dashboards/${dashId}`);
         const dJson = await dRes.json();
         if (cancelled || !dJson.dashboard?.widgets) return;
+
+        // Tema guardado en el dashboard (templateId). Default: modern.
+        const t = String(dJson.dashboard?.templateId || '').toLowerCase();
+        if (!cancelled) {
+          setDashboardTheme(t === 'enterprise' || t === 'dark' || t === 'modern' ? (t as any) : 'modern');
+        }
+
+        // Datasets permitidos para este dashboard (por datasetId persistido en Widget/config).
+        const allowIds = new Set<string>();
+        const allowNames = new Set<string>();
+        for (const w of dJson.dashboard.widgets as any[]) {
+          const id =
+            (typeof w?.datasetId === 'string' && w.datasetId) ||
+            (typeof w?.config?.datasetId === 'string' && w.config.datasetId) ||
+            null;
+          if (id) allowIds.add(id);
+          const name =
+            (typeof w?.datasetName === 'string' && w.datasetName) ||
+            (typeof w?.config?.datasetName === 'string' && w.config.datasetName) ||
+            null;
+          if (name) allowNames.add(name);
+        }
+        if (!cancelled) setDashboardDatasetAllowList(allowIds.size > 0 || allowNames.size > 0 ? { ids: allowIds, names: allowNames } : null);
+
         setSavedVisualWidgets(hydrateDashboardWidgets(dJson.dashboard.widgets, datasets));
       } catch {
         if (!cancelled) setSavedVisualWidgets([]);
@@ -1048,7 +1097,7 @@ function DashboardContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" style={{color:'var(--text3)'}}>
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent mr-3" />
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-(--accent) border-t-transparent mr-3" />
         Cargando datos…
       </div>
     );
@@ -1057,15 +1106,35 @@ function DashboardContent() {
   if (!dashboardsListLoaded) {
     return (
       <div className="flex items-center justify-center h-64" style={{ color: 'var(--text3)' }}>
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent mr-3" />
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-(--accent) border-t-transparent mr-3" />
         Cargando panel…
+      </div>
+    );
+  }
+
+  const themeWrapClass =
+    dashboardTheme === 'enterprise' ? 'dash-enterprise' : dashboardTheme === 'dark' ? 'dash-dark' : '';
+
+  // Pantalla limpia de carga/importación (sin renderizar el dashboard actual debajo).
+  if (params.get('action') === 'upload') {
+    return (
+      <div className={themeWrapClass}>
+        <div className="sec-hd">
+          <div className="sec-hd-l">
+            <h2>Cargar datos</h2>
+            <p>SUBE ARCHIVOS O PEGA UN LINK DE GOOGLE SHEETS</p>
+          </div>
+        </div>
+        <div id="upload-zone" style={{ marginTop: 8 }}>
+          <DataSourceSelector />
+        </div>
       </div>
     );
   }
 
   if (!hasSavedDashboard) {
     return (
-      <>
+      <div className={themeWrapClass}>
         <NoSavedDashboardState sessionHasDatasets={datasets.length > 0} />
         <div className="sec-hd">
           <div className="sec-hd-l">
@@ -1076,12 +1145,12 @@ function DashboardContent() {
         <div id="upload-zone" style={{ marginTop: 8 }}>
           <DataSourceSelector />
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className={themeWrapClass}>
       {/* AI BAR — dinámica */}
       <div className="ai-bar">
         <span className="ai-chip">IA</span>
@@ -1209,6 +1278,7 @@ function DashboardContent() {
           rows={rows}
           headers={headers}
           datasetName={activeDataset?.name || ''}
+          theme={dashboardTheme}
           onWidgetAdd={(newWidget) => {
             // Add new widget to state for immediate display in canvas or here
             setSavedVisualWidgets(prev => [...prev, newWidget]);
@@ -1239,6 +1309,7 @@ function DashboardContent() {
           sem={semantic}
           headers={headers}
           priorityInsightsFromAI={aiLayer?.priorityInsights}
+          theme={dashboardTheme}
         />
       )}
 
@@ -1269,7 +1340,7 @@ function DashboardContent() {
         availableFields={headers}
         datasetName={activeDataset?.name || ''}
       />
-    </>
+    </div>
   );
 }
 
@@ -1277,7 +1348,7 @@ export default function DashboardPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64" style={{color:'var(--text3)'}}>
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent mr-3" />
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-(--accent) border-t-transparent mr-3" />
         Cargando…
       </div>
     }>

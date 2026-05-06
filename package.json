@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test src/lib/__tests__/*.test.mjs"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clear-dev-data": "tsx scripts/clear_dev_data.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -36,11 +38,16 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.15.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "pg": "^8.20.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^4.1.5"
   }
 }

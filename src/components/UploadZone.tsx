@@ -12,6 +12,7 @@ import DashboardCanvas from './DashboardCanvas';
 import DataCopilot from './DataCopilot';
 import MultiDatasetAnalysisResult from './MultiDatasetAnalysisResult';
 import { computeColumnStats } from '@/lib/columnStats';
+import { devLog } from '@/lib/logger';
 import { MultiDatasetAnalysis, ProposedWidget } from '@/lib/types/multiDataset';
 
 interface DatasetPreview {
@@ -383,7 +384,7 @@ export default function UploadZone({ onWideChange }: UploadZoneProps) {
     return <DashboardCanvas
       initialWidgets={selectedWidgets}
       onSave={(final) => {
-        console.log('Dashboard final guardado:', final);
+        devLog('Dashboard final guardado:', final);
         clearAllFiles();
       }}
       onBack={() => {

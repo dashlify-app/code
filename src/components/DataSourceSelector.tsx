@@ -1,44 +1,133 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import UploadZone from './UploadZone';
-import { GoogleSheetsModal, ImportedSheet } from './GoogleSheetsModal';
-import { GoogleSheetsDataset } from '@/types/dataset';
+import { GoogleSheetsModal, type ImportedSheet } from './GoogleSheetsModal';
+import { GoogleSheetsAnalysisUI, type GoogleSheetData } from './GoogleSheetsAnalysisUI';
+import { processDataset } from '@/lib/datasetAnalysis';
+import { devLog } from '@/lib/logger';
 
 type TabType = 'upload' | 'google';
 
-export function DataSourceSelector() {
+export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boolean) => void }) {
+  const params = useSearchParams();
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('upload');
-  const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const tab = params?.get('tab');
+    return tab === 'google' ? 'google' : 'upload';
+  });
+  const [googleSheetAnalysis, setGoogleSheetAnalysis] = useState<GoogleSheetData | null>(null);
 
   // Solo renderizar en cliente para evitar hydration mismatch
   useEffect(() => {
     setIsMounted(true);
+    setGoogleEnabled(localStorage.getItem('dashlify-google-enabled') === '1');
+  }, []);
+
+  // Permite navegar a /dashboard?action=upload&tab=google para abrir la pestaña correcta.
+  useEffect(() => {
+    if (!googleEnabled) {
+      setActiveTab('upload');
+      return;
+    }
+    const tab = params?.get('tab');
+    if (tab === 'google' && googleEnabled) setActiveTab('google');
+    else if (tab === 'upload') setActiveTab('upload');
+  }, [params, googleEnabled]);
+
+  const setTab = useCallback(
+    (tab: TabType) => {
+      setActiveTab(tab);
+      const q = new URLSearchParams(params?.toString() ?? '');
+      q.set('action', 'upload');
+      q.set('tab', tab);
+      router.replace(`/dashboard?${q.toString()}`);
+    },
+    [params, router]
+  );
+
+  useEffect(() => {
+    const onToggle = (e: Event) => {
+      const enabled = (e as CustomEvent<{ enabled: boolean }>).detail?.enabled;
+      setGoogleEnabled(Boolean(enabled));
+      if (!enabled) setActiveTab('upload');
+    };
+    window.addEventListener('dashlify:google-enabled-changed', onToggle as EventListener);
+    return () => window.removeEventListener('dashlify:google-enabled-changed', onToggle as EventListener);
   }, []);
 
   // Manejar importación de Google Sheets
-  const handleGoogleSheetImport = async (sheetData: ImportedSheet) => {
+  const handleGoogleSheetImport = useCallback(async (sheetData: ImportedSheet) => {
+    devLog('📥 [DataSourceSelector] Google Sheet importado:', {
+      nombre: sheetData.name,
+      filas: sheetData.data.length,
+      columnas: sheetData.headers.length,
+    });
+
     try {
-      // Nota: El dataset de Google Sheets se guarda en localStorage y en la BD
-      // El evento 'dashlify:datasets-changed' dispara la recarga en el dashboard
+      devLog('⏳ [DataSourceSelector] Analizando Google Sheet con IA...');
 
-      // Disparar evento personalizado (igual que UploadZone)
-      // Esto permite que el dashboard se entere de los cambios
-      window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
+      // Procesar el Google Sheet igual que un archivo
+      const processed = await processDataset({
+        name: sheetData.name,
+        headers: sheetData.headers,
+        sampleData: sheetData.data,
+        type: 'google-sheets',
+        size: '0 KB',
+        sourceType: 'google-sheets',
+        sheetId: sheetData.id,
+        sourceUrl: sheetData.sourceUrl,
+      });
 
-      setGoogleSheetsModalOpen(false);
+      devLog('✅ [DataSourceSelector] Google Sheet procesado:', {
+        id: processed.id,
+        nombre: processed.name,
+        filas: processed.sampleData?.length,
+        analisisCompleto: !!processed.analysis,
+      });
+
+      // Crear objeto GoogleSheetData con análisis
+      const googleSheetData: GoogleSheetData = {
+        id: processed.id,
+        name: processed.name,
+        headers: processed.headers,
+        data: processed.sampleData || [],
+        analysis: processed.analysis, // Aquí está el análisis completo
+      };
+
+      // Guardar en estado para mostrar la UI de análisis
+      setGoogleSheetAnalysis(googleSheetData);
+
+      // Cambiar a pestaña de análisis
+      setActiveTab('google');
     } catch (error) {
-      console.error('Error importando Google Sheet:', error);
+      console.error('❌ Error importando Google Sheet:', error);
+      alert('❌ Error al procesar Google Sheet: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     }
-  };
+  }, []);
 
-  // UploadZone maneja sus datos de forma diferente (mediante eventos)
-  // DataSourceSelector solo necesita renderizar UploadZone sin callbacks adicionales
+  // Manejar cierre de análisis de Google Sheets
+  const handleCloseGoogleAnalysis = useCallback(() => {
+    setGoogleSheetAnalysis(null);
+    setActiveTab('upload');
+  }, []);
 
   // Evitar hydration mismatch: no renderizar hasta que esté montado
   if (!isMounted) {
     return null;
+  }
+
+  // Si hay análisis de Google Sheets activo, mostrar esa UI
+  if (googleSheetAnalysis) {
+    return (
+      <GoogleSheetsAnalysisUI
+        sheetData={googleSheetAnalysis}
+        onClose={handleCloseGoogleAnalysis}
+      />
+    );
   }
 
   return (
@@ -53,7 +142,7 @@ export function DataSourceSelector() {
         }}
       >
         <button
-          onClick={() => setActiveTab('upload')}
+          onClick={() => setTab('upload')}
           style={{
             padding: '12px 20px',
             border: 'none',
@@ -69,66 +158,44 @@ export function DataSourceSelector() {
         >
           📁 Subir archivos
         </button>
-        <button
-          onClick={() => setActiveTab('google')}
-          style={{
-            padding: '12px 20px',
-            border: 'none',
-            background: 'transparent',
-            color: activeTab === 'google' ? 'var(--accent)' : 'var(--text2)',
-            borderBottom: activeTab === 'google' ? '3px solid var(--accent)' : 'none',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: activeTab === 'google' ? 'bold' : 'normal',
-            marginBottom: '-2px',
-            transition: 'color 0.2s',
-          }}
-        >
-          🔗 Google Sheets
-        </button>
+        {googleEnabled && (
+          <button
+            onClick={() => setTab('google')}
+            style={{
+              padding: '12px 20px',
+              border: 'none',
+              background: 'transparent',
+              color: activeTab === 'google' ? 'var(--accent)' : 'var(--text2)',
+              borderBottom: activeTab === 'google' ? '3px solid var(--accent)' : 'none',
+              cursor: 'pointer',
+              fontSize: '15px',
+              fontWeight: activeTab === 'google' ? 'bold' : 'normal',
+              marginBottom: '-2px',
+              transition: 'color 0.2s',
+            }}
+          >
+            🔗 Google Sheets
+          </button>
+        )}
       </div>
 
       {/* Tab Content */}
       {activeTab === 'upload' && (
         <div>
-          <UploadZone />
+          <UploadZone onWideChange={onWideChange} />
         </div>
       )}
 
-      {activeTab === 'google' && (
-        <div
-          style={{
-            padding: '20px',
-            background: 'var(--surface2)',
-            borderRadius: '12px',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: 8 }}>
-              Conectar Google Sheets
-            </div>
-            <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: 0 }}>
-              Importa datos directamente desde tus Google Sheets. Puedes hacer búsquedas en Drive o pegar una URL/ID.
-            </p>
-          </div>
-          <button
-            onClick={() => setGoogleSheetsModalOpen(true)}
-            className="btn btn-primary"
-            style={{ marginTop: 12 }}
-          >
-            🔐 Conectar con Google Sheets
-          </button>
+      {googleEnabled && activeTab === 'google' && (
+        <div style={{ padding: 18, background: 'var(--surface2)', borderRadius: 12 }}>
+          <GoogleSheetsModal
+            open={true}
+            mode="inline-url"
+            onClose={() => {}}
+            onImport={handleGoogleSheetImport}
+          />
         </div>
       )}
-
-      {/* Google Sheets Modal */}
-      <GoogleSheetsModal
-        open={googleSheetsModalOpen}
-        onClose={() => setGoogleSheetsModalOpen(false)}
-        onImport={handleGoogleSheetImport}
-      />
     </div>
   );
 }

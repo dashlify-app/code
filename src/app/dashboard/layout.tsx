@@ -5,10 +5,6 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Minus } from 'lucide-react';
-import UploadZone from '@/components/UploadZone';
-import { GoogleSheetsModal, type ImportedSheet } from '@/components/GoogleSheetsModal';
-import { GoogleSheetsAnalysisUI } from '@/components/GoogleSheetsAnalysisUI';
-import { processDataset } from '@/lib/datasetAnalysis';
 
 type DashboardRow = { id: string; title: string; updatedAt: string; sourceType?: 'upload' | 'google-sheets' };
 
@@ -68,18 +64,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [dark, setDark] = useState(false);
   const [liveSec, setLiveSec] = useState(8);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [googleSheetsEnabled, setGoogleSheetsEnabled] = useState(false);
+  const googleToggleByUser = useRef(false);
   const [dashboards, setDashboards] = useState<DashboardRow[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deleteInFlight = useRef(false);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadModalWide, setUploadModalWide] = useState(false);
-  const [googleSheetsModalOpen, setGoogleSheetsModalOpen] = useState(false);
-  const [googleSheetAnalysis, setGoogleSheetAnalysis] = useState<any>(null);
-  const onUploadZoneWideChange = useCallback((wide: boolean) => {
-    setUploadModalWide(wide);
-  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');
@@ -88,6 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (localStorage.getItem('dash-theme') === 'dark') setDark(true);
     if (localStorage.getItem('dashlify-sidebar') === '0') setSidebarOpen(false);
+    setGoogleSheetsEnabled(localStorage.getItem('dashlify-google-enabled') === '1');
   }, []);
 
   const toggleSidebar = () => {
@@ -175,18 +167,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('keydown', onKey);
   }, [pendingDelete, deletingId, cancelDelete]);
 
-  useEffect(() => {
-    if (!uploadModalOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setUploadModalOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [uploadModalOpen]);
+  /** Abrir panel Visualizar y mostrar la zona de carga (sin modal). */
+  const openUpload = useCallback(
+    (tab?: 'upload' | 'google') => {
+      const q = new URLSearchParams();
+      q.set('action', 'upload');
+      if (tab) q.set('tab', tab);
+      router.push(`/dashboard?${q.toString()}`);
+    },
+    [router]
+  );
 
+  const toggleGoogleSheets = useCallback(() => {
+    googleToggleByUser.current = true;
+    setGoogleSheetsEnabled((prev) => !prev);
+  }, []);
+
+  // Persistir + emitir evento DESPUÉS del render (evita setState-durante-render en hijos).
   useEffect(() => {
-    if (!uploadModalOpen) setUploadModalWide(false);
-  }, [uploadModalOpen]);
+    localStorage.setItem('dashlify-google-enabled', googleSheetsEnabled ? '1' : '0');
+    window.dispatchEvent(
+      new CustomEvent('dashlify:google-enabled-changed', { detail: { enabled: googleSheetsEnabled } })
+    );
+    if (googleToggleByUser.current) {
+      openUpload(googleSheetsEnabled ? 'google' : 'upload');
+      googleToggleByUser.current = false;
+    }
+  }, [googleSheetsEnabled, openUpload]);
 
   const toggleTheme = () => {
     setDark((d) => {
@@ -195,62 +202,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return next;
     });
   };
-
-  /** Igual que legacy `openUpload()`: modal centrado (no solo scroll a la página). */
-  const openUpload = () => {
-    setUploadModalOpen(true);
-  };
-
-  const openGoogleSheetsModal = () => {
-    setGoogleSheetsModalOpen(true);
-  };
-
-  const handleGoogleSheetImport = (sheetData: ImportedSheet) => {
-    console.log('📥 [Dashboard] Iniciando procesamiento de Google Sheet:', sheetData.name);
-
-    // Procesar en background
-    (async () => {
-      try {
-        console.log('⏳ [Dashboard] Analizando sheet con IA...');
-
-        // Procesar el Google Sheet como si fuera un archivo
-        const processed = await processDataset({
-          name: sheetData.name,
-          headers: sheetData.headers,
-          sampleData: sheetData.data,
-          type: 'google-sheets',
-          size: '0 KB',
-          sourceType: 'google-sheets',
-          sheetId: sheetData.id,
-          sourceUrl: sheetData.sourceUrl,
-        });
-
-        console.log('✅ [Dashboard] Google Sheet procesado:', {
-          id: processed.id,
-          nombre: processed.name,
-          filas: processed.sampleData?.length,
-        });
-
-        // Notificar que hay nuevos datasets
-        window.dispatchEvent(new CustomEvent('dashlify:datasets-changed'));
-
-        // Mostrar la UI de análisis con opciones de gráficas
-        setGoogleSheetAnalysis({
-          id: processed.id,
-          name: processed.name,
-          headers: processed.headers,
-          data: processed.sampleData || [],
-          analysis: processed.analysis,
-        });
-      } catch (error) {
-        console.error('❌ [Dashboard] Error al procesar Google Sheet:', error);
-        alert('❌ Error: ' + (error instanceof Error ? error.message : 'Error al procesar sheet'));
-      }
-    })();
-  };
-
-  // Detectar si usuario está autenticado con Google (tiene accessToken de Google)
-  const isGoogleAuthenticated = !!(session && (session as any)?.accessToken);
 
   if (status === 'loading') {
     return (
@@ -262,18 +213,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const rootClass = [dark ? 'dash-dark' : '', sidebarOpen ? '' : 'sidebar-collapsed'].filter(Boolean).join(' ');
 
-  // Si hay un Google Sheet en análisis, mostrar la UI de análisis
-  if (googleSheetAnalysis) {
-    return (
-      <div className={rootClass} style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-        <GoogleSheetsAnalysisUI
-          sheetData={googleSheetAnalysis}
-          onClose={() => setGoogleSheetAnalysis(null)}
-        />
-      </div>
-    );
-  }
-
   return (
     <div id="dash-admin" className={rootClass}>
       <header className="dash-admin-header">
@@ -282,7 +221,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="logo-tag">LIVE</span>
         </Link>
         <nav className="nav-pills" aria-label="Vista principal">
-          <button type="button" className="nav-pill" onClick={openUpload}>
+          <button type="button" className="nav-pill" onClick={() => openUpload('upload')}>
             ⬆ Cargar datos
           </button>
           <button type="button" className={`nav-pill ${pathname === '/dashboard' ? 'active' : ''}`} onClick={() => router.push('/dashboard')}>
@@ -448,17 +387,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span>📊</span>
                 <div>
                   <div className="conn-name">Google Sheets</div>
-                  <div className={`conn-status${isGoogleAuthenticated ? ' on' : ''}`}>
-                    {isGoogleAuthenticated ? '● Conectado' : '○ Opcional'}
+                  <div className={`conn-status${googleSheetsEnabled ? ' on' : ''}`}>
+                    {googleSheetsEnabled ? '● Activo' : '○ Opcional'}
                   </div>
                 </div>
               </div>
               <button
                 type="button"
-                className={`toggle${isGoogleAuthenticated ? ' on' : ''}`}
-                onClick={openGoogleSheetsModal}
-                title="Importar Google Sheets"
-                aria-label="Importar Google Sheets"
+                className={`toggle${googleSheetsEnabled ? ' on' : ''}`}
+                onClick={toggleGoogleSheets}
+                title={googleSheetsEnabled ? 'Desactivar Google Sheets' : 'Activar Google Sheets'}
+                aria-label="Activar/Desactivar Google Sheets"
               />
             </div>
           </div>
@@ -474,48 +413,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onCancel={cancelDelete}
         onConfirm={() => {
           void confirmDelete();
-        }}
-      />
-
-      {uploadModalOpen ? (
-        <div
-          className="dash-upload-modal-bg"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dash-upload-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setUploadModalOpen(false);
-          }}
-        >
-          <div
-            className={`dash-upload-modal${uploadModalWide ? ' dash-upload-modal--wide' : ''}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="dash-upload-modal-title" className="dash-upload-modal-title">
-              Cargar nuevo archivo
-            </h3>
-            <p className="dash-upload-modal-lead" hidden={uploadModalWide}>
-              La IA interpreta tu archivo y genera un dashboard en segundos.
-            </p>
-            <div className="dash-upload-modal-body">
-              <UploadZone onWideChange={onUploadZoneWideChange} />
-            </div>
-            <div className="dash-upload-modal-foot">
-              <button type="button" className="btn-sm" onClick={() => setUploadModalOpen(false)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <GoogleSheetsModal
-        open={googleSheetsModalOpen}
-        onClose={() => setGoogleSheetsModalOpen(false)}
-        onImport={(sheetData) => {
-          console.log('🎬 [Layout] onImport callback ejecutado');
-          setGoogleSheetsModalOpen(false);
-          handleGoogleSheetImport(sheetData);
         }}
       />
     </div>

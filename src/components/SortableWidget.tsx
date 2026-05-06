@@ -233,19 +233,22 @@ function WidgetCalcExplain({
   config,
   widgetType,
   activeFilters,
+  theme,
 }: {
   config: any;
   widgetType: string;
   activeFilters: Record<string, string>;
+  theme: ThemeId;
 }) {
   const cfg = config ?? {};
   let rows: Record<string, any>[] = cfg?.sampleData ?? [];
   const rawTotal = rows.length;
+  const isEnterprise = theme === 'enterprise';
 
   if (rawTotal === 0) {
     return (
       <div className="calc-explain p-4 h-full flex items-center justify-center">
-        <p className="text-[var(--text2)] text-base">No hay datos en este widget.</p>
+        <p className="text-(--text2) text-base">No hay datos en este widget.</p>
       </div>
     );
   }
@@ -262,8 +265,8 @@ function WidgetCalcExplain({
   if (!rows.length) {
     return (
       <div className="calc-explain p-4 h-full flex flex-col justify-center gap-2">
-        <p className="text-[var(--text)] text-base font-bold">Filtros sin resultados</p>
-        <p className="text-[var(--text2)] text-sm">Ninguna fila coincide con los filtros cruzados activos.</p>
+        <p className="text-(--text) text-base font-bold">Filtros sin resultados</p>
+        <p className="text-(--text2) text-sm">Ninguna fila coincide con los filtros cruzados activos.</p>
       </div>
     );
   }
@@ -284,39 +287,70 @@ function WidgetCalcExplain({
 
   return (
     <div className="calc-explain p-2 overflow-hidden flex flex-col">
-      <p className="text-[var(--text2)] text-[11px] leading-tight mb-2">
-        Se usan <strong className="text-[var(--text)]">{rows.length}</strong> fila{rows.length !== 1 ? 's' : ''}{rawTotal > rows.length ? <> (de {rawTotal} antes de filtrar)</> : null}.
+      <p className="text-(--text2) text-[11px] leading-tight mb-2">
+        Se usan <strong className="text-(--text)">{rows.length}</strong> fila{rows.length !== 1 ? 's' : ''}{rawTotal > rows.length ? <> (de {rawTotal} antes de filtrar)</> : null}.
       </p>
 
+      {isEnterprise && (
+        <div
+          className="mb-2 rounded-md border border-(--border) bg-(--surface2) p-2"
+          style={{ lineHeight: 1.35 }}
+        >
+          <div className="text-[10px] font-mono uppercase tracking-widest text-(--text3) mb-1">
+            Capa ejecutiva (Enterprise)
+          </div>
+          <p className="text-(--text2) text-[11px]">
+            En Enterprise se puede añadir un <strong className="text-(--text)">benchmark</strong> (línea punteada) para comparar la serie “Actual”.
+            {cfg?.benchmarkMode ? (
+              <> Modo: <strong className="text-(--text)">{String(cfg.benchmarkMode)}</strong>.</>
+            ) : (
+              <> Modo: <strong className="text-(--text)">auto</strong> (se decide según el eje X).</>
+            )}
+            {' '}
+            {cfg?.showDelta === false ? (
+              <>El delta vs benchmark está desactivado.</>
+            ) : (
+              <>
+                El tooltip muestra delta{' '}
+                <strong className="text-(--text)">{String(cfg?.deltaLabel || 'vs Benchmark')}</strong>.
+              </>
+            )}
+          </p>
+          <p className="text-(--text3) text-[10px] mt-1">
+            Nota: Modern no agrega benchmark ni callouts.
+          </p>
+        </div>
+      )}
+
       <dl className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <div className="p-2 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
-          <dt className="text-[10px] font-mono text-[var(--text2)] uppercase mb-0.5">Grupos (eje X)</dt>
+        <div className="p-2 rounded-md bg-(--surface2) border border-(--border)">
+          <dt className="text-[10px] font-mono text-(--text2) uppercase mb-0.5">Grupos (eje X)</dt>
           <dd className="text-[11px] font-medium text-blue-500 truncate">{xKey || '—'}</dd>
         </div>
-        <div className="p-2 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
-          <dt className="text-[10px] font-mono text-[var(--text2)] uppercase mb-0.5">Valores (eje Y)</dt>
+        <div className="p-2 rounded-md bg-(--surface2) border border-(--border)">
+          <dt className="text-[10px] font-mono text-(--text2) uppercase mb-0.5">Valores (eje Y)</dt>
           <dd className="text-[11px] font-medium text-blue-500 truncate">{yKeys.filter(Boolean).join(', ') || '—'}</dd>
         </div>
-        <div className="p-2 rounded-md bg-[var(--surface2)] border border-[var(--border)]">
-          <dt className="text-[10px] font-mono text-[var(--text2)] uppercase mb-0.5">Agregación</dt>
+        <div className="p-2 rounded-md bg-(--surface2) border border-(--border)">
+          <dt className="text-[10px] font-mono text-(--text2) uppercase mb-0.5">Agregación</dt>
           <dd className="text-[11px] font-medium text-blue-500 truncate">{AGGREGATE_LABEL[aggregate] ?? aggregate}</dd>
         </div>
       </dl>
 
       {resolvedType === 'scatter' && (
-        <p className="text-[var(--text2)] text-[11px] leading-tight">
+        <p className="text-(--text2) text-[11px] leading-tight">
           Cada punto: <strong>{xKey}</strong> vs <strong>{yKeys[0]}</strong> (máx 500 filas).
         </p>
       )}
 
       {widgetType === 'stat' && (
-        <p className="text-[var(--text2)] text-[11px] leading-tight">
+        <p className="text-(--text2) text-[11px] leading-tight">
           El número grande es la <strong>suma</strong> de totales por categoría.
         </p>
       )}
 
       {resolvedType !== 'scatter' && widgetType !== 'stat' && (
-        <p className="text-[var(--text2)] text-[11px] leading-tight">
+        <p className="text-(--text2) text-[11px] leading-tight">
           Se agrupan por «{xKey}». {aggregate === 'mom' || aggregate === 'cumulative' ? (
             <>Se ordenan <strong>cronológicamente</strong> (máx 15 categorías).</>
           ) : aggregate === 'count' ? (
@@ -379,6 +413,31 @@ export function SortableWidget({
   const [customColors, setCustomColors] = useState<string[]>(() => {
     return (widget.config?.customColors as string[]) || [];
   });
+
+  const [barColorMode, setBarColorMode] = useState<'autoMulti' | 'manualSingle'>(() => {
+    const raw = widget.config?.barColorMode;
+    return raw === 'manualSingle' || raw === 'autoMulti' ? raw : 'autoMulti';
+  });
+  const [barSingleColor, setBarSingleColor] = useState<string>(() => {
+    return (typeof widget.config?.barSingleColor === 'string' && widget.config.barSingleColor) || '#1f77b4';
+  });
+  const [benchmarkColor, setBenchmarkColor] = useState<string>(() => {
+    return (typeof widget.config?.benchmarkColor === 'string' && widget.config.benchmarkColor) || '#64748b';
+  });
+
+  // Sincronizar estados del customizador al abrirlo o al cambiar widget.
+  useEffect(() => {
+    if (!showColorCustomizer) return;
+    setCustomColors((widget.config?.customColors as string[]) || []);
+    const raw = widget.config?.barColorMode;
+    setBarColorMode(raw === 'manualSingle' || raw === 'autoMulti' ? raw : 'autoMulti');
+    setBarSingleColor(
+      (typeof widget.config?.barSingleColor === 'string' && widget.config.barSingleColor) || '#1f77b4'
+    );
+    setBenchmarkColor(
+      (typeof widget.config?.benchmarkColor === 'string' && widget.config.benchmarkColor) || '#64748b'
+    );
+  }, [showColorCustomizer, id, widget.config]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const persistedColSpan = normalizeColSpan(widget.config?.colSpan);
   const [localColSpan, setLocalColSpan] = useState<1 | 2 | 3>(persistedColSpan);
@@ -387,6 +446,7 @@ export function SortableWidget({
   }, [id, persistedColSpan, onUpdate]);
   const colSpan = onUpdate ? persistedColSpan : localColSpan;
   const resolved: ThemeId = isDark ? 'dark' : theme;
+  const isEnterpriseTheme = resolved === 'enterprise';
 
   const chartTypeLabel: Record<string, string> = {
     bar: 'BARRAS', line: 'LÍNEA', pie: 'DISTRIBUCIÓN', stat: 'KPI',
@@ -477,6 +537,15 @@ export function SortableWidget({
           labels={labels}
           datasets={datasets}
           title={widget.title}
+          theme={resolved}
+          compact={isNarrowCard && finalType === 'bar'}
+          benchmarkMode={cfg?.benchmarkMode}
+          showDelta={cfg?.showDelta}
+          deltaLabel={cfg?.deltaLabel}
+          // Preview en vivo mientras se edita "Personalizar colores"
+          barColorMode={showColorCustomizer ? barColorMode : cfg?.barColorMode}
+          barSingleColor={showColorCustomizer ? barSingleColor : cfg?.barSingleColor}
+          benchmarkColor={showColorCustomizer ? benchmarkColor : cfg?.benchmarkColor}
           isDark={isDark ?? resolved === 'dark'}
           onElementClick={
             finalType !== 'scatter' && xAxisCol
@@ -515,6 +584,21 @@ export function SortableWidget({
   // Resaltar visualmente si este widget tiene un filtro activo
   const xAxisCol = widget.config?.x || widget.config?.xAxis;
   const isFiltered = xAxisCol && activeFilters[xAxisCol] !== undefined;
+  const hasEnterpriseBenchmark =
+    isEnterpriseTheme &&
+    ['bar', 'line', 'area'].includes(widget.type) &&
+    String(widget.config?.benchmarkMode || 'auto') !== 'none';
+  const actualLegendLabel =
+    String(widget.config?.legendLabel || widget.config?.yAxis || widget.config?.y || widget.title || 'Actual')
+      .trim()
+      .slice(0, 48) || 'Actual';
+  const benchmarkLegendLabel = (() => {
+    const m = String(widget.config?.benchmarkMode || 'auto');
+    if (m === 'previousPeriod') return 'Benchmark (periodo anterior)';
+    if (m === 'globalAvg') return 'Benchmark (promedio)';
+    return 'Benchmark';
+  })();
+  const isNarrowCard = isEnterpriseTheme && colSpan === 1;
 
   return (
     <>
@@ -537,7 +621,7 @@ export function SortableWidget({
                 </button>
               </div>
             </div>
-            <div className="chart-wrap" style={{ height: 'calc(100% - 60px)' }} id={`widget-exp-${id}`}>
+            <div className="chart-wrap" style={{ height: 'calc(100% - 60px)', minHeight: 320 }} id={`widget-exp-${id}`}>
               <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
                 {renderChart()}
               </WidgetErrorBoundary>
@@ -580,7 +664,11 @@ export function SortableWidget({
                       )}
                     </div>
                   </div>
-                  <div className="chart-actions opacity-0 transition-opacity group-hover:opacity-100 flex gap-1">
+                  <div
+                    className={`chart-actions flex gap-1 ${
+                      isEnterpriseTheme ? 'opacity-100' : 'opacity-0 transition-opacity group-hover:opacity-100'
+                    }`}
+                  >
                     <select
                       value={colSpan}
                       onChange={(e) => {
@@ -623,22 +711,105 @@ export function SortableWidget({
                   }
                   id={`widget-${id}`}
                 >
-                  <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
-                    {renderChart()}
-                  </WidgetErrorBoundary>
-                  <button
-                    type="button"
-                    className="widget-info-btn"
-                    title="Cómo se calcula"
-                    aria-pressed={flipped}
-                    aria-label="Ver cómo se calcula"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setFlipped(true);
-                    }}
-                  >
-                    <Info size={16} />
-                  </button>
+                  {isEnterpriseTheme ? (
+                    <div
+                      className="h-full w-full"
+                      style={{
+                        display: 'flex',
+                        flexDirection: isNarrowCard ? 'column' : 'row',
+                        gap: isNarrowCard ? 10 : 16,
+                        alignItems: 'stretch',
+                      }}
+                    >
+                      <div className="min-w-0" style={{ flex: 1, minHeight: isNarrowCard ? 230 : undefined }}>
+                        <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
+                          {renderChart()}
+                        </WidgetErrorBoundary>
+                      </div>
+                      <div
+                        className="shrink-0"
+                        style={{
+                          width: isNarrowCard ? '100%' : 210,
+                          display: 'flex',
+                          flexDirection: isNarrowCard ? 'row' : 'column',
+                          justifyContent: isNarrowCard ? 'flex-start' : 'center',
+                          gap: 10,
+                          paddingRight: isNarrowCard ? 0 : 4,
+                          alignItems: isNarrowCard ? 'center' : undefined,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: 999,
+                              border: '2px solid rgba(31,119,180,0.45)',
+                              background: 'rgba(31,119,180,0.22)',
+                              boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.45)',
+                            }}
+                          />
+                          <span style={{ fontSize: 12, color: 'var(--text2)' }}>{actualLegendLabel}</span>
+                        </div>
+                        {hasEnterpriseBenchmark && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span
+                              style={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: 999,
+                                border: '2px solid rgba(100,116,139,0.75)',
+                                background:
+                                  'repeating-linear-gradient(90deg, rgba(100,116,139,0.8) 0 3px, rgba(100,116,139,0.0) 3px 6px)',
+                              }}
+                            />
+                            <span style={{ fontSize: 12, color: 'var(--text2)' }}>{benchmarkLegendLabel}</span>
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            marginTop: isNarrowCard ? 0 : 'auto',
+                            marginLeft: isNarrowCard ? 'auto' : 0,
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="widget-info-btn"
+                            title="Cómo se calcula"
+                            aria-pressed={flipped}
+                            aria-label="Ver cómo se calcula"
+                            onClick={e => {
+                              e.stopPropagation();
+                              setFlipped(true);
+                            }}
+                          >
+                            <Info size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <WidgetErrorBoundary widgetId={id} widgetTitle={widget.title}>
+                        {renderChart()}
+                      </WidgetErrorBoundary>
+                      <button
+                        type="button"
+                        className="widget-info-btn"
+                        title="Cómo se calcula"
+                        aria-pressed={flipped}
+                        aria-label="Ver cómo se calcula"
+                        onClick={e => {
+                          e.stopPropagation();
+                          setFlipped(true);
+                        }}
+                      >
+                        <Info size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -660,6 +831,7 @@ export function SortableWidget({
                         config={widget.config}
                         widgetType={widget.type}
                         activeFilters={activeFilters}
+                        theme={resolved}
                       />
                     </div>
                     <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
@@ -698,6 +870,81 @@ export function SortableWidget({
                     </div>
                     <div className="widget-explain-body" style={{ flex: 1, overflow: 'auto' }}>
                       <div style={{ padding: '12px 0' }}>
+                        {widget.type === 'bar' && (
+                          <div style={{ marginBottom: 18 }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
+                              Barras
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: 10,
+                                alignItems: 'center',
+                                padding: 10,
+                                border: '1px solid var(--border)',
+                                borderRadius: 10,
+                                background: 'var(--surface2)',
+                              }}
+                            >
+                              <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--text2)' }}>
+                                <input
+                                  type="radio"
+                                  name={`bar-mode-${id}`}
+                                  checked={barColorMode === 'autoMulti'}
+                                  onChange={() => setBarColorMode('autoMulti')}
+                                />
+                                Multicolor (auto)
+                              </label>
+                              <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--text2)' }}>
+                                <input
+                                  type="radio"
+                                  name={`bar-mode-${id}`}
+                                  checked={barColorMode === 'manualSingle'}
+                                  onChange={() => setBarColorMode('manualSingle')}
+                                />
+                                Manual (1 color)
+                              </label>
+                            </div>
+
+                            {barColorMode === 'manualSingle' && (
+                              <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+                                    Color de barras
+                                  </label>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <input
+                                      type="color"
+                                      value={barSingleColor}
+                                      onChange={(e) => setBarSingleColor(e.target.value)}
+                                      style={{ width: 48, height: 48, border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                                    />
+                                    <span style={{ fontSize: 12, color: 'var(--text2)', fontFamily: 'monospace' }}>
+                                      {barSingleColor}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--text)' }}>
+                                    Color de benchmark (línea)
+                                  </label>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <input
+                                      type="color"
+                                      value={benchmarkColor}
+                                      onChange={(e) => setBenchmarkColor(e.target.value)}
+                                      style={{ width: 48, height: 48, border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                                    />
+                                    <span style={{ fontSize: 12, color: 'var(--text2)', fontFamily: 'monospace' }}>
+                                      {benchmarkColor}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {colorLabels.map((label, idx) => (
                           <div key={idx} style={{ marginBottom: 16 }}>
                             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: 6, color: 'var(--text)' }}>
@@ -763,8 +1010,15 @@ export function SortableWidget({
                         onClick={(e) => {
                           e.stopPropagation();
                           // Guardar los colores en la configuración del widget
-                          if (onUpdate && customColors.length > 0) {
-                            onUpdate({ customColors });
+                          if (onUpdate) {
+                            const patch: any = {};
+                            if (widget.type === 'bar') {
+                              patch.barColorMode = barColorMode;
+                              patch.barSingleColor = barSingleColor;
+                              patch.benchmarkColor = benchmarkColor;
+                            }
+                            if (customColors.length > 0) patch.customColors = customColors;
+                            if (Object.keys(patch).length > 0) onUpdate(patch);
                           }
                           setShowColorCustomizer(false);
                         }}

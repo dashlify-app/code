@@ -498,12 +498,10 @@ function dlf_render(dashboard) {
     else if (typeof Chart !== 'undefined') dlf_renderChart(card, w);
     else card.querySelector('.dlf-card-body').innerHTML = '<div class="dlf-loader">Chart.js no cargado</div>';
   });
-  console.log('[dlf_render] Rendered ' + (dashboard.widgets || []).length + ' widgets');
 }
 
 function dlf_load() {
   var url = (_DLF.remoteApi || _DLF.api) + '/api/embed/' + _DLF.dash + '?t=' + _DLF.tok;
-  console.log('Fetching from:', url);
   fetch(url)
     .then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status + ': ' + r.statusText);

@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap');
+/* Fuentes Syne / Instrument / DM Mono: next/font en layout.tsx (--font-syne, etc.) */
 
 :root {
   --bg:#f8fafc; --surface:#ffffff; --surface2:#f1f5f9; --surface3:#e2e8f0;
@@ -23,8 +23,30 @@
   --glow:rgba(0,212,255,0.12);
 }
 
+/* Enterprise = “Plotly-like executive” (LIGHT): blancos/grises + acento azul */
+.dash-enterprise {
+  --bg:#f6f8fb;
+  --surface:#ffffff;
+  --surface2:#f3f6fb;
+  --surface3:#e8eef7;
+  --border:#e6edf6;
+  --border2:#cfd9e6;
+  --accent:#1f77b4;
+  --accent2:#2ca02c;
+  --accent3:#9467bd;
+  --accent4:#ff7f0e;
+  --accent5:#e377c2;
+  --text:#0f172a;   /* títulos */
+  --text2:#334155;  /* cuerpo */
+  --text3:#64748b;  /* labels */
+  --header-bg: rgba(255,255,255,0.85);
+  --footer-bg: rgba(255,255,255,0.92);
+  --grid-op: 0.03;
+  --glow: rgba(31,119,180,0.12);
+}
+
 body {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -58,6 +80,13 @@ body::before {
   transform: translateY(-2px);
 }
 
+.dash-enterprise .chart-card:hover {
+  box-shadow:
+    0 18px 40px -24px rgba(15, 23, 42, 0.16),
+    0 0 0 1px rgba(31, 119, 180, 0.08),
+    0 0 28px rgba(31, 119, 180, 0.08);
+}
+
 .kpi-card {
   background-color: var(--surface);
   border: 1px solid var(--border);
@@ -67,7 +96,7 @@ body::before {
 }
 
 .kpi-value {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
   font-weight: 800;
   font-size: 2rem;
   line-height: 1;
@@ -75,7 +104,7 @@ body::before {
 }
 
 .kpi-label {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-dm-mono), ui-monospace, monospace;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -96,7 +125,7 @@ body::before {
 
 /* ── TABLAS ── */
 .data-table th {
-  font-family: 'DM Mono', monospace;
+  font-family: var(--font-dm-mono), ui-monospace, monospace;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 1.5px;

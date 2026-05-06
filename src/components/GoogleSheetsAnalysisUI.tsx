@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import WidgetCatalog from './WidgetCatalog';
 import DashboardCanvas from './DashboardCanvas';
 import { computeColumnStats } from '@/lib/columnStats';
+import { devLog } from '@/lib/logger';
 
 export interface GoogleSheetData {
   id: string;
@@ -111,7 +112,7 @@ export function GoogleSheetsAnalysisUI({ sheetData, onClose }: GoogleSheetsAnaly
         initialWidgets={selectedWidgets}
         sourceType="google-sheets"
         onSave={() => {
-          console.log('✅ Dashboard creado desde Google Sheet');
+          devLog('✅ Dashboard creado desde Google Sheet');
           onClose();
         }}
         onBack={() => {
