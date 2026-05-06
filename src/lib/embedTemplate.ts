@@ -286,6 +286,14 @@ var _DLF = {
   snapshotData: null
 };
 
+// If the HTML file contains an inline snapshot (window.__DLF_SNAPSHOT__),
+// use it to render immediately without fetching.
+try {
+  if (typeof window !== 'undefined' && (window as any).__DLF_SNAPSHOT__) {
+    _DLF.snapshotData = (window as any).__DLF_SNAPSHOT__;
+  }
+} catch (e) {}
+
 function dlf_fmt(v) {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'number') {

@@ -146,22 +146,14 @@ export async function POST(
       unicodeEscapeSequence: false,
     }).getObfuscatedCode();
 
-    // Inject snapshot data into the obfuscated JS
-    // The snapshot data must be assigned BEFORE dlf_init() is called in the obfuscated code
+    // Inject snapshot data into the HTML runtime in a robust way.
+    // We avoid string-replacing `dlf_init()` because obfuscation can change it.
     const snapshotJson = JSON.stringify(snapshotData);
     devLog('[download] Snapshot JSON size:', snapshotJson.length, 'bytes');
     devVerbose('[download] Snapshot JSON (first 500 chars):', snapshotJson.substring(0, 500));
 
-    // Check if dlf_init() exists in obfuscated code
-    const hasInit = obfuscated.includes('dlf_init();');
-    devVerbose('[download] obfuscated code contains dlf_init();?', hasInit);
-
-    const withSnapshot = obfuscated.replace(
-      'dlf_init();',
-      `_DLF.snapshotData = ${snapshotJson};\ndlf_init();`
-    );
-
-    devVerbose('[download] After replacement, injection succeeded?', withSnapshot !== obfuscated);
+    // The embed JS reads window.__DLF_SNAPSHOT__ and assigns it to _DLF.snapshotData.
+    const withSnapshot = `window.__DLF_SNAPSHOT__ = ${snapshotJson};\n${obfuscated}`;
 
     const finalHtml = assembleHtml(shell, withSnapshot);
 
