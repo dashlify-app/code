@@ -16,8 +16,16 @@ function getAuthenticatedClient(accessToken: string) {
 
 // Extraer ID de Google Sheets desde URL
 function extractSheetIdFromUrl(url: string): string | null {
-  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return match ? match[1] : null;
+  const raw = String(url || '').trim();
+  if (!raw) return null;
+  const m1 = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (m1?.[1]) return m1[1];
+  const m2 = raw.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/);
+  if (m2?.[1]) return m2[1];
+  const m3 = raw.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+  if (m3?.[1]) return m3[1];
+  if (/^[a-zA-Z0-9-_]{20,}$/.test(raw)) return raw;
+  return null;
 }
 
 /** Rango seguro: nombre de pestaña entre comillas simples (Google Sheets API). */

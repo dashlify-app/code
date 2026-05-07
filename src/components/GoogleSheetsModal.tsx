@@ -56,13 +56,27 @@ export function GoogleSheetsModal({
 
   // Extraer ID de Google Sheets desde URL
   const extractSheetId = (url: string): string | null => {
-    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    return match ? match[1] : null;
+    const raw = String(url || '').trim();
+    if (!raw) return null;
+    // Formatos comunes:
+    // - https://docs.google.com/spreadsheets/d/<ID>/edit...
+    // - https://docs.google.com/spreadsheets/d/e/<PUB_ID>/pubhtml...
+    // - https://docs.google.com/spreadsheets/u/0/d/<ID>/edit...
+    // - https://docs.google.com/spreadsheets?key=...&id=<ID>
+    const m1 = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (m1?.[1]) return m1[1];
+    const m2 = raw.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/);
+    if (m2?.[1]) return m2[1];
+    const m3 = raw.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+    if (m3?.[1]) return m3[1];
+    // Si pegó directamente el ID
+    if (/^[a-zA-Z0-9-_]{20,}$/.test(raw)) return raw;
+    return null;
   };
 
   // Manejar URL/ID directo
   const handleDirectInput = () => {
-    let id = sheetId || extractSheetId(sheetUrl);
+    const id = extractSheetId(sheetId) || extractSheetId(sheetUrl);
     if (!id) {
       setError('Por favor ingresa una URL o ID válido de Google Sheets');
       return;
