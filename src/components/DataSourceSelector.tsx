@@ -3,10 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import UploadZone from './UploadZone';
-import { GoogleSheetsModal, type ImportedSheet } from './GoogleSheetsModal';
-import { GoogleSheetsAnalysisUI, type GoogleSheetData } from './GoogleSheetsAnalysisUI';
-import { processDataset } from '@/lib/datasetAnalysis';
-import { devLog } from '@/lib/logger';
+import GoogleSheetsWorkbench from './GoogleSheetsWorkbench';
 
 type TabType = 'upload' | 'google';
 
@@ -19,15 +16,12 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
     const tab = params?.get('tab');
     return tab === 'google' ? 'google' : 'upload';
   });
-  const [googleSheetAnalysis, setGoogleSheetAnalysis] = useState<GoogleSheetData | null>(null);
 
-  // Solo renderizar en cliente para evitar hydration mismatch
   useEffect(() => {
     setIsMounted(true);
     setGoogleEnabled(localStorage.getItem('dashlify-google-enabled') === '1');
   }, []);
 
-  // Permite navegar a /dashboard?action=upload&tab=google para abrir la pestaña correcta.
   useEffect(() => {
     if (!googleEnabled) {
       setActiveTab('upload');
@@ -59,80 +53,12 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
     return () => window.removeEventListener('dashlify:google-enabled-changed', onToggle as EventListener);
   }, []);
 
-  // Manejar importación de Google Sheets
-  const handleGoogleSheetImport = useCallback(async (sheetData: ImportedSheet) => {
-    devLog('📥 [DataSourceSelector] Google Sheet importado:', {
-      nombre: sheetData.name,
-      filas: sheetData.data.length,
-      columnas: sheetData.headers.length,
-    });
-
-    try {
-      devLog('⏳ [DataSourceSelector] Analizando Google Sheet con IA...');
-
-      // Procesar el Google Sheet igual que un archivo
-      const processed = await processDataset({
-        name: sheetData.name,
-        headers: sheetData.headers,
-        sampleData: sheetData.data,
-        type: 'google-sheets',
-        size: '0 KB',
-        sourceType: 'google-sheets',
-        sheetId: sheetData.id,
-        sourceUrl: sheetData.sourceUrl,
-      });
-
-      devLog('✅ [DataSourceSelector] Google Sheet procesado:', {
-        id: processed.id,
-        nombre: processed.name,
-        filas: processed.sampleData?.length,
-        analisisCompleto: !!processed.analysis,
-      });
-
-      // Crear objeto GoogleSheetData con análisis
-      const googleSheetData: GoogleSheetData = {
-        id: processed.id,
-        name: processed.name,
-        headers: processed.headers,
-        data: processed.sampleData || [],
-        analysis: processed.analysis, // Aquí está el análisis completo
-      };
-
-      // Guardar en estado para mostrar la UI de análisis
-      setGoogleSheetAnalysis(googleSheetData);
-
-      // Cambiar a pestaña de análisis
-      setActiveTab('google');
-    } catch (error) {
-      console.error('❌ Error importando Google Sheet:', error);
-      alert('❌ Error al procesar Google Sheet: ' + (error instanceof Error ? error.message : 'Error desconocido'));
-    }
-  }, []);
-
-  // Manejar cierre de análisis de Google Sheets
-  const handleCloseGoogleAnalysis = useCallback(() => {
-    setGoogleSheetAnalysis(null);
-    setActiveTab('upload');
-  }, []);
-
-  // Evitar hydration mismatch: no renderizar hasta que esté montado
   if (!isMounted) {
     return null;
   }
 
-  // Si hay análisis de Google Sheets activo, mostrar esa UI
-  if (googleSheetAnalysis) {
-    return (
-      <GoogleSheetsAnalysisUI
-        sheetData={googleSheetAnalysis}
-        onClose={handleCloseGoogleAnalysis}
-      />
-    );
-  }
-
   return (
     <div className="data-source-selector">
-      {/* Tabs */}
       <div
         style={{
           display: 'flex',
@@ -179,23 +105,13 @@ export function DataSourceSelector({ onWideChange }: { onWideChange?: (wide: boo
         )}
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'upload' && (
         <div>
           <UploadZone onWideChange={onWideChange} />
         </div>
       )}
 
-      {googleEnabled && activeTab === 'google' && (
-        <div style={{ padding: 18, background: 'var(--surface2)', borderRadius: 12 }}>
-          <GoogleSheetsModal
-            open={true}
-            mode="inline-url"
-            onClose={() => {}}
-            onImport={handleGoogleSheetImport}
-          />
-        </div>
-      )}
+      {googleEnabled && activeTab === 'google' && <GoogleSheetsWorkbench onWideChange={onWideChange} />}
     </div>
   );
 }
