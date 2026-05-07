@@ -289,8 +289,8 @@ var _DLF = {
 // If the HTML file contains an inline snapshot (window.__DLF_SNAPSHOT__),
 // use it to render immediately without fetching.
 try {
-  if (typeof window !== 'undefined' && (window as any).__DLF_SNAPSHOT__) {
-    _DLF.snapshotData = (window as any).__DLF_SNAPSHOT__;
+  if (typeof window !== 'undefined' && window.__DLF_SNAPSHOT__) {
+    _DLF.snapshotData = window.__DLF_SNAPSHOT__;
   }
 } catch (e) {}
 
@@ -310,18 +310,30 @@ function dlf_aggregate(rows, xKey, yKey, mode) {
   rows.forEach(function (r) {
     var k = r[xKey] != null ? String(r[xKey]) : '(vacío)';
     if (!groups[k]) groups[k] = [];
-    var v = parseFloat(r[yKey]);
-    if (!isNaN(v)) groups[k].push(v);
+    groups[k].push(r);
   });
   var labels = Object.keys(groups).slice(0, 30);
   var data = labels.map(function (k) {
-    var arr = groups[k];
-    if (!arr.length) return 0;
-    if (mode === 'avg') return arr.reduce(function (a,b){return a+b;},0) / arr.length;
-    if (mode === 'count') return arr.length;
-    if (mode === 'max') return Math.max.apply(null, arr);
-    if (mode === 'min') return Math.min.apply(null, arr);
-    return arr.reduce(function (a,b){return a+b;},0);
+    var groupRows = groups[k];
+    if (mode === 'count') return groupRows.length;
+    var nums = groupRows
+      .map(function (r) { return parseFloat(r[yKey]); })
+      .filter(function (n) { return !isNaN(n); });
+    if (mode === 'avg') {
+      if (!nums.length) return 0;
+      return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+    }
+    if (mode === 'max') {
+      if (!nums.length) return 0;
+      return Math.max.apply(null, nums);
+    }
+    if (mode === 'min') {
+      if (!nums.length) return 0;
+      return Math.min.apply(null, nums);
+    }
+    // sum (u otros): si Y no es numérica, usar recuento de filas como distribución
+    if (!nums.length) return groupRows.length;
+    return nums.reduce(function (a, b) { return a + b; }, 0);
   });
   return { labels: labels, data: data };
 }
@@ -329,7 +341,7 @@ function dlf_aggregate(rows, xKey, yKey, mode) {
 function dlf_renderStat(card, w) {
   var rows = (w.config && w.config.sampleData) || [];
   var metric = (w.config && (w.config.metric || w.config.yAxis)) || null;
-  var mode = (w.config && w.config.aggregation) || 'sum';
+  var mode = (w.config && (w.config.aggregation || w.config.aggregate)) || 'sum';
   var value = 0;
   if (metric && rows.length) {
     var nums = rows.map(function(r){return parseFloat(r[metric]);}).filter(function(n){return !isNaN(n);});
@@ -350,7 +362,7 @@ function dlf_renderChart(card, w) {
   var rows = (w.config && w.config.sampleData) || [];
   var xKey = (w.config && (w.config.xAxis || w.config.dimension)) || null;
   var yKey = (w.config && (w.config.yAxis || w.config.metric)) || null;
-  var mode = (w.config && w.config.aggregation) || 'sum';
+  var mode = (w.config && (w.config.aggregation || w.config.aggregate)) || 'sum';
   var type = w.type;
 
   if (!xKey || (!yKey && type !== 'pie' && type !== 'donut')) {
@@ -402,7 +414,7 @@ function dlf_renderWidget(w) {
   card.id = 'widget-' + w.id;
 
   // Apply colSpan class
-  var colSpan = w.config?.colSpan || 1;
+  var colSpan = (w.config && w.config.colSpan) || 1;
   if (colSpan === 2) card.classList.add('span-2');
   if (colSpan === 3) card.classList.add('span-3');
 

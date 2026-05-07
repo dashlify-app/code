@@ -49,6 +49,13 @@ function numericVal(raw: any): number {
   return parseFloat(String(raw ?? '0').replace(/[$,\s%]/g, '')) || 0;
 }
 
+/** True si la celda es un número finito (incl. "0"); false para texto vacío o no numérico. */
+function cellLooksNumeric(raw: any): boolean {
+  const s = String(raw ?? '').trim().replace(/[$,\s%]/g, '');
+  if (s === '') return false;
+  return Number.isFinite(parseFloat(s));
+}
+
 function median(values: number[]): number {
   if (!values.length) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -130,6 +137,33 @@ function processData(
   }
 
   const limitedLabels = labels.slice(0, 15);
+
+  // Si la Y no es numérica pero el agregado es sum/avg/median, todo queda en 0:
+  // pasa a recuento de filas por categoría (distribuciones típicas de producto/marca).
+  const distributionFallback =
+    (aggregate === 'sum' || aggregate === 'avg' || aggregate === 'median') &&
+    limitedLabels.length > 0 &&
+    (() => {
+      const sample = limitedLabels.flatMap((l) => groups[l]).slice(0, 80);
+      if (!sample.length) return false;
+      if (sample.some((r) => cellLooksNumeric(r[firstY]))) return false;
+      const sums = limitedLabels.map((l) =>
+        groups[l].reduce((acc, r) => acc + numericVal(r[firstY]), 0)
+      );
+      return sums.every((s) => s === 0);
+    })();
+
+  if (distributionFallback) {
+    return {
+      labels: limitedLabels,
+      datasets: [
+        {
+          label: `Recuento por ${xKey}`,
+          data: limitedLabels.map((l) => groups[l].length),
+        },
+      ],
+    };
+  }
 
   // ── AGGREGATE: mom ────────────────────────────────────────────────────────
   if (aggregate === 'mom') {

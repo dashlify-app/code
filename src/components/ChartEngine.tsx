@@ -16,7 +16,7 @@ import {
   ChartOptions,
   ChartData,
 } from 'chart.js';
-import { Bar, Line, Doughnut, Scatter, Chart as ReactChart } from 'react-chartjs-2';
+import { Bar, Line, Doughnut, Pie, Scatter, Chart as ReactChart } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -387,6 +387,10 @@ export default function ChartEngine({
       }]
     };
 
+    // `pie` debe ser círculo completo; `Doughnut` aplica recorte por defecto y puede verse “vacío” con pocos datos.
+    if (type === 'pie') {
+      return <Pie ref={chartRef} data={circularData as any} options={circularOptions as any} />;
+    }
     return <Doughnut ref={chartRef} data={circularData} options={circularOptions} />;
   }
 
