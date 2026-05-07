@@ -313,7 +313,7 @@ export function GoogleSheetsModal({
             </div>
           </div>
           <button onClick={handleDirectInput} disabled={loading || (!sheetUrl && !sheetId)} className="btn btn-primary">
-            {loading ? '⏳ Cargando...' : '⬇️ Cargar Sheet'}
+            {loading ? '⏳ Cargando...' : mode === 'inline-url' ? '1️⃣ Vista previa (descargar hoja)' : '⬇️ Cargar Sheet'}
           </button>
         </div>
       )}
@@ -456,14 +456,14 @@ export function GoogleSheetsModal({
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 8 }}>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap', paddingTop: 8 }}>
         {mode !== 'inline-url' ? (
           <button onClick={onClose} className="btn btn-outline" disabled={loading}>
             Cancelar
           </button>
         ) : null}
-        {preview && mode !== 'inline-url' && (
-          <button onClick={handleConfirmImport} className="btn btn-primary" disabled={loading}>
+        {preview && !(mode === 'inline-url') && (
+          <button type="button" onClick={handleConfirmImport} className="btn btn-primary" disabled={loading}>
             {confirmLabel}
           </button>
         )}
