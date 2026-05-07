@@ -365,6 +365,37 @@ export function GoogleSheetsModal({
             </div>
           </div>
 
+          {mode === 'inline-url' && (
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: 12,
+                border: '2px solid #0ea5e9',
+                background: 'linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%)',
+              }}
+            >
+              <p style={{ margin: '0 0 12px', fontSize: 14, color: '#0f172a', lineHeight: 1.5 }}>
+                <strong>Paso 2 — Añadir a la lista:</strong> confirma para guardar esta hoja en el análisis y luego
+                pega <strong>otra URL</strong>.
+              </p>
+              <button
+                type="button"
+                className="dlf-share-btn-primary"
+                data-testid="sheets-add-to-list"
+                onClick={handleConfirmImport}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  minHeight: 52,
+                  fontSize: 15,
+                  boxSizing: 'border-box',
+                }}
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          )}
+
           <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
             <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
               <thead>
@@ -462,7 +493,7 @@ export function GoogleSheetsModal({
             Cancelar
           </button>
         ) : null}
-        {preview && !(mode === 'inline-url') && (
+        {preview && mode !== 'inline-url' && (
           <button type="button" onClick={handleConfirmImport} className="btn btn-primary" disabled={loading}>
             {confirmLabel}
           </button>
