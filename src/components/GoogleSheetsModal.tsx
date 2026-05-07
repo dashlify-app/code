@@ -92,7 +92,16 @@ export function GoogleSheetsModal({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorMessage = '';
+        try {
+          const errorData = (await response.json()) as { error?: string };
+          errorMessage = errorData?.error ? String(errorData.error) : '';
+        } catch {
+          errorMessage = '';
+        }
+        if (!errorMessage) {
+          errorMessage = `Error del servidor (${response.status}). Revisa la consola de red / LOG del API.`;
+        }
 
         // Si es privado y no tiene autenticación, mostrar botón para conectar
         if (response.status === 403 && !accessToken) {
@@ -102,7 +111,7 @@ export function GoogleSheetsModal({
           return;
         }
 
-        throw new Error(errorData.error || 'Error al obtener datos de la sheet');
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();

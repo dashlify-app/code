@@ -20,26 +20,68 @@ function extractSheetIdFromUrl(url: string): string | null {
   return match ? match[1] : null;
 }
 
+/** Rango seguro: nombre de pestaña entre comillas simples (Google Sheets API). */
+function buildA1RangeForTab(tabTitle: string): string {
+  const name = String(tabTitle || 'Sheet1').trim() || 'Sheet1';
+  const escaped = name.replace(/'/g, "''");
+  return `'${escaped}'!A:Z`;
+}
+
+function describeGoogleSheetsFailure(status: number, bodyText: string): string {
+  try {
+    const j = JSON.parse(bodyText);
+    const msg = j?.error?.message as string | undefined;
+    const reason = j?.error?.errors?.[0]?.reason as string | undefined;
+    if (msg) {
+      if (/API key not valid|API_KEY_INVALID|BAD_REQUEST.*key/i.test(msg)) {
+        return 'La clave de Google (GOOGLE_API_KEY / NEXT_PUBLIC_GOOGLE_API_KEY) no es válida o no tiene habilitada la API de Google Sheets.';
+      }
+      if (/API key not activated|has not been used in project|SERVICE_DISABLED/i.test(msg)) {
+        return 'En Google Cloud Console, habilita "Google Sheets API" para el proyecto de tu API key.';
+      }
+      if (/not found|The caller does not have permission|does not exist|Spreadsheet not found/i.test(msg)) {
+        return 'No se encontró la hoja de cálculo (enlace incompleto, ID erróneo o documento privado). Si es privada, inicia sesión con Google en Dashlify.';
+      }
+      if (/exceed|quota|rateLimit/i.test(msg)) {
+        return `Límite de Google: ${msg}`;
+      }
+      return reason ? `${msg} (${reason})` : msg;
+    }
+  } catch {
+    /* cuerpo no JSON */
+  }
+  if (status === 400) {
+    return 'Google devolvió 400: suele ser API key inválida, ID de documento incorrecto o nombre de pestaña ilegible.';
+  }
+  if (status === 403) {
+    return 'Google devolvió 403: hoja privada, API key con restricciones (HTTP referrer / IP) incorrectas, o permisos insuficientes.';
+  }
+  if (status === 404) {
+    return 'Documento no encontrado (404): revisa que la URL esté completa.';
+  }
+  return `Error de Google Sheets (HTTP ${status}).`;
+}
+
 // Obtener datos de sheet público sin autenticación (usando API REST)
 async function fetchSheetDataPublic(sheetId: string) {
   try {
-    // Usar la API REST de Google Sheets directamente para sheets públicos
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
     devLog('🔍 [fetchSheetDataPublic] Iniciando con sheetId:', sheetId);
     devLog('🔑 [fetchSheetDataPublic] API Key presente:', !!apiKey);
 
     if (!apiKey) {
-      throw new Error('Google API Key no configurada');
+      throw new Error(
+        'Falta GOOGLE_API_KEY o NEXT_PUBLIC_GOOGLE_API_KEY en .env.local para leer hojas públicas sin login Google.'
+      );
     }
 
-    // Obtener información de la sheet (spreadsheet metadata)
-    const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${apiKey}`;
+    const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}?key=${encodeURIComponent(apiKey)}`;
     devLog('📡 [fetchSheetDataPublic] Metadata request, sheetId:', sheetId);
 
     const metadataResponse = await fetch(metadataUrl, {
       headers: {
-        'Referer': process.env.NEXTAUTH_URL || 'http://localhost:3000',
+        Referer: process.env.NEXTAUTH_URL || 'http://localhost:3000',
       },
     });
 
@@ -50,14 +92,12 @@ async function fetchSheetDataPublic(sheetId: string) {
       console.error('❌ [fetchSheetDataPublic] Metadata error response:', errorText);
 
       if (metadataResponse.status === 403) {
-        // Try to parse the error details from Google
         try {
-          const errorJson = JSON.parse(errorText);
-          console.error('❌ [fetchSheetDataPublic] Google API error details:', errorJson);
+          console.error('❌ [fetchSheetDataPublic] Google API error details:', JSON.parse(errorText));
         } catch {}
         throw new Error('Forbidden');
       }
-      throw new Error(`HTTP ${metadataResponse.status}`);
+      throw new Error(describeGoogleSheetsFailure(metadataResponse.status, errorText));
     }
 
     const spreadsheet = await metadataResponse.json();
@@ -74,9 +114,8 @@ async function fetchSheetDataPublic(sheetId: string) {
     const sheetName = spreadsheet.sheets[0].properties?.title || 'Sheet1';
     const title = spreadsheet.properties?.title || 'Google Sheet';
 
-    // Obtener datos de la hoja (valores)
-    const range = `${sheetName}!A:Z`;
-    const valuesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
+    const range = buildA1RangeForTab(sheetName);
+    const valuesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/${encodeURIComponent(range)}?key=${encodeURIComponent(apiKey)}`;
     devLog('📡 [fetchSheetDataPublic] Values request, range:', range, 'sheetId:', sheetId);
 
     const valuesResponse = await fetch(valuesUrl, {
@@ -90,7 +129,7 @@ async function fetchSheetDataPublic(sheetId: string) {
     if (!valuesResponse.ok) {
       const errorText = await valuesResponse.text();
       console.error('❌ [fetchSheetDataPublic] Values error response:', errorText);
-      throw new Error(`Error obteniendo valores: HTTP ${valuesResponse.status}`);
+      throw new Error(describeGoogleSheetsFailure(valuesResponse.status, errorText));
     }
 
     const valuesData = await valuesResponse.json();
@@ -165,12 +204,15 @@ export async function POST(request: Request) {
           try {
             return await fetchSheetDataPublic(id);
           } catch (error: any) {
-            // Si falla sin autenticación, requerir token
-            if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+            const msg = String(error?.message || '');
+            if (msg.includes('403') || msg.includes('Forbidden')) {
               return NextResponse.json(
                 { error: 'Este Sheet es privado. Conecta Google para acceder.', requiresAuth: true },
                 { status: 403 }
               );
+            }
+            if (msg.includes('Falta GOOGLE_API_KEY') || msg.includes('NEXT_PUBLIC_GOOGLE_API_KEY')) {
+              return NextResponse.json({ error: msg }, { status: 503 });
             }
             throw error;
           }
@@ -190,8 +232,7 @@ export async function POST(request: Request) {
         const sheetName = spreadsheet.data.sheets[0].properties?.title || 'Sheet1';
         const title = spreadsheet.data.properties?.title || 'Google Sheet';
 
-        // Obtener datos de la hoja
-        const range = `${sheetName}!A:Z`;
+        const range = buildA1RangeForTab(sheetName);
         const values = await sheetsClient.spreadsheets.values.get({
           spreadsheetId: id,
           range: range,
@@ -236,6 +277,27 @@ export async function POST(request: Request) {
 
         return NextResponse.json(
           { error: err.message || 'Error al obtener datos de la sheet' },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (action === 'list') {
+      if (!accessToken) {
+        return NextResponse.json({ error: 'Se requiere sesión Google para listar spreadsheets' }, { status: 400 });
+      }
+      try {
+        const { drive: driveAuthed } = getAuthenticatedClient(accessToken);
+        const listed = await driveAuthed.files.list({
+          q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+          pageSize: 50,
+          fields: 'files(id, name, webViewLink)',
+        });
+        return NextResponse.json({ files: listed.data.files ?? [] });
+      } catch (e: any) {
+        console.error('[google-sheets] list:', e);
+        return NextResponse.json(
+          { error: e?.message || 'No se pudo listar archivos de Drive' },
           { status: 500 }
         );
       }
