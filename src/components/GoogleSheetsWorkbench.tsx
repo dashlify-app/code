@@ -382,10 +382,20 @@ export default function GoogleSheetsWorkbench({ onWideChange }: Props) {
       >
         <div className="sb-label mb-3">// Hojas cargadas ({sheets.length})</div>
         {sheets.length === 0 ? (
-          <p className="text-sm opacity-70" style={{ color: 'var(--text2)' }}>
-            Usa el formulario de abajo para pegar la URL o el ID de cada Google Sheet. Puedes añadir varias
-            hojas y luego analizarlas igual que con archivos locales.
-          </p>
+          <ol className="list-inside list-decimal space-y-2 text-sm opacity-85" style={{ color: 'var(--text2)' }}>
+            <li>
+              Por cada libro/hoja que quieras cruzar: pega URL o ID y pulsa <strong>Vista previa (Cargar Sheet)</strong>.
+            </li>
+            <li>
+              Revisa la vista previa y pulsa <strong>Añadir a la lista</strong>: el contador «Hojas cargadas»
+              aumentará.
+            </li>
+            <li>
+              Vacía mentalmente el flujo y repite desde el paso 1 con <strong>otra URL</strong> (no se puede pegar dos
+              URLs a la vez; son importaciones una tras otra en la misma sesión).
+            </li>
+            <li>Cuando tengas todas, usa <strong>Analizar datos</strong> como con archivos locales.</li>
+          </ol>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {sheets.map((s, i) => (

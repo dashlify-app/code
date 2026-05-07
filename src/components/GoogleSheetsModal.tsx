@@ -23,11 +23,21 @@ interface GoogleSheetsModalProps {
    * - inline-url: renderiza embebido (sin backdrop) y enfocado en pegar URL/ID
    */
   mode?: 'modal' | 'inline-url';
+  /** Texto del botón que confirma y añade la hoja (p. ej. lista multi-sheet) */
+  confirmImportLabel?: string;
 }
 
 type RefreshMode = 'manual' | 'auto';
 
-export function GoogleSheetsModal({ open, onClose, onImport, mode = 'modal' }: GoogleSheetsModalProps) {
+export function GoogleSheetsModal({
+  open,
+  onClose,
+  onImport,
+  mode = 'modal',
+  confirmImportLabel,
+}: GoogleSheetsModalProps) {
+  const confirmLabel =
+    confirmImportLabel ?? (mode === 'inline-url' ? '➕ Añadir a la lista' : '✅ Importar Sheet');
   const { data: session } = useSession();
   const [sheetUrl, setSheetUrl] = useState('');
   const [sheetId, setSheetId] = useState('');
@@ -452,9 +462,9 @@ export function GoogleSheetsModal({ open, onClose, onImport, mode = 'modal' }: G
             Cancelar
           </button>
         ) : null}
-        {preview && (
+        {preview && mode !== 'inline-url' && (
           <button onClick={handleConfirmImport} className="btn btn-primary" disabled={loading}>
-            ✅ Importar Sheet
+            {confirmLabel}
           </button>
         )}
       </div>
